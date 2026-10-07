@@ -77,7 +77,7 @@ Goal: an empty but correctly wired repo, where every commit already passes Sarj'
 
 ### M0.2 Python workspace skeleton
 
-- [ ] A uv workspace with `backend` and `tts` as members (D-31); `uv.lock` is committed.
+- [ ] A uv workspace with `gateway` and `tts` as members (D-31); `uv.lock` is committed.
 - [ ] Each has a `src/` package and one passing smoke test; `uv run pytest` passes.
 - [ ] No lint or type-check configuration is written by hand; M0.4 generates it.
 

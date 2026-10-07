@@ -105,8 +105,8 @@ the critical path, and never start them without an explicit go. Do follow its
 Each folder is created by the first task that puts something in it.
 
 ```
-backend/     voice gateway (FastAPI)
-tts/         Kokoro TTS service
+gateway/     voice gateway (FastAPI), Python package sarjy_gateway
+tts/         Kokoro TTS service, Python package sarjy_tts
 frontend/    React app
 infra/       Terraform
 docs/        PRD.md, TASKS.md, DECISIONS.md, LATENCY.md
