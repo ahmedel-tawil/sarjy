@@ -290,11 +290,15 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 
 ### D-31 One uv workspace for the Python services
 
-- **Decision:** A root `pyproject.toml` defines a uv workspace whose members are `backend`
-  and `tts` (settled 7 Oct, was O-02).
+- **Decision:** A root `pyproject.toml` defines a uv workspace whose members are `gateway`
+  and `tts` (settled 7 Oct, was O-02). Each member uses the `src/` layout, and folder,
+  service and package share a name: `gateway/src/sarjy_gateway`, `tts/src/sarjy_tts`.
+  The folder was first proposed as `backend/` and renamed on 7 Oct, because the PRD and
+  the code call it the gateway.
 - **Reason:** One lockfile and one Python root for code-standards; each Docker image
-  installs only its own member.
-- **Alternatives considered:** two independent uv projects.
+  installs only its own member. The `sarjy_` prefix avoids clashing with an existing `TTS`
+  package on PyPI.
+- **Alternatives considered:** two independent uv projects; a flat layout without `src/`.
 
 ### D-32 Generator output is allowed, committed separately
 
