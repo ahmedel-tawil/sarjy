@@ -1,0 +1,31 @@
+# Secrets: only the example file is shared
+.env
+.env.*
+!.env.example
+
+# Assignment brief and FAQ stay private
+.context/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Frontend
+node_modules/
+dist/
+
+# Terraform: state can hold secrets, tfvars hold per-environment values
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Kokoro model files are downloaded at image build time, never committed
+*.onnx
+voices*.bin
+
+# macOS
+.DS_Store
