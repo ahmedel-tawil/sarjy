@@ -61,18 +61,18 @@ Goal: an empty but correctly wired repo, where every commit already passes Sarj'
 
 ### M0.1 Initialise the repo and push the bootstrap commit
 
-- [ ] `git init` with `main` as the default branch; `origin` is
+- [x] `git init` with `main` as the default branch; `origin` is
       `github.com/ahmedel-tawil/sarjy` (public, D-34).
-- [ ] The brief, the FAQ and `optional-deep-dive.md` live in `.context/`, and
+- [x] The brief, the FAQ and `optional-deep-dive.md` live in `.context/`, and
       `git check-ignore` confirms all three are ignored. This matters more now that the
       repo is public.
-- [ ] `.gitignore` covers `.env`, `.context/`, virtualenvs, `node_modules/`, build output,
+- [x] `.gitignore` covers `.env`, `.context/`, virtualenvs, `node_modules/`, build output,
       `.terraform/`, Terraform state, Kokoro model files and `.DS_Store`.
-- [ ] `.env.example` exists with variable names only.
-- [ ] `.python-version` pins 3.13 (D-30).
-- [ ] The "Repo layout" section of `AGENTS.md` no longer says "proposed". Folders are
+- [x] `.env.example` exists with variable names only.
+- [x] `.python-version` pins 3.13 (D-30).
+- [x] The "Repo layout" section of `AGENTS.md` no longer says "proposed". Folders are
       created by the tasks that fill them, since git doesn't track empty folders.
-- [ ] After your approval, the bootstrap commit is pushed straight to `main`: the only
+- [x] After your approval, the bootstrap commit is pushed straight to `main`: the only
       direct push to `main` (D-34).
 
 ### M0.2 Python workspace skeleton
