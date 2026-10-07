@@ -1,0 +1,10 @@
+[tool.uv.workspace]
+members = ["gateway", "tts"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["gateway/tests", "tts/tests"]
+# Both services have a tests/ folder; importlib mode lets test files share names.
+addopts = ["--import-mode=importlib"]

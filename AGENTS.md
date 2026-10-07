@@ -116,3 +116,8 @@ docs/        PRD.md, TASKS.md, DECISIONS.md, LATENCY.md
 ## Commands
 
 Fill in as they are created: install, run locally, lint, type check, test, build, deploy.
+
+```
+uv sync          # install the Python workspace (gateway and tts) into .venv
+uv run pytest    # run every Python test
+```
