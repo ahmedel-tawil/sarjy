@@ -1,0 +1,118 @@
+# Sarjy: guide for coding agents
+
+Sarjy is a voice concierge for Magic Experience, a Dubai tour operator. It is a take-home
+for Sarj AI's Full Stack Engineer role. The full plan is in `docs/PRD.md`. Read it before
+any task, and treat it as the source of truth for scope.
+
+## Non-negotiables
+
+1. **The owner must be able to explain every line.** Ahmed will walk reviewers through
+   this code live. Prefer simple, explicit code over clever code. No magic, no
+   unnecessary abstraction.
+2. **Written from scratch.** Do not copy code from other projects.
+3. **One task at a time.** For each task: restate it, plan it, wait for approval, then
+   implement. Never start the next task without being asked.
+4. **Ask before adding any dependency**, and say why it is needed.
+5. **Never push, deploy, or run destructive commands** (`git push`, `terraform apply`,
+   `terraform destroy`, `gcloud ... delete`, dropping tables) without explicit approval.
+6. **No secrets in code or git.** Configuration comes from environment variables.
+   `.env` is git-ignored; `.env.example` lists variable names only.
+7. **Don't widen scope.** If something outside `docs/PRD.md` seems worth doing, propose
+   it; don't build it.
+
+## Working loop for every task
+
+1. Restate the task and its acceptance criteria from `docs/TASKS.md`.
+2. Plan: files to touch, interfaces, tests. Wait for "go".
+3. Implement with tests.
+4. Run lint, type check and tests; all must pass.
+5. Explain the change in plain English: what changed, why, anything non-obvious,
+   and what to verify manually.
+6. Propose a Conventional Commit message (`feat:`, `fix:`, `test:`, `docs:`,
+   `refactor:`, `chore:`). Small, focused commits.
+
+## Stack
+
+- **Backend:** Python, uv, FastAPI, Pydantic v2, asyncio, psycopg 3 with raw SQL (no ORM),
+  PostgreSQL. Python 3.13 (kokoro-onnx does not support 3.14 yet; see D-30 in
+  `docs/DECISIONS.md`).
+- **Frontend:** React + Vite + TypeScript + Tailwind + shadcn/ui, built and served by the gateway (one origin).
+- **Voice:** hosted STT (provider to confirm), LLM on Groq or Cerebras (decided by
+  measurement), TTS with Kokoro-82M via kokoro-onnx as a separate service.
+- **Infra:** GCP Cloud Run, Cloud SQL, Artifact Registry, Secret Manager; Terraform;
+  GitHub Actions with Workload Identity Federation. DNS stays in DigitalOcean.
+
+## Sarj standards (enforced from the first commit)
+
+This repo adopts Sarj's public tooling: https://code-standards.sarj.ai and
+https://repo-standards.sarj.ai. The first task sets it up:
+
+```
+uv tool install --python 3.14 code-standards
+code-standards setup
+code-standards doctor
+code-standards check
+```
+
+- The pre-commit hooks and the generated CI workflow must pass. **Never bypass them**
+  (no `--no-verify`, no disabling hooks).
+- Use `code-standards fix` for safe automatic fixes, then fix the rest by hand.
+- If a rule genuinely doesn't fit, ask first. An approved exception goes through
+  `code-standards exclude`, with the reason written in `docs/DECISIONS.md`.
+  Never silence a rule inline without approval.
+- Commit messages and pull-request size follow their policy, so keep changes small.
+
+## Code style (aligned with Sarj's public code standards)
+
+- ruff for lint and format; strict type checking (basedpyright strict).
+- Every external service sits behind a small `Protocol` interface with one adapter.
+  Dependencies are injected; tests use fakes, never real network calls.
+- Pydantic models at every boundary: HTTP, WebSocket messages, tool arguments,
+  external JSON.
+- SQL: explicit transactions, `ON CONFLICT` on inserts that can repeat, no `SELECT *`.
+- Specific exceptions only; never a bare `except`.
+- No `print` in application code; use structured logging.
+- Comments explain *why*, never restate *what*.
+
+## Frontend principles (inspired by Sarj's public design lab, written for Sarjy)
+
+- Build only what `docs/PRD.md` describes: no invented screens, fields or panels.
+- Tailwind + shadcn/ui primitives; never hand-roll a component that already exists.
+- Colours come from design tokens defined once in CSS; no hex or ad-hoc colour classes.
+- One icon set (HugeIcons).
+- Flat and calm: motion is purposeful, at most 300 ms, and respects
+  `prefers-reduced-motion`.
+- No generic "AI app" look: every element must earn its place.
+- Sarjy has its own visual identity. Do not copy Sarj's brand assets, tokens or
+  components; their repos inform principles only.
+
+## Latency instrumentation (the deep dive)
+
+Every turn has a `turn_id`. Marks: `speech_end`, `audio_received`, `stt_done`,
+`llm_first_token`, `first_sentence_ready`, `tts_first_byte`, `playback_start`.
+Never remove or rename a mark without updating `docs/LATENCY.md`. Any change that
+could affect latency must say so in its summary.
+
+## Optional work
+
+`.context/optional-deep-dive.md` describes an optional second deep dive. In
+`docs/TASKS.md`, put its tasks in a separate final milestone marked optional, never on
+the critical path, and never start them without an explicit go. Do follow its
+"design for it now" notes in the core code, since they cost little and avoid rewrites.
+
+## Repo layout
+
+Each folder is created by the first task that puts something in it.
+
+```
+backend/     voice gateway (FastAPI)
+tts/         Kokoro TTS service
+frontend/    React app
+infra/       Terraform
+docs/        PRD.md, TASKS.md, DECISIONS.md, LATENCY.md
+.context/    assignment brief and FAQ (git-ignored, never committed)
+```
+
+## Commands
+
+Fill in as they are created: install, run locally, lint, type check, test, build, deploy.
