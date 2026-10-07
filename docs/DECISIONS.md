@@ -335,6 +335,26 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** a laptop deploy script on 8 Oct with CI on 9 Oct (proposed
   to shorten the critical path; declined).
 
+### D-36 Node 24 LTS for the frontend
+
+- **Decision:** The frontend builds with Node 24, pinned in `frontend/.nvmrc` and in
+  `engines` in `package.json`; CI and the Docker build stage use the same major version
+  (settled 8 Oct, was O-27).
+- **Reason:** Node 24 is the current long-term-support line and is already installed
+  through nvm. The default `node` on this Mac is 23.7, which is no longer supported
+  upstream.
+- **Alternatives considered:** Node 22 LTS; staying on 23.7.
+
+### D-37 Frontend packages arrive with their first use
+
+- **Decision:** HugeIcons and each shadcn/ui component are installed in the task that
+  first uses them (the mic button in M1.4 is the first icon). shadcn's default icon
+  library, lucide-react, is not used: any shadcn component that ships with a lucide icon
+  is switched to HugeIcons when it is added (settled 8 Oct).
+- **Reason:** Unused packages add weight and may fail code-standards' dependency checks.
+  `AGENTS.md` allows one icon set.
+- **Alternatives considered:** installing HugeIcons in M0.3, as `TASKS.md` first said.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -343,7 +363,6 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | --- | --- | --- | --- | --- |
 | O-05 | Git hook runner | pre-commit; lefthook (code-standards supports both) | pre-commit, as `AGENTS.md` says. | M0.4 |
 | O-06 | Pull-request merge method and branch protection | rebase and merge; squash and merge; merge commits | Rebase and merge: each small Conventional Commit lands on a linear `main`, so the history tells the plan. Protect `main`: pull request and passing checks required. | M0.5 |
-| O-27 | Node version | Node 24 LTS; the local Node 23.7 (no longer supported upstream) | Node 24 LTS, pinned in `.nvmrc`, `engines` and the Docker build stage. | M0.3 |
 | O-08 | GCP region (PRD open question) | a Gulf region such as `me-central1` (Doha); a European or US region | Choose after checking Cloud Run WebSockets, Cloud SQL, domain mapping and GPU support; providers' locations matter as much as users'. Measured again in experiment 7. | M1.1, M3.11 |
 | O-09 | How the gateway authenticates to TTS | Cloud Run IAM (the gateway fetches an ID token from the metadata server); a shared secret header; a public TTS | Cloud Run IAM: no secret to manage. | M1.2, M1.10 |
 | O-10 | Logging | standard `logging` with a JSON formatter; structlog | Standard library: no dependency, and Cloud Logging reads JSON lines. | M1.3 |

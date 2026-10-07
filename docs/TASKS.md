@@ -77,23 +77,27 @@ Goal: an empty but correctly wired repo, where every commit already passes Sarj'
 
 ### M0.2 Python workspace skeleton
 
-- [ ] A uv workspace with `gateway` and `tts` as members (D-31); `uv.lock` is committed.
-- [ ] Each has a `src/` package and one passing smoke test; `uv run pytest` passes.
-- [ ] No lint or type-check configuration is written by hand; M0.4 generates it.
+- [x] A uv workspace with `gateway` and `tts` as members (D-31); `uv.lock` is committed.
+- [x] Each has a `src/` package and one passing smoke test; `uv run pytest` passes.
+- [x] No lint or type-check configuration is written by hand; M0.4 generates it.
 
 New dependencies: `pytest` (dev).
 
 ### M0.3 Frontend scaffold
 
 - [ ] `frontend/` is a Vite + React + TypeScript app with Tailwind and shadcn/ui
-      initialised and HugeIcons installed, using npm (D-33) and a pinned Node version (O-27).
-- [ ] Generator output lands in its own commit whose message says it is generated (D-32).
+      initialised, using npm (D-33) and Node 24 pinned in `.nvmrc` and `engines` (D-36).
+- [ ] Generator output lands in its own commits whose messages say they are generated
+      (D-32).
 - [ ] Design tokens are defined once in a CSS file, even if there are only a few so far.
-- [ ] `npm run build` and `npx tsc --noEmit` pass; the lockfile is committed.
+- [ ] `npm run build` and the TypeScript build check pass; the lockfile is committed.
 - [ ] The page shows only the word "Sarjy". No UI is invented ahead of its task.
+- [ ] No unused packages: HugeIcons and shadcn components arrive with their first use
+      (D-37), and lucide-react is not installed.
 
-New dependencies: react, react-dom, vite, typescript, tailwindcss, the shadcn/ui peer
-packages, a HugeIcons React package.
+New dependencies: react, react-dom, vite, typescript and the template's ESLint packages;
+tailwindcss, @tailwindcss/vite, @types/node; clsx, tailwind-merge,
+class-variance-authority, tw-animate-css.
 
 ### M0.4 Adopt Sarj code standards
 
@@ -194,7 +198,8 @@ New dependencies: fastapi, uvicorn (with WebSocket support), possibly pydantic-s
 - [ ] WebSocket messages have one typed definition per side (O-11).
 - [ ] Works locally in desktop Chrome.
 
-New dependencies: possibly a schema library such as zod (O-11).
+New dependencies: a HugeIcons React package for the mic button (D-37); possibly a schema
+library such as zod (O-11).
 
 ### M1.5 CI deploy with Workload Identity Federation
 
