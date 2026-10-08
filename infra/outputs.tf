@@ -8,6 +8,16 @@ output "tts_url" {
   value       = google_cloud_run_v2_service.tts.uri
 }
 
+output "workload_identity_provider" {
+  description = "Full provider name for google-github-actions/auth (a GitHub repo variable)."
+  value       = google_iam_workload_identity_pool_provider.github.name
+}
+
+output "deployer_service_account" {
+  description = "Service account CI deploys as (a GitHub repo variable)."
+  value       = google_service_account.deployer.email
+}
+
 output "image_repository" {
   description = "Artifact Registry path that CI pushes images to."
   value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.images.repository_id}"
