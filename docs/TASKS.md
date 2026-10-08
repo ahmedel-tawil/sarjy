@@ -318,19 +318,25 @@ New dependencies: fastapi, uvicorn, pydantic-settings.
 
 ### M1.11 Turn pipeline, baseline mode
 
-- [ ] One turn: audio in → STT → LLM (streamed, full reply collected) → TTS on the whole
+- [x] One turn: audio in → STT → LLM (streamed, full reply collected) → TTS on the whole
       reply → audio out. This is experiment 1's baseline.
-- [ ] The browser can send `{"type": "set_voice", "voice": ...}`; the voice is checked
+- [x] The browser can send `{"type": "set_voice", "voice": ...}`; the voice is checked
       against TTS's list and used for every later turn (D-49).
-- [ ] Each turn has a `turn_id`. The gateway records `audio_received`, `stt_done`,
+- [x] Each turn has a `turn_id`. The gateway records `audio_received`, `stt_done`,
       `llm_first_token`, `first_sentence_ready` and `tts_first_byte` on a monotonic clock.
-- [ ] Per turn, one structured log line holds all server marks, and the marks are sent to
+- [x] Per turn, one structured log line holds all server marks, and the marks are sent to
       the browser.
-- [ ] The current session's recent turns go to the LLM as context (in memory for now).
-- [ ] Each turn keeps a list of its tool results, empty for now (room for the optional
+- [x] The current session's recent turns go to the LLM as context (in memory for now).
+- [x] Each turn keeps a list of its tool results, empty for now (room for the optional
       grounding check).
-- [ ] A failure in any stage sends an error message to the client; the socket stays open.
-- [ ] Tests with fakes cover a full turn, the order of the marks and a failing stage.
+- [x] A failure in any stage sends an error message to the client; the socket stays open.
+- [x] Tests with fakes cover a full turn, the order of the marks and a failing stage.
+- [x] Checked locally with real Groq and Kokoro: the spoken demo question was
+      transcribed, answered and spoken. Baseline server marks for two turns: STT done at
+      862/742 ms, first LLM token 1049/921 ms, whole reply 1199/953 ms, whole reply
+      spoken 3426/2353 ms. TTS on the whole reply dominates, which is what sentence
+      streaming (M3.5) attacks. The same run showed the prompt narrowing Sarjy to Dubai;
+      fixed.
 
 ### M1.12 Frontend voice loop
 
