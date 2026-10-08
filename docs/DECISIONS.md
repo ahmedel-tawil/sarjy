@@ -500,6 +500,18 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   dropped); hexgrad/Kokoro-82M (PyTorch weights, not ONNX); misaki for phonemes (pulls
   in spaCy and more).
 
+### D-49 Selectable voices, `af_heart` by default
+
+- **Decision:** Sarjy speaks with `af_heart` by default, and the traveller can switch to
+  one of the other voices the TTS image carries (`af_bella`, `af_sarah`, `am_michael`,
+  `am_adam`). TTS lists them at `GET /voices`; the browser picks one with a `set_voice`
+  message; the choice is remembered as one of the user's facts (settled 8 Oct; you chose
+  the default after listening to the samples).
+- **Reason:** Personal and cheap: every request already carries a voice, a voice file is
+  0.5 MB, and switching only selects a different style vector, so latency is
+  unchanged. The planned TTS cache (experiment 3) must include the voice in its key.
+- **Alternatives considered:** one fixed voice (simpler, less personal).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
