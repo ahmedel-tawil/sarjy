@@ -668,6 +668,25 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   tool time inside the LLM stage); a separate mark for tools (the seven marks are fixed
   by D-04, and the per-tool log lines already give the split).
 
+### D-58 SayTech answers are cached in the gateway, with a last known good copy
+
+- **Decision:** each gateway process keeps SayTech's answers (the context, each search
+  and each product) for 5 minutes and reuses them without asking again
+  (`SARJY_SAYTECH_CACHE_SECONDS`). Older copies are kept: if SayTech is unavailable
+  (timeout, network error, rate limit, server error, off-contract answer), the last good
+  copy is served at any age and a warning is logged with its age. A refusal such as an
+  unknown city is SayTech's real answer, so it is never cached or hidden behind an old
+  copy. Each cache keeps at most 256 copies and drops the one stored longest ago (settled
+  8 Oct in M2.9, the SayTech half of O-23).
+- **Reason:** SayTech marks its answers cacheable for 5 minutes, and prices change rarely.
+  A cache hit costs nothing, against 160 ms to 2 s for a call. The PRD's risk table names
+  SayTech being down during review, and a stale price with a working demo is better
+  than no answer. Each Cloud Run instance has its own cache; with at most two instances
+  that costs at most one extra call per question.
+- **Alternatives considered:** Postgres or Cloud Storage (shared between instances, but a
+  network call each time, for data that is already one call away); no cache (every
+  turn pays SayTech's latency and every outage reaches the traveller).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -680,7 +699,7 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | O-20 | Database tests | real Postgres (Docker locally, a service container in CI); fakes only | Real Postgres: upsert behaviour can only be tested against Postgres. Tests go through repository classes (`no-raw-connection-in-tests`). | M2.3 |
 | O-21 | Weather provider | Open-Meteo (no key, free for non-commercial use); a keyed provider such as OpenWeatherMap | Open-Meteo. | M2.11 |
 | O-22 | Where rate-limit state lives | in memory per instance, with max instances capped; Postgres | In memory, with the trade-off written down. | M2.13 |
-| O-23 | Where caches live (SayTech, TTS) | in the process; Postgres; Cloud Storage | In the process for SayTech. For TTS, in the gateway or the TTS service, decided by measurement. | M2.9, M3.7 |
+| O-23 | Where the TTS cache lives (SayTech's is settled in D-58) | in the gateway's process; in the TTS service; Cloud Storage | Decided by measurement. | M3.7 |
 | O-24 | Audio for the test script | recorded by me; synthesised (Kokoro or macOS `say`) | Synthesised for repeatability, plus a few real recordings as a sanity check. | M3.3 |
 | O-25 | Frontend unit tests | Vitest for pure logic (timing maths, message parsing); none | Add Vitest only if the client grows real logic. | M3.2 |
 | O-26 | Voice activity detection approach | a browser VAD library (new dependency); a simple energy threshold; server-side VAD | Decide in M4.5, once push-to-talk is solid. | M4.5 |

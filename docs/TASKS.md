@@ -525,9 +525,11 @@ New dependencies: psycopg (binary), psycopg-pool.
 
 ### M2.9 SayTech cache and last-known-good
 
-- [ ] Responses are cached in the process for a configurable few minutes (O-23).
-- [ ] If SayTech fails or times out, the last good copy is served and a warning is logged.
-- [ ] Tests use a fake clock and a failing fake client.
+- [x] Responses are cached in the process for a configurable few minutes: 5 by default,
+      `SARJY_SAYTECH_CACHE_SECONDS` (D-58, settles O-23 for SayTech).
+- [x] If SayTech fails or times out, the last good copy is served and a warning is logged.
+      Refusals such as an unknown city pass through; at most 256 copies per cache.
+- [x] Tests use a fake clock and a failing fake client.
 
 ### M2.10 `search_tours` and `get_tour` tools
 
