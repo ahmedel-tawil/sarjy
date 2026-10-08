@@ -3,7 +3,13 @@ name = "sarjy-tts"
 version = "0.1.0"
 description = "Sarjy's text-to-speech service, running Kokoro-82M."
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "espeakng-loader>=0.2.4",
+    "numpy>=2.5.3",
+    "onnxruntime>=1.30.0",
+    "phonemizer>=3.4.0",
+    "pydantic>=2.13.5",
+]
 
 [build-system]
 requires = ["uv_build>=0.12.1,<0.13"]
