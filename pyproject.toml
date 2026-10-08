@@ -18,7 +18,10 @@ sarjy-gateway = { workspace = true }
 sarjy-tts = { workspace = true }
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "httpx2>=2.13.1",
+    "pytest>=8",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["gateway/tests", "tts/tests"]
