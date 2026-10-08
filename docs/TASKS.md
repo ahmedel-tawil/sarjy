@@ -198,16 +198,17 @@ New dependencies: fastapi, uvicorn (with WebSocket support), possibly pydantic-s
 
 ### M1.4 Push-to-talk audio round trip (echo)
 
-- [ ] Holding a button records the mic; audio goes to the gateway in chunks while
+- [x] Holding a button records the mic; audio goes to the gateway in chunks while
       recording, so the upload overlaps speech.
-- [ ] On release, the browser sends an end-of-turn message and plays back the echoed audio.
-- [ ] Audio playback is unlocked by the first tap, as Safari requires.
-- [ ] A denied mic permission shows a clear message instead of failing silently.
-- [ ] WebSocket messages have one typed definition per side (O-11).
-- [ ] Works locally in desktop Chrome.
+- [x] On release, the browser sends an end-of-turn message and plays back the echoed audio.
+- [x] Audio playback is unlocked by the first tap, as Safari requires.
+- [x] A denied mic permission shows a clear message instead of failing silently.
+- [x] WebSocket messages have one typed definition per side (D-47).
+- [ ] Works locally in desktop Chrome. Verified in Chromium with a synthetic microphone;
+      a real microphone is checked by you.
 
-New dependencies: possibly a schema library such as zod (O-11). The mic button's shadcn
-component and icon need no new package beyond what M0.3 installed (D-37).
+New dependencies: zod (D-47). The shadcn Button and the HugeIcons mic needed no new
+package beyond what M0.3 installed (D-37).
 
 ### M1.5 CI deploy with Workload Identity Federation
 
