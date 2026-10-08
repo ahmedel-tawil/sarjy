@@ -86,6 +86,14 @@ def test_failed_calls_raise_text_to_speech_error(answer: httpx2.Response) -> Non
         asyncio.run(tts.synthesize("Hello", "af_heart"))
 
 
+def test_a_voice_list_that_is_not_json_raises_text_to_speech_error() -> None:
+    answer = httpx2.Response(200, text="<html>Congratulations | Cloud Run</html>")
+    tts = HttpTextToSpeech(fake_google([], answer), TTS_URL, NoToken())
+
+    with pytest.raises(TextToSpeechError, match="something other than a voice list"):
+        asyncio.run(tts.voices())
+
+
 def test_an_unreachable_service_raises_text_to_speech_error() -> None:
     def refuse(request: httpx2.Request) -> httpx2.Response:
         message = "connection refused"
