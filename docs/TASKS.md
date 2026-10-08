@@ -533,14 +533,20 @@ New dependencies: psycopg (binary), psycopg-pool.
 
 ### M2.10 `search_tours` and `get_tour` tools
 
-- [ ] `search_tours(query, city, max_price_aed, category, accessible)` returns up to 5
+- [x] `search_tours(query, city, max_price_aed, category, accessible)` returns up to 5
       products; `query` is SayTech's name search (`q`).
-- [ ] `get_tour(type, slug)` returns one product's details: tickets with adult and child
-      prices, and the children and cancellation policies. The site's FAQs come from
-      `context/` in the prompt instead (M2.12).
-- [ ] Argument validation is tested.
-- [ ] Locally, demo scenarios 1 and 4 work, and the prices match the Magic Experience
-      website.
+- [x] `get_tour(slug, product_type)` returns one product's details: tickets with adult and
+      child prices, and the children and cancellation policies, stated once when every
+      ticket shares them. The site's FAQs come from `context/` in the prompt instead
+      (M2.12). The argument is not called `type` (D-59).
+- [x] Argument validation is tested.
+- [x] Locally, demo scenarios 1 and 4 work, and the prices match the Magic Experience
+      website: Ferrari World and Warner Bros. World 345, Qasr Al Watan 30, teamLab 55,
+      and the buggy on request, as on its page. Checked with `gateway/scripts/ask.py`
+      against real Groq and SayTech: scenario 4 said "price on request" in three runs
+      out of three, with the first word after 1.5 s (search only) or 2.7 to 2.9 s (search
+      and details). Scenario 1 named real products and prices, but also the Louvre's
+      18-and-over ticket for a family with kids, in a long reply; both go to M2.12.
 
 ### M2.11 Weather adapter and `get_weather` tool
 
@@ -564,7 +570,11 @@ New dependencies: psycopg (binary), psycopg-pool.
 - [ ] The prompt lives in one file.
 - [ ] A dev script that sends text turns through the pipeline (skipping STT) shows the
       expected behaviour for: an off-topic request, price bait, a missing price, and a
-      booking request.
+      booking request. The script is `gateway/scripts/ask.py` (added in M2.10).
+- [ ] When children are mentioned, a tour's children's policy is checked before it is
+      recommended: scenario 1 must not suggest the Louvre's 18-and-over ticket.
+- [ ] A search result that already answers the question gets no `get_tour` call: each
+      extra round costs about 1.3 s and resends every token (O-27).
 
 ### M2.13 Public URL protection
 
