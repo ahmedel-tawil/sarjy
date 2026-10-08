@@ -142,6 +142,9 @@ terraform apply plan.tfplan
 terraform output                  # gateway_url, tts_url, image_repository
 ```
 
+Deploys run in CI on every push to `main` (`.github/workflows/deploy.yml` calls
+`scripts/deploy.sh <service>`); there is no manual deploy path.
+
 Secret values never go through Terraform or git:
 `printf %s "$VALUE" | gcloud secrets versions add <secret-id> --data-file=-`
 
@@ -159,6 +162,7 @@ Sarj standards (from the repo root; the hooks run the staged version on every co
 
 ```
 uv tool install --python 3.14 code-standards   # once per machine
+uv tool install shellcheck-py==0.11.0.1        # once per machine: ShellCheck for scripts/
 code-standards setup                           # once per clone: installs the git hooks
 code-standards check --trust-repository-code   # full gate: lint, types, docs, config; CI runs the same
 code-standards fix                             # safe automatic fixes; fix the rest by hand
