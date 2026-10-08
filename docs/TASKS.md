@@ -92,12 +92,15 @@ New dependencies: `pytest` (dev).
 - [ ] Design tokens are defined once in a CSS file, even if there are only a few so far.
 - [ ] `npm run build` and the TypeScript build check pass; the lockfile is committed.
 - [ ] The page shows only the word "Sarjy". No UI is invented ahead of its task.
-- [ ] No unused packages: HugeIcons and shadcn components arrive with their first use
-      (D-37), and lucide-react is not installed.
+- [ ] shadcn uses the Maia preset with HugeIcons as its icon library; its base styles are
+      ejected into their own file, and neither the `shadcn` CLI nor lucide-react is a
+      dependency (D-37).
 
-New dependencies: react, react-dom, vite, typescript and the template's ESLint packages;
-tailwindcss, @tailwindcss/vite, @types/node; clsx, tailwind-merge,
-class-variance-authority, tw-animate-css.
+New dependencies: from the Vite template, react, react-dom, vite, @vitejs/plugin-react,
+typescript, @types/react, @types/react-dom, @types/node, oxlint; tailwindcss and
+@tailwindcss/vite; from shadcn's Maia preset, radix-ui, class-variance-authority, cn,
+tw-animate-css, @hugeicons/react, @hugeicons/core-free-icons,
+@fontsource-variable/figtree.
 
 ### M0.4 Adopt Sarj code standards
 
@@ -198,8 +201,8 @@ New dependencies: fastapi, uvicorn (with WebSocket support), possibly pydantic-s
 - [ ] WebSocket messages have one typed definition per side (O-11).
 - [ ] Works locally in desktop Chrome.
 
-New dependencies: a HugeIcons React package for the mic button (D-37); possibly a schema
-library such as zod (O-11).
+New dependencies: possibly a schema library such as zod (O-11). The mic button's shadcn
+component and icon need no new package beyond what M0.3 installed (D-37).
 
 ### M1.5 CI deploy with Workload Identity Federation
 
