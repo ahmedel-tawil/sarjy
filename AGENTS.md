@@ -146,6 +146,7 @@ Speech to text (needs `SARJY_GROQ_API_KEY` in the git-ignored `.env`):
 uv run python gateway/scripts/transcribe.py clip.webm clip.mp4   # real Groq call, with timings
 uv run python gateway/scripts/chat.py "Is tomorrow good for a safari?"   # LLM time to first word (SARJY_LLM_API_KEY)
 uv run python gateway/scripts/saytech.py   # the real SayTech API: demo questions, timings, result sizes (no key)
+uv run python gateway/scripts/ask.py "How much is the buggy tour?"   # typed turns through the real pipeline and tools
 ```
 
 Infrastructure (from `infra/`; needs `gcloud auth application-default login` once).
