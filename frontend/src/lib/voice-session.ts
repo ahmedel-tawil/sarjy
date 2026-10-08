@@ -28,9 +28,18 @@ export interface PushToTalk {
   release(): void
 }
 
-export class VoiceSession implements PushToTalk {
+// What the page knows about the turn waiting for its answer, filled in as the gateway's
+// messages arrive.
+interface TurnInFlight {
+  // Held until the audio starts, so the words and the voice appear together.
+  reply: null | string
+  // performance.now() at the release that ended the turn.
+  speechEnd: number
   // The gateway names the turn in a JSON message just before its binary audio frame.
-  #audioTurnId: null | string = null
+  turnId: null | string
+}
+
+export class VoiceSession implements PushToTalk {
   readonly #callbacks: VoiceSessionCallbacks
   readonly #player = new Player()
   readonly #recorder = new Recorder()
@@ -38,9 +47,8 @@ export class VoiceSession implements PushToTalk {
   // it was waiting for the microphone.
   #releases = 0
   readonly #socket: VoiceSocket
-  // performance.now() at the release that ended the turn in flight.
-  #speechEnd: null | number = null
   #status: Status = 'idle'
+  #turn: null | TurnInFlight = null
 
   constructor(url: string, callbacks: VoiceSessionCallbacks) {
     this.#callbacks = callbacks
@@ -79,7 +87,7 @@ export class VoiceSession implements PushToTalk {
     if (!this.#recorder.recording) {
       return
     }
-    this.#speechEnd = performance.now()
+    this.#turn = { reply: null, speechEnd: performance.now(), turnId: null }
     this.#setStatus('thinking')
     this.#endTurn().catch(() => {
       this.#report('connection_lost')
@@ -99,7 +107,9 @@ export class VoiceSession implements PushToTalk {
   #receive(message: ServerMessage): void {
     switch (message.type) {
       case 'audio': {
-        this.#audioTurnId = message['turn_id']
+        if (this.#turn !== null) {
+          this.#turn.turnId = message['turn_id']
+        }
         break
       }
       case 'error': {
@@ -111,7 +121,9 @@ export class VoiceSession implements PushToTalk {
         break
       }
       case 'reply': {
-        this.#callbacks.onReply(message.text)
+        if (this.#turn !== null) {
+          this.#turn.reply = message.text
+        }
         break
       }
       case 'transcript': {
@@ -122,8 +134,12 @@ export class VoiceSession implements PushToTalk {
   }
 
   #report(problem: Problem): void {
-    this.#audioTurnId = null
-    this.#speechEnd = null
+    // A reply whose voice never came is still worth reading.
+    const reply = this.#turn?.reply ?? null
+    if (reply !== null) {
+      this.#callbacks.onReply(reply)
+    }
+    this.#turn = null
     this.#setStatus('idle')
     this.#callbacks.onProblem(problem)
   }
@@ -134,16 +150,20 @@ export class VoiceSession implements PushToTalk {
   }
 
   async #speak(audio: ArrayBuffer): Promise<void> {
-    const turnId = this.#audioTurnId
-    const speechEnd = this.#speechEnd
-    this.#audioTurnId = null
-    this.#speechEnd = null
     await this.#player.play(audio, () => {
       const playbackStart = performance.now()
+      const turn = this.#turn
+      this.#turn = null
       this.#setStatus('speaking')
-      if (turnId !== null && speechEnd !== null) {
-        this.#socket.sendMarks(turnId, speechEnd, playbackStart)
-        this.#callbacks.onTtfa(playbackStart - speechEnd)
+      if (turn === null) {
+        return
+      }
+      if (turn.reply !== null) {
+        this.#callbacks.onReply(turn.reply)
+      }
+      if (turn.turnId !== null) {
+        this.#socket.sendMarks(turn.turnId, turn.speechEnd, playbackStart)
+        this.#callbacks.onTtfa(playbackStart - turn.speechEnd)
       }
     })
     this.#setStatus('idle')
