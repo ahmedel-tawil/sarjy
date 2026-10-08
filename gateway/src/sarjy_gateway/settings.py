@@ -44,3 +44,6 @@ class Settings(BaseSettings):
     saytech_base_url: str = "https://magicexperience.api.saytech.ae/api/v1/public/assistant"
     # SayTech answers in well under a second; a slower answer means a voice turn stalls.
     saytech_timeout_seconds: float = Field(default=3.0, gt=0)
+    # How long a SayTech answer is reused without asking again; SayTech marks its answers
+    # cacheable for 5 minutes (D-58).
+    saytech_cache_seconds: float = Field(default=300.0, ge=0)

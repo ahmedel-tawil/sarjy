@@ -132,6 +132,15 @@ class RecordingListener:
         assert turn_id
 
 
+# Stands still until a test moves it.
+class ManualClock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
 # Each reading is 10 ms after the last, so marks are predictable.
 class TickingClock:
     def __init__(self) -> None:
