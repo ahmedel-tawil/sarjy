@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 import httpx2
 
+from sarjy_gateway.catalogue import Catalogue, SayTechCatalogue
+from sarjy_gateway.catalogue_cache import CachedCatalogue
 from sarjy_gateway.llm import ChatModel, GenerationOptions, MissingChatModel, OpenAiCompatibleChatModel
 from sarjy_gateway.stt import GroqSpeechToText, MissingSpeechToText, SpeechToText
 from sarjy_gateway.tts import (
@@ -20,13 +22,14 @@ if TYPE_CHECKING:
     from sarjy_gateway.settings import Settings
 
 
-# The three providers a turn needs, sharing one HTTP client (one connection pool) that
-# the app closes at shutdown. Tests pass fakes and no client.
+# The providers a turn needs, sharing one HTTP client (one connection pool) that the app
+# closes at shutdown. Tests pass fakes and no client.
 @dataclass(frozen=True)
 class Services:
     stt: SpeechToText
     llm: ChatModel
     tts: TextToSpeech
+    catalogue: Catalogue
     http_client: httpx2.AsyncClient | None
 
 
@@ -36,6 +39,7 @@ def build_services(settings: Settings) -> Services:
         stt=build_speech_to_text(settings, client),
         llm=build_chat_model(settings, client),
         tts=build_text_to_speech(settings, client),
+        catalogue=build_catalogue(settings, client),
         http_client=client,
     )
 
@@ -62,3 +66,9 @@ def build_text_to_speech(settings: Settings, client: httpx2.AsyncClient) -> Text
         return MissingTextToSpeech()
     tokens = MetadataIdToken(client, settings.tts_url, time.monotonic) if settings.tts_auth == "id_token" else NoToken()
     return HttpTextToSpeech(client, settings.tts_url, tokens)
+
+
+# SayTech's assistant API is public, so there is no key to be missing.
+def build_catalogue(settings: Settings, client: httpx2.AsyncClient) -> Catalogue:
+    saytech = SayTechCatalogue(client, settings.saytech_base_url, settings.saytech_timeout_seconds)
+    return CachedCatalogue(saytech, time.monotonic, settings.saytech_cache_seconds)
