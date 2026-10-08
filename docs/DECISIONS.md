@@ -569,6 +569,21 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   provider.
 - **Alternatives considered:** the `groq` or `openai` SDKs.
 
+### D-54 Browser marks go back over the voice socket; one turn at a time
+
+- **Decision:** When Sarjy's audio starts, the browser sends
+  `{"type": "browser_marks", "turn_id", "speech_end", "playback_start"}`, both from
+  `performance.now()`. The gateway checks them (a gateway-made `turn_id`, finite numbers,
+  playback not before speech end) and logs the turn's TTFA; M3.1 will store them. The talk
+  button only works when Sarjy is idle (settled 8 Oct in M1.12).
+- **Reason:** `speech_end` is taken at release, before the gateway has named the turn, so
+  the browser holds it until the audio arrives with its `turn_id`. Allowing one turn at a
+  time keeps that pairing exact without a queue, and matches the gateway, which answers
+  one turn at a time anyway. `playback_start` is when the first sample is scheduled; the
+  device's own output delay (a few milliseconds) is not included.
+- **Alternatives considered:** a separate HTTP endpoint for marks (a second path for the
+  same turn); letting the user talk over Sarjy (that is barge-in, on the cut list).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.

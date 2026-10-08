@@ -260,7 +260,7 @@ New dependencies: none (httpx2 came with M1.10).
       (`gateway/src/sarjy_gateway/prompts.py`).
 - [x] A dev script streams a reply from the chosen provider: Qwen 3.8 27B answers with its
       first word in about 0.4–0.5 s from here.
-- [ ] On Cloud Run the gateway gets `SARJY_LLM_API_KEY` (the same Groq secret); added with
+- [x] On Cloud Run the gateway gets `SARJY_LLM_API_KEY` (the same Groq secret); added with
       the pipeline in M1.11, so Terraform changes once.
 
 New dependencies: none (httpx2 came with M1.10).
@@ -340,12 +340,17 @@ New dependencies: fastapi, uvicorn, pydantic-settings.
 
 ### M1.12 Frontend voice loop
 
-- [ ] Sarjy's audio plays through Web Audio.
-- [ ] The user's transcript and Sarjy's reply appear as text.
-- [ ] A simple state shows listening, thinking or speaking.
-- [ ] The browser records `speech_end` (button release) and `playback_start` (first sample
-      scheduled) with `performance.now()`, and sends both with the `turn_id`.
-- [ ] TTFA per turn is visible in the dev console; the panel comes in M3.2.
+- [x] Sarjy's audio plays through Web Audio.
+- [x] The user's transcript and Sarjy's reply appear as text.
+- [x] A simple state shows listening, thinking or speaking.
+- [x] The browser records `speech_end` (button release) and `playback_start` (first sample
+      scheduled) with `performance.now()`, and sends both with the `turn_id` (D-54).
+- [x] TTFA per turn is visible: shown under the reply, since the code standards allow only
+      `console.warn` and `console.error`, and on a phone there is no console anyway. The
+      gateway logs it too. The panel comes in M3.2.
+- [x] Checked locally with a synthesized spoken question standing in for the microphone:
+      transcript, reply and speech came back, the page showed "First audio after 4.4 s",
+      and the gateway logged the same turn's server marks and `ttfa_ms` 4419.5.
 
 ### M1.13 Deploy the voice loop
 
