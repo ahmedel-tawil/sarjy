@@ -105,7 +105,7 @@ tw-animate-css, @hugeicons/react, @hugeicons/core-free-icons,
 ### M0.4 Adopt Sarj code standards
 
 - [x] `uv tool install --python 3.14 code-standards`, then `code-standards setup` with the
-      agreed hook runner (O-05), passing `--python-dest` / `--typescript-dest` only if
+      agreed hook runner (D-39), passing `--python-dest` / `--typescript-dest` only if
       root detection gets them wrong.
 - [x] `code-standards doctor` reports a healthy adoption.
 - [x] `code-standards check` exits 0 on the whole repo.
@@ -123,7 +123,7 @@ tw-animate-css, @hugeicons/react, @hugeicons/core-free-icons,
       workflows lint; they may not run tests).
 - [ ] All workflows pass on this task's pull request.
 - [ ] After your approval, `main` requires a pull request and passing checks, and the
-      merge method is set (O-06).
+      merge method is set (D-40).
 
 ---
 
