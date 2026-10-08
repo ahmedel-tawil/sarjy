@@ -279,19 +279,20 @@ reading `tokenizer.json`.
 
 ### M1.9b Kokoro TTS service
 
-- [ ] `tts/` is a small FastAPI service: `POST /synthesize` takes text, voice and speed
-      and returns audio in the agreed format (O-15); `GET /health` (D-41).
-- [ ] Model and voice files are downloaded at image build time from pinned URLs with
-      SHA-256 checks; the model loads once at startup.
-- [ ] Input is validated: text length limit, known voice.
-- [ ] `GET /voices` lists the voices the image carries and the default (`af_heart`), for
+- [x] `tts/` is a small FastAPI service: `POST /synthesize` takes text, voice and speed
+      and returns a 16-bit mono 24 kHz WAV (D-50); `GET /health` (D-41).
+- [x] Model and voice files are downloaded at image build time from pinned URLs with
+      SHA-256 checks; the model loads once at startup, with one warm-up synthesis.
+- [x] Input is validated: text length limit, known voice, speed range.
+- [x] `GET /voices` lists the voices the image carries and the default (`af_heart`), for
       the selectable voice (D-49).
-- [ ] Unit tests use a fake synthesiser, so they never load the model.
-- [ ] The image runs locally and returns audible audio for "Hello from Sarjy".
-- [ ] Noted for `LATENCY.md`: local synthesis time for a 10-word sentence. Recorded in
-      `DECISIONS.md`: the available voices and languages (PRD open question).
+- [x] Unit tests use a fake synthesiser, so they never load the model.
+- [x] The image runs locally and returns audible audio for "Hello from Sarjy".
+- [x] Noted for `LATENCY.md` (M3.1 creates it): a 10-word sentence takes 1.08 s over HTTP
+      on this Mac natively and 2.2 s in Docker Desktop; load and warm-up take 1.8–2.1 s.
+      Voices and languages recorded in D-50.
 
-New dependencies: fastapi, uvicorn.
+New dependencies: fastapi, uvicorn, pydantic-settings.
 
 ### M1.10 Deploy TTS and connect the gateway
 
