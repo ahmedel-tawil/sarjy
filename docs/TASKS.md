@@ -420,13 +420,16 @@ Goal: the four demo scenarios work on the deployed URL.
 
 No code. The PRD makes this the first thing on day one, so it can fill any gap on 8 Oct.
 
-- [ ] The public endpoints for listing, detail, filtering and FAQs are written down in
-      `DECISIONS.md`: base URL, parameters, auth, rate limits (O-17).
-- [ ] Sample responses are saved as test fixtures for the adapter.
-- [ ] Known data quirks are listed: missing prices, slugs with spaces, inconsistent
-      destinations.
-- [ ] Decision recorded: is a new SayTech endpoint needed? If yes, it becomes a separate,
-      time-boxed task in the SayTech repo, added only after your go.
+- [x] The public endpoints for listing, detail, filtering and FAQs are written down in
+      `DECISIONS.md`: base URL, parameters, auth, rate limits (D-56, was O-17).
+- [x] Sample responses are saved as test fixtures for the adapter: twelve live responses
+      in `gateway/tests/fixtures/saytech/`, including each error code.
+- [x] Known data quirks are listed: missing prices, slugs with spaces, inconsistent
+      destinations, and search not filtering by age (D-56).
+- [x] Decision recorded: a new SayTech endpoint was needed. The 8 Oct spike found the
+      website's public API couldn't search by category or return prices, so three
+      read-only assistant endpoints were built in the SayTech repo with your go, and are
+      live.
 
 ### M2.2 Postgres locally and on Cloud SQL
 
@@ -497,9 +500,13 @@ New dependencies: psycopg (binary), psycopg-pool.
 ### M2.8 SayTech adapter: client and data cleaning
 
 - [ ] A `Catalogue` Protocol, an HTTP adapter and a fake.
-- [ ] Raw responses are parsed into Pydantic models, then mapped to lean results: name,
-      price or "on request", city, link.
-- [ ] `"from": null` becomes "price on request", never zero.
+- [ ] The three endpoints of D-56. Responses are parsed into Pydantic models (unknown
+      fields ignored), then mapped to lean results: name, price or "on request", city,
+      link.
+- [ ] `on_request: true` becomes "price on request", never zero.
+- [ ] A 400 with a code (unknown city, unknown category) becomes a result the model can
+      act on, with the known values; a 404 is "not found"; a 429, a 5xx or a timeout is
+      a SayTech error.
 - [ ] Slugs containing spaces are URL-encoded before any request.
 - [ ] Destinations pass through as they are; known inconsistencies are noted in tests, not
       silently "fixed".
@@ -513,8 +520,11 @@ New dependencies: psycopg (binary), psycopg-pool.
 
 ### M2.10 `search_tours` and `get_tour` tools
 
-- [ ] `search_tours(city, max_price_aed, category, accessible)` returns up to 5 products.
-- [ ] `get_tour(slug)` returns one product's details and the matching FAQ answers.
+- [ ] `search_tours(query, city, max_price_aed, category, accessible)` returns up to 5
+      products; `query` is SayTech's name search (`q`).
+- [ ] `get_tour(type, slug)` returns one product's details: tickets with adult and child
+      prices, and the children and cancellation policies. The site's FAQs come from
+      `context/` in the prompt instead (M2.12).
 - [ ] Argument validation is tested.
 - [ ] Locally, demo scenarios 1 and 4 work, and the prices match the Magic Experience
       website.
@@ -535,6 +545,9 @@ New dependencies: psycopg (binary), psycopg-pool.
       "price on request" wording; no booking, share the link instead; a short friendly
       redirect for off-topic requests; replies written to be spoken.
 - [ ] Today's date and timezone are injected.
+- [ ] SayTech's `context/` (cities, categories, FAQs) is in the prompt; a product's own
+      policies beat the generic FAQs; availability questions get "I can't check live
+      dates" and the product link (D-56).
 - [ ] The prompt lives in one file.
 - [ ] A dev script that sends text turns through the pipeline (skipping STT) shows the
       expected behaviour for: an off-topic request, price bait, a missing price, and a

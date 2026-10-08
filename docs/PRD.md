@@ -139,14 +139,14 @@ The LLM gets five tools; each returns small, typed results so the model reads fe
 | `remember_fact` | key, value | Confirmation |
 | `forget_fact` | key | Confirmation |
 
-**SayTech adapter.** Sarjy calls SayTech's existing public API and cleans the data in one place, with tests:
+**SayTech adapter.** Sarjy calls SayTech's public assistant API, three read-only endpoints built for it (D-56), and maps the results in one place, with tests:
 
-- Missing price (`"from": null`) becomes "price on request", never zero.
+- Missing price (`on_request: true`) becomes "price on request", never zero.
 - Slugs containing spaces are URL-encoded before any request.
 - Destination comes from the data as it is; known inconsistencies are noted, not silently "fixed".
 - Responses are cached for a few minutes, and a last-known-good copy keeps the demo working if SayTech is unreachable.
 
-First task on day 1: list which public SayTech endpoints exist (product list, detail, filters). A new SayTech endpoint is built only if search is impossible without it, and time-boxed to a few hours.
+First task on day 1: list which public SayTech endpoints exist (product list, detail, filters). A new SayTech endpoint is built only if search is impossible without it, and time-boxed to a few hours. On 8 Oct the existing endpoints proved unable to search by category or return prices, so SayTech gained the assistant endpoints (D-56).
 
 **Why these APIs.** A traveller's real questions are "what can I do" and "is it a good day for it". SayTech answers the first with a real operator's live catalogue, which I built and run; the weather API answers the second, since UAE heat decides whether a desert safari is fun or miserable. Together they make answers useful and checkable, not generic.
 
@@ -226,7 +226,7 @@ The biggest risk is scope: four calendar days for something that could absorb fo
 
 **Open questions to check on day 1**
 
-- [ ] Which SayTech public endpoints exist for listing, details and filtering?
+- [x] Which SayTech public endpoints exist for listing, details and filtering? The existing ones couldn't search by category or return prices, so SayTech gained three assistant endpoints (D-56).
 - [x] Which provider gives the fastest hosted STT, and does it support streaming? Groq's `whisper-large-v3-turbo`; file-based, no streaming (D-51).
 - [x] Which Kokoro voices and languages are available? 54 voices in 9 languages, no Arabic (D-50).
 - [ ] Which Cloud Run region supports what we need (WebSockets, domain mapping)?

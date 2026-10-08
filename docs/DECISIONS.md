@@ -601,6 +601,53 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   "thank you"); voice activity detection on the server (needs an audio decoder and a VAD
   model); proper VAD in the browser, which is M4.5 and can replace this check.
 
+### D-56 SayTech: a read-only assistant API built for Sarjy
+
+- **Decision:** Sarjy reads Magic Experience's catalogue through three public endpoints
+  added to SayTech for it (`apps/assistant/`, live 8 Oct), not through the website's
+  public API (settled 8 Oct in M2.1, was O-17). The contract lives in the SayTech repo at
+  `docs/api/assistant-contract-2026-10.md`.
+  - **Base:** `https://magicexperience.api.saytech.ae/api/v1/public/assistant/`. GET only,
+    no auth; the subdomain picks the organisation.
+  - **`context/`:** the operator, cities with tour counts, categories and the site's FAQs.
+    Loaded once per session into the system prompt.
+  - **`products/`:** search with `q` (name words), `city`, `category`, `max_price`,
+    `accessible`, `type` and `limit` (default 5, at most 20). Returns `{results, total}`.
+  - **`products/<type>/<slug>/`:** one product: a plain-text summary, tickets with adult
+    and child prices, children and cancellation policies, restrictions and notes.
+  - **Prices:** `{currency, from_amount, on_request}`, where `on_request` is explicit and
+    `from_amount` is `null` when there is no price. Website prices only.
+  - **Errors:** `{"error": {"code", "message", "details"}}`, with `invalid_parameter`,
+    `unknown_city` (lists the known cities), `unknown_category` (lists the known
+    categories) and `not_found`. An unknown query parameter is a 400. The shared
+    middleware's errors (400 no organisation, 403, 429 with `Retry-After`) are
+    `{"error": "<string>"}`, so the adapter branches on the status code.
+  - **Limits and caching:** 10,000 requests per hour per organisation and IP, in the
+    assistant's own bucket. 200 responses carry `Cache-Control: public, max-age=300`;
+    SayTech caches nothing itself. It logs `X-Request-Id`, so a slow turn can be traced.
+- **Reason:** the website's public API couldn't back a voice assistant. Its category
+  filter returned 500, an unknown destination returned every product, every ticket's
+  price came back `null`, the helicopter's detail took 7.7 to 8.7 s, and descriptions
+  were HTML with links to the API instead of the website. The PRD allowed a new endpoint
+  when search is impossible without one. The new endpoints take 20 to 40 ms on SayTech's
+  side (p95 under 300 ms), and 0.34 to 0.44 s per fresh request from a Mac.
+- **Data kept as stored** (SayTech reports it unchanged, on purpose; prices will be
+  loaded later):
+  - No price: the buggy dune bashing tour (`DUNE- BUGGY`), the Dune Desert Safari, Dubai
+    Parks and Resorts and both transfers return `on_request: true`. `max_price` leaves
+    them out. The helicopter has 4 of 10 tickets priced, from AED 715.
+  - Places: the Dune Desert Safari has no city, so no city search finds it; the Abu
+    Dhabi City Tour is stored under Dubai; Sharjah has no tours.
+  - Slugs keep their spaces and typos (`DUNE- BUGGY`, `Helicopter - Flight`,
+    `ferrari-world-abu-dhbai`); Sarjy percent-encodes them, a space as `%20`.
+  - Search doesn't filter by age: the Abu Dhabi under-400 results that scenario 1 (two
+    kids) uses include an "18 years and above" Louvre ticket. Child prices and policies
+    are on each ticket in the detail.
+  - There is no availability endpoint, on purpose: SayTech can't yet tell "not tracked"
+    from "closed". Sarjy says it can't check live dates and shares the product link.
+- **Alternatives considered:** the website's public API with cleaning in Sarjy (wrong
+  prices and 8-second calls can't be fixed by cleaning); reading the website's pages.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -608,7 +655,6 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
-| O-17 | SayTech public endpoints (PRD open question) | existing list, detail, filter and FAQ endpoints; a new endpoint if search is impossible | Use what exists; time-box any new endpoint. | M2.1 |
 | O-18 | Postgres version and ID type | Postgres 18 with `uuidv7()` defaults (code-standards rule `prefer-uuidv7-default`); an older version with IDs generated in Python | Postgres 18, if Cloud SQL offers it. | M2.2, M2.3 |
 | O-19 | Migrations | a small runner over numbered SQL files; a migration tool | A small runner: no dependency, easy to explain. | M2.3 |
 | O-20 | Database tests | real Postgres (Docker locally, a service container in CI); fakes only | Real Postgres: upsert behaviour can only be tested against Postgres. Tests go through repository classes (`no-raw-connection-in-tests`). | M2.3 |
