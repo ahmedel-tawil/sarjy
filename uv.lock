@@ -527,19 +527,25 @@ version = "0.1.0"
 source = { editable = "tts" }
 dependencies = [
     { name = "espeakng-loader" },
+    { name = "fastapi" },
     { name = "numpy" },
     { name = "onnxruntime" },
     { name = "phonemizer" },
     { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "espeakng-loader", specifier = ">=0.2.4" },
+    { name = "fastapi", specifier = ">=0.142.4" },
     { name = "numpy", specifier = ">=2.5.3" },
     { name = "onnxruntime", specifier = ">=1.30.0" },
     { name = "phonemizer", specifier = ">=3.4.0" },
     { name = "pydantic", specifier = ">=2.13.5" },
+    { name = "pydantic-settings", specifier = ">=2.15.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.54.0" },
 ]
 
 [[package]]

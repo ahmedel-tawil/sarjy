@@ -7,10 +7,9 @@ import logging
 from pathlib import Path
 import statistics
 import time
-import wave
 
 from sarjy_tts.loading import load_synthesizer
-from sarjy_tts.synthesizer import SAMPLE_RATE, to_pcm16
+from sarjy_tts.synthesizer import SAMPLE_RATE, to_wav
 
 
 MODELS_DIR = Path("tts/models")
@@ -57,16 +56,8 @@ def write_voice_samples() -> None:
     SAMPLES_DIR.mkdir(exist_ok=True)
     for voice in synthesizer.voice_names:
         path = SAMPLES_DIR / f"{voice}.wav"
-        write_wav(path, to_pcm16(synthesizer.synthesize(f"{SENTENCE} {PRICE_SENTENCE}", voice)))
+        path.write_bytes(to_wav(synthesizer.synthesize(f"{SENTENCE} {PRICE_SENTENCE}", voice)))
         logger.info("wrote %s", path)
-
-
-def write_wav(path: Path, pcm16: bytes) -> None:
-    with wave.open(str(path), "wb") as file:
-        file.setnchannels(1)
-        file.setsampwidth(2)
-        file.setframerate(SAMPLE_RATE)
-        file.writeframes(pcm16)
 
 
 if __name__ == "__main__":
