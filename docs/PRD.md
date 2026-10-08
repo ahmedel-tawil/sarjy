@@ -228,7 +228,7 @@ The biggest risk is scope: four calendar days for something that could absorb fo
 
 - [ ] Which SayTech public endpoints exist for listing, details and filtering?
 - [ ] Which provider gives the fastest hosted STT, and does it support streaming?
-- [ ] Which Kokoro voices and languages are available?
+- [x] Which Kokoro voices and languages are available? 54 voices in 9 languages, no Arabic (D-50).
 - [ ] Which Cloud Run region supports what we need (WebSockets, domain mapping)?
 - [ ] Turn-taking: push-to-talk first, or voice activity detection from the start?
 

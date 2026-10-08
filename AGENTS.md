@@ -136,6 +136,8 @@ TTS model (from the repo root; about 420 MB, git-ignored):
 ```
 tts/scripts/download-model.sh tts/models      # pinned revision, every SHA-256 verified
 uv run python tts/scripts/benchmark.py        # timings per model and thread count, plus voice samples
+PORT=8081 uv run python -m sarjy_tts          # TTS service on 127.0.0.1:8081 (reads tts/models)
+docker build -f tts/Dockerfile -t sarjy-tts . # production image; downloads its own model files
 ```
 
 Infrastructure (from `infra/`; needs `gcloud auth application-default login` once).

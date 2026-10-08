@@ -512,6 +512,21 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   unchanged. The planned TTS cache (experiment 3) must include the voice in its key.
 - **Alternatives considered:** one fixed voice (simpler, less personal).
 
+### D-50 TTS returns WAV; full precision for now; voices and languages
+
+- **Decision:** `POST /synthesize` returns 16-bit mono PCM at 24 kHz in a WAV container.
+  The image carries the full-precision model (`model.onnx`) and five American English
+  voices. Kokoro offers 54 voices in 9 languages: American English 20, British English 8,
+  Mandarin 8, Japanese 5, Hindi 4, Spanish 3, Brazilian Portuguese 3, Italian 2, French
+  1; there is no Arabic voice (settled 8 Oct in M1.9b, was O-15).
+- **Reason:** WAV is self-describing, so the gateway and the browser decode it without
+  side-channel metadata, and the 44-byte header costs nothing. Full precision was faster
+  than int8 on this Mac with two or more threads (1.7 s against 2.5 s for 15 words at
+  2 threads); Cloud Run's x86 CPUs may reverse that, so M1.10 measures both there.
+- **Alternatives considered:** raw PCM (needs the rate and format sent separately); Opus
+  (smaller, but encoding costs time and adds a dependency); the int8 model (92 MB
+  instead of 325 MB).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -521,7 +536,6 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | O-12 | STT provider and streaming (PRD open question) | Groq `whisper-large-v3-turbo` (file upload); a streaming STT provider | Groq on day 1. Check and record whether streaming is offered and worth it. | M1.7 |
 | O-13 | LLM provider and model for day 1 | Groq; Cerebras | Groq (one key for STT and LLM); the final pick comes from experiment 4. | M1.8, M3.8 |
 | O-14 | LLM client | httpx2 against the OpenAI-compatible API; vendor SDKs | httpx2 (D-43): one adapter for every provider, every line visible, and it is already a dependency. | M1.8 |
-| O-15 | Kokoro model, voice and audio format (PRD open question on voices) | full precision (325 MB) or int8 (92 MB); af_heart, af_bella, af_sarah, am_michael or am_adam; 16-bit PCM, WAV or Opus | On this Mac (CPU, 15 words, 5.7 s of audio): full precision 1.0 s with all threads, 1.7 s with 2, 3.0 s with 1; int8 2.2-2.9 s. Proposal: full precision on 2 vCPU, confirmed on Cloud Run in M1.10; voice by your ear; 16-bit PCM on the wire. | M1.9b, M1.10 |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
 | O-17 | SayTech public endpoints (PRD open question) | existing list, detail, filter and FAQ endpoints; a new endpoint if search is impossible | Use what exists; time-box any new endpoint. | M2.1 |
 | O-18 | Postgres version and ID type | Postgres 18 with `uuidv7()` defaults (code-standards rule `prefer-uuidv7-default`); an older version with IDs generated in Python | Postgres 18, if Cloud SQL offers it. | M2.2, M2.3 |
