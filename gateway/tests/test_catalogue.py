@@ -4,6 +4,8 @@ from pathlib import Path
 import httpx2
 import pytest
 from sarjy_gateway.catalogue import (
+    ApiCancellation,
+    ApiProductDetail,
     Catalogue,
     CatalogueQueryError,
     CatalogueUnavailableError,
@@ -92,10 +94,26 @@ def test_a_detail_maps_ticket_prices_policies_and_duration() -> None:
     assert general.prices == ["adult: AED 345", "child: AED 345"]
     assert general.price == "from AED 345"
     assert general.duration == "8 hours"
-    assert general.children is not None
-    assert general.children.age_from == 3
-    assert general.cancellation is not None
-    assert not general.cancellation.refundable
+    # Both tickets have the same policies, so they are stated once for the tour.
+    assert details.every_ticket is not None
+    assert details.every_ticket.children is not None
+    assert details.every_ticket.children.age_from == 3
+    assert details.every_ticket.cancellation is not None
+    assert not details.every_ticket.cancellation.refundable
+    assert (general.children, general.cancellation) == (None, None)
+
+
+def test_tickets_with_different_policies_each_keep_their_own() -> None:
+    detail = ApiProductDetail.model_validate_json((FIXTURES / "detail_ferrari.json").read_bytes())
+    free = ApiCancellation(refundable=True, note="Free cancellation.")
+    first = detail.tickets[0].model_copy(update={"cancellation": free})
+    changed = detail.model_copy(update={"tickets": [first, *detail.tickets[1:]]})
+    catalogue = catalogue_answering(httpx2.Response(200, content=changed.model_dump_json()), [])
+
+    details = asyncio.run(catalogue.tour("tour", "ferrari-world-abu-dhbai"))
+
+    assert details.every_ticket is None
+    assert [ticket.cancellation.refundable for ticket in details.tickets if ticket.cancellation] == [True, False]
 
 
 def test_an_unpriced_product_has_no_ticket_prices() -> None:
