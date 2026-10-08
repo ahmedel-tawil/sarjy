@@ -105,7 +105,8 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 
 ### D-11 Text-to-speech: Kokoro-82M as my own service
 
-- **Decision:** Kokoro-82M through kokoro-onnx, running as a separate Cloud Run service.
+- **Decision:** The Kokoro-82M ONNX model, run with onnxruntime by our own code (D-38),
+  as a separate Cloud Run service.
 - **Reason:** Full control over latency and caching; it scales and is measured on its own;
   it costs compute time instead of a per-character bill.
 - **Alternatives considered:** a hosted TTS, kept as the fallback for the live demo if
@@ -277,16 +278,18 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   The rule I hold myself to: nothing is merged that I can't explain line by line.
 - **Alternatives considered:** none recorded.
 
-### D-30 Python 3.13 for both services
+### D-30 Python 3.14 for both services
 
-- **Decision:** The gateway and the TTS service both run on Python 3.13 (settled 7 Oct,
-  was O-01).
-- **Reason:** kokoro-onnx 0.6.1, the latest release, requires Python below 3.14;
-  onnxruntime 1.30 supports 3.11 to 3.14. One version for both services keeps the
-  workspace simple. code-standards needs 3.14, but it runs in its own uv tool
-  environment, so it doesn't constrain the project.
-- **Alternatives considered:** 3.14 for the gateway and 3.13 for TTS (two versions to
-  manage); 3.14 everywhere (blocked by kokoro-onnx).
+- **Decision:** The gateway and the TTS service both run on Python 3.14 (settled 7 Oct as
+  3.13, was O-01; changed to 3.14 on 8 Oct).
+- **Reason:** Sarj's code-standards Python profile requires every Python project to allow
+  3.14; `setup` refuses a project capped below it. 3.13 had been chosen only because
+  kokoro-onnx caps itself below 3.14, and D-38 removes that library. onnxruntime, numpy,
+  phonemizer and espeakng-loader all support 3.14.
+- **Alternatives considered:** 3.13 for both (blocked by code-standards); the gateway on
+  3.14 and TTS on 3.13 with kokoro-onnx, excluded from code-standards (an exception
+  reviewers would see, two lockfiles); 3.14 with kokoro-onnx pinned to 0.4.7, its last
+  release without the cap (April 2025, stale).
 
 ### D-31 One uv workspace for the Python services
 
@@ -361,6 +364,20 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   about 290 more packages); installing HugeIcons only at first use (first planned, but the
   preset installs it).
 
+### D-38 Our own Kokoro front end instead of kokoro-onnx
+
+- **Decision:** The TTS service does not use kokoro-onnx. Our code turns text into
+  phonemes with espeak-ng (through phonemizer and espeakng-loader), maps phonemes to the
+  model's token ids, and runs the Kokoro-82M ONNX model with onnxruntime and the voice's
+  style vector (settled 8 Oct).
+- **Reason:** kokoro-onnx caps itself below Python 3.14, which Sarj's standards require
+  (D-30). The front end is small enough to write and explain line by line, and owning it
+  gives direct control over onnxruntime's session options and warm-up, which the latency
+  deep dive needs.
+- **Alternatives considered:** the three listed under D-30. If the front end stalls on
+  day one, the fallback is the gateway on 3.14 and TTS on 3.13 with kokoro-onnx, behind
+  an approved exclusion.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -376,7 +393,7 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | O-12 | STT provider and streaming (PRD open question) | Groq `whisper-large-v3-turbo` (file upload); a streaming STT provider | Groq on day 1. Check and record whether streaming is offered and worth it. | M1.7 |
 | O-13 | LLM provider and model for day 1 | Groq; Cerebras | Groq (one key for STT and LLM); the final pick comes from experiment 4. | M1.8, M3.8 |
 | O-14 | LLM client | httpx against the OpenAI-compatible API; vendor SDKs | httpx: one adapter for every provider, every line visible, and httpx is already needed. | M1.8 |
-| O-15 | Kokoro model, voice and audio format (PRD open question on voices) | fp32 or int8 model; which voice; 16-bit PCM, WAV or Opus on the wire | Measure fp32 vs int8 on CPU; pick a voice by ear; send 16-bit PCM as binary frames. | M1.9 |
+| O-15 | Kokoro model, voice and audio format (PRD open question on voices) | fp32 or int8 model; which voice; 16-bit PCM, WAV or Opus on the wire | Measure fp32 vs int8 on CPU; pick a voice by ear; send 16-bit PCM as binary frames. | M1.9a, M1.9b |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
 | O-17 | SayTech public endpoints (PRD open question) | existing list, detail, filter and FAQ endpoints; a new endpoint if search is impossible | Use what exists; time-box any new endpoint. | M2.1 |
 | O-18 | Postgres version and ID type | Postgres 18 with `uuidv7()` defaults (code-standards rule `prefer-uuidv7-default`); an older version with IDs generated in Python | Postgres 18, if Cloud SQL offers it. | M2.2, M2.3 |
