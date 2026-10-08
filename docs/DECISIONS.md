@@ -439,13 +439,24 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** `europe-west1` or `us-central1`: closer to the providers,
   with domain mapping and GPUs, but further from users.
 
+### D-45 TTS is private; the gateway calls it with its own identity
+
+- **Decision:** The TTS Cloud Run service has no public access. Only the gateway's
+  service account holds `roles/run.invoker` on it, and the gateway will send a Google ID
+  token from the Cloud Run metadata server with each request (settled 8 Oct in M1.2, was
+  O-09; the client side lands in M1.10).
+- **Reason:** No shared secret to create, store or rotate; Cloud Run checks the token
+  before our code runs.
+- **Alternatives considered:** a shared secret header (one more secret to manage); a
+  public TTS service (anyone could spend our compute); internal-only ingress (needs a VPC
+  connector for the gateway's calls).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
 
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
-| O-09 | How the gateway authenticates to TTS | Cloud Run IAM (the gateway fetches an ID token from the metadata server); a shared secret header; a public TTS | Cloud Run IAM: no secret to manage. | M1.2, M1.10 |
 | O-11 | WebSocket message contract | JSON control messages plus binary audio frames; how Python and TypeScript types stay in sync | JSON plus binary. Pydantic on the server; a runtime schema in the browser (code-standards rule `prefer-schema-for-api-payload`, likely zod), kept in sync by hand. | M1.4 |
 | O-12 | STT provider and streaming (PRD open question) | Groq `whisper-large-v3-turbo` (file upload); a streaming STT provider | Groq on day 1. Check and record whether streaming is offered and worth it. | M1.7 |
 | O-13 | LLM provider and model for day 1 | Groq; Cerebras | Groq (one key for STT and LLM); the final pick comes from experiment 4. | M1.8, M3.8 |
