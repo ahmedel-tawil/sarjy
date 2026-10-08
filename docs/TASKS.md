@@ -24,7 +24,7 @@ Status: reviewed 7 Oct 2026. Scope comes from `docs/PRD.md`; decisions live in
 | M1 Voice loop deployed | 8 Oct | 14 | 22 | yes |
 | M2 Memory, tools, tests | 9 Oct | 14 | 20.5 | no |
 | M3 Latency deep dive | 9–10 Oct | 12 | 19 | no |
-| M4 UI polish, Safari and phone | 9–10 Oct | 8 | 12 | no |
+| M4 UI polish, Safari and phone | 9–10 Oct | 9 | 13 | no |
 | M5 Docs, presentation, submission | 10–11 Oct | 8 | 11.5 | no |
 | M6 Optional: guardrails and reliability | only after an explicit go | 5 | 9 | never |
 
@@ -271,9 +271,8 @@ Our own code instead of kokoro-onnx, which does not allow Python 3.14 (D-38).
       rows).
 - [x] Unit tests cover phoneme-to-token mapping, the length limit and style selection,
       using a fake onnxruntime session, so they never load the model.
-- [ ] The real model speaks, and it sounds right. `tts/scripts/benchmark.py` produced
-      speech-like audio and five voice samples (the Kokoro spike was never run); your
-      verdict by ear, and Sarjy's voice, are still to come.
+- [x] The real model speaks, and it sounds right: from `tts/scripts/benchmark.py`'s five
+      samples you chose `af_heart` as Sarjy's default voice (D-49).
 
 New dependencies: onnxruntime, numpy, phonemizer, espeakng-loader, and pydantic for
 reading `tokenizer.json`.
@@ -285,6 +284,8 @@ reading `tokenizer.json`.
 - [ ] Model and voice files are downloaded at image build time from pinned URLs with
       SHA-256 checks; the model loads once at startup.
 - [ ] Input is validated: text length limit, known voice.
+- [ ] `GET /voices` lists the voices the image carries and the default (`af_heart`), for
+      the selectable voice (D-49).
 - [ ] Unit tests use a fake synthesiser, so they never load the model.
 - [ ] The image runs locally and returns audible audio for "Hello from Sarjy".
 - [ ] Noted for `LATENCY.md`: local synthesis time for a 10-word sentence. Recorded in
@@ -305,6 +306,8 @@ New dependencies: fastapi, uvicorn.
 
 - [ ] One turn: audio in → STT → LLM (streamed, full reply collected) → TTS on the whole
       reply → audio out. This is experiment 1's baseline.
+- [ ] The browser can send `{"type": "set_voice", "voice": ...}`; the voice is checked
+      against TTS's list and used for every later turn (D-49).
 - [ ] Each turn has a `turn_id`. The gateway records `audio_received`, `stt_done`,
       `llm_first_token`, `first_sentence_ready` and `tts_first_byte` on a monotonic clock.
 - [ ] Per turn, one structured log line holds all server marks, and the marks are sent to
@@ -630,6 +633,7 @@ beyond the PRD.
 | M4.6 | Barge-in | 1.5 h | M4.5, M3.5 | no (cut list #1) |
 | M4.7 | Custom domain `sarjy.saytech.ae` | 1 h | M1.6 | no (cut list #2) |
 | M4.8 | Accessibility and motion pass | 1 h | M4.1 | no |
+| M4.9 | Voice picker | 1 h | M4.1, M1.11 | no |
 
 ### M4.1 Visual identity and layout
 
@@ -691,6 +695,14 @@ Do this on 9 Oct (PRD: "Test Safari on day 2, not day 4").
 - [ ] The talk control works from the keyboard (hold Space) and has an accessible name.
 - [ ] Focus is visible; the token palette passes WCAG AA contrast.
 - [ ] Nothing moves under `prefers-reduced-motion`.
+
+### M4.9 Voice picker
+
+- [ ] A small shadcn `Select` beside the talk control lists the voices from TTS with
+      friendly names; `af_heart` is preselected (D-49).
+- [ ] Changing it sends `set_voice`; the next reply uses the new voice.
+- [ ] The choice is saved as one of the user's facts, so a returning visitor hears the
+      voice they picked (needs M2.6).
 
 ---
 

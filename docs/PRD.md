@@ -26,6 +26,7 @@ The goal is a voice assistant a reviewer can open from one URL and enjoy in unde
 **Goals**
 
 - It works the first time, on a laptop and a phone, in Chrome and Safari.
+- The traveller can pick Sarjy's voice from a short list; `af_heart` is the default, and the choice is remembered.
 - Prices and availability always come from tool results, never from the model's memory.
 - Time-to-first-audio is measured on every turn and visibly improved by each experiment.
 - Every line in the repo is code I can explain.
@@ -103,7 +104,7 @@ The gateway is the only component that talks to providers, so keys stay server-s
 | Turn-taking | Push-to-talk first, voice activity detection next | A reliable demo first; barge-in is on the cut list |
 | STT | Hosted Whisper-class model, e.g. on Groq (confirm day 1) | Fast, and on Sarj's list of preferred providers |
 | LLM | Groq or Cerebras, streaming with tool calls | Fast first token; final pick decided by measurement |
-| TTS | Kokoro-82M as my own service | Full control over latency and caching |
+| TTS | Kokoro-82M as my own service, with a few selectable voices | Full control over latency and caching |
 | Backend | Python, FastAPI, Pydantic, asyncio | My strongest stack; async fits streaming |
 
 ## Memory and data model
