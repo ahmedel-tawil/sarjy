@@ -544,14 +544,37 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   provider (worth it only with voice activity detection, M4.5); self-hosted Whisper (a GPU
   we do not have in `me-central1`).
 
+### D-52 Day-one LLM: Qwen 3.8 27B on Groq, reasoning off
+
+- **Decision:** The gateway uses `qwen/qwen3.8-27b` on Groq with `reasoning_effort`
+  `none`, temperature 0.5 and at most 300 tokens. Experiment 4 makes the final choice
+  (settled 8 Oct in M1.8, was O-13).
+- **Reason:** Groq offers four chat models to this account (gpt-oss 20B and 120B, Qwen
+  3.8 27B, ALLaM 7B). Streaming the same question three times each from here, median time
+  to the first word was 386 ms for Qwen with reasoning off, 412 ms for gpt-oss-120b on
+  low reasoning, and 993 ms for gpt-oss-20b on low reasoning. Qwen also kept replies
+  shortest, closest to the spoken style the prompt asks for. All three placed the Dubai
+  Aquarium in the wrong mall, which is why answers must come from tools (M2).
+- **Alternatives considered:** gpt-oss-120b (close on speed, longer replies); gpt-oss-20b
+  (slowest first word, ignored the brevity instruction); ALLaM 7B (Arabic-focused, 4k
+  context, kept in mind for "what I'd do next").
+
+### D-53 One hand-written client for OpenAI-compatible chat APIs
+
+- **Decision:** `OpenAiCompatibleChatModel` calls `/chat/completions` with httpx2 and
+  parses the server-sent events itself (settled 8 Oct in M1.8, was O-14).
+- **Reason:** Groq, Cerebras and Gemini all speak this format, so one adapter covers
+  experiment 4 and a later fallback provider. The parser is about thirty lines anyone can
+  read, tested against recorded real streams; vendor SDKs would add a dependency per
+  provider.
+- **Alternatives considered:** the `groq` or `openai` SDKs.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
 
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
-| O-13 | LLM provider and model for day 1 | Groq; Cerebras | Groq (one key for STT and LLM); the final pick comes from experiment 4. | M1.8, M3.8 |
-| O-14 | LLM client | httpx2 against the OpenAI-compatible API; vendor SDKs | httpx2 (D-43): one adapter for every provider, every line visible, and it is already a dependency. | M1.8 |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
 | O-17 | SayTech public endpoints (PRD open question) | existing list, detail, filter and FAQ endpoints; a new endpoint if search is impossible | Use what exists; time-box any new endpoint. | M2.1 |
 | O-18 | Postgres version and ID type | Postgres 18 with `uuidv7()` defaults (code-standards rule `prefer-uuidv7-default`); an older version with IDs generated in Python | Postgres 18, if Cloud SQL offers it. | M2.2, M2.3 |

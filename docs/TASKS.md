@@ -241,24 +241,29 @@ package beyond what M0.3 installed (D-37).
 - [x] A dev script transcribes a Chrome (webm) and a Safari (mp4) recording correctly:
       both returned the test question word for word, in 372 ms and 396 ms.
 - [x] `DECISIONS.md` records the provider and whether it can stream (D-51: it cannot).
-- [ ] On Cloud Run the gateway receives the key from Secret Manager (Terraform, applied
-      with your approval).
+- [x] On Cloud Run the gateway receives the key from Secret Manager (Terraform, applied
+      with your approval; revision `gateway-00008-vd2` became ready, so the secret resolves).
 
 New dependencies: none (httpx2 came with M1.10).
 
 ### M1.8 LLM adapter (streaming)
 
-- [ ] A `ChatModel` Protocol that streams events: text deltas now, with tool-call deltas
-      already part of the event type.
-- [ ] One adapter for OpenAI-compatible chat APIs, so Groq, Cerebras and Gemini differ
-      only by base URL, key and model name (O-13, O-14). This also leaves room for a
+- [x] A `ChatModel` Protocol that streams events: text deltas now, with tool-call deltas
+      already part of the event type. `stream()` is an async context manager, so the HTTP
+      response closes even if a caller stops reading early.
+- [x] One adapter for OpenAI-compatible chat APIs, so Groq, Cerebras and Gemini differ
+      only by base URL, key and model name (D-52, D-53). This also leaves room for a
       fallback provider later.
-- [ ] Parsing of the streamed response is tested against recorded fixture streams;
-      requests have a timeout.
-- [ ] System prompt v0: Sarjy's persona, short spoken sentences, no markdown.
-- [ ] A dev script streams a reply from the chosen provider.
+- [x] Parsing of the streamed response is tested against recorded fixture streams (a
+      plain reply and a tool call from Groq); requests time out through the client.
+- [x] System prompt v0: Sarjy's persona, short spoken sentences, no markdown
+      (`gateway/src/sarjy_gateway/prompts.py`).
+- [x] A dev script streams a reply from the chosen provider: Qwen 3.8 27B answers with its
+      first word in about 0.4–0.5 s from here.
+- [ ] On Cloud Run the gateway gets `SARJY_LLM_API_KEY` (the same Groq secret); added with
+      the pipeline in M1.11, so Terraform changes once.
 
-New dependencies: none beyond httpx, unless O-14 picks a vendor SDK.
+New dependencies: none (httpx2 came with M1.10).
 
 ### M1.9a Kokoro front end and model runner
 
