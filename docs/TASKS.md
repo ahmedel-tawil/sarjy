@@ -226,9 +226,10 @@ package beyond what M0.3 installed (D-37).
 
 - [x] Merging the M1.4 echo app deploys it through CI (D-35).
 - [x] The `*.run.app` URL loads over HTTPS.
-- [ ] The WebSocket connects and the echo works in Chrome on a laptop and on a phone over
+- [x] The WebSocket connects and the echo works in Chrome on a laptop and on a phone over
       mobile data; the mic permission prompt appears on both. Laptop: done (8 Oct, you
-      heard your own words back). Phone: still to check.
+      heard your own words back). Phone: checked on 8 Oct through the full voice loop in
+      M1.13 (Chrome on an iPhone), which replaced the echo.
 - [x] Fallback not needed: GCP worked. (Had it blocked this, the same container would
       run on a DigitalOcean droplet, as the PRD plans.)
 
@@ -354,12 +355,21 @@ New dependencies: fastapi, uvicorn, pydantic-settings.
 
 ### M1.13 Deploy the voice loop
 
-- [ ] Merged and deployed through CI.
-- [ ] On the deployed URL, "Hi Sarjy, what can I do in Dubai this weekend?" gets a spoken
-      answer, on a laptop and on a phone.
-- [ ] Provider keys come from Secret Manager.
-- [ ] Cloud Logging shows the per-turn marks line.
-- [ ] The first TTFA numbers from a few turns go into the day-one update.
+- [x] Merged and deployed through CI (revision `gateway-00013-jt9`, 8 Oct).
+- [x] On the deployed URL, "Hi Sarjy, what can I do in Dubai this weekend?" gets a spoken
+      answer, on a laptop (Chrome on a Mac) and on a phone (Chrome on an iPhone).
+- [x] Provider keys come from Secret Manager: both Groq keys from `groq-api-key`.
+- [x] Cloud Logging shows the per-turn marks line: `completed` with the server marks and
+      `played` with the browser's TTFA.
+- [x] The first TTFA numbers from a few turns go into the day-one update. Browser turns:
+      4.7, 3.7 and 7.3 s on the laptop, 4.5 s on the phone. Three scripted turns of the
+      demo question: whole-reply speech took 6.4 to 7.1 s on Cloud Run's 2 vCPU (about
+      2.7 s on a Mac), so audio arrived after about 8 s. TTS dominates, as locally.
+- Found while testing: a cold TTS took 11 s on the phone's first turn, the page was
+  reloaded meanwhile, and the gateway logged an unhandled `WebSocketDisconnect` when it
+  sent the audio to the closed socket. Every merge also redeploys TTS, so the first
+  turn after a merge is cold. Experiment 6 (warm vs cold) covers the cold start; the
+  disconnect gets its own fix.
 
 ---
 
