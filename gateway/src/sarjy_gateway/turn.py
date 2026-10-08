@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass, field
 import logging
 from typing import TYPE_CHECKING, Protocol
@@ -18,7 +19,7 @@ from sarjy_gateway.tts import TextToSpeechError
 
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Callable, Sequence
+    from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 
     from sarjy_gateway.llm import ChatEvent, ChatModel, ToolSpec
     from sarjy_gateway.messages import ErrorCode
@@ -92,7 +93,7 @@ class ModelRound:
 
 # Experiment 1's baseline: the whole reply is collected before any of it is spoken.
 class TurnPipeline:
-    # `system_prompt` is called for every turn, so the date in it is always today's.
+    # `system_prompt` is awaited for every turn, so its date and catalogue are current.
     def __init__(
         self,
         stt: SpeechToText,
@@ -100,7 +101,7 @@ class TurnPipeline:
         tts: TextToSpeech,
         toolbox: Toolbox,
         *,
-        system_prompt: Callable[[], str],
+        system_prompt: Callable[[], Awaitable[str]],
         clock: Callable[[], float],
     ) -> None:
         self._stt = stt
@@ -114,10 +115,18 @@ class TurnPipeline:
         turn_id = uuid.uuid7().hex
         timeline = Timeline(self._clock)
         timeline.mark("audio_received")
-        transcript = await self._transcribe(audio, turn_id)
-        timeline.mark("stt_done")
-        await listener.transcript(turn_id, transcript)
-        answer = await self._answer(transcript, conversation, timeline, turn_id)
+        # The prompt is built while the speech is transcribed, so fetching SayTech's
+        # context on a cache miss adds nothing to the wait.
+        prompt = asyncio.ensure_future(self._system_prompt())
+        try:
+            transcript = await self._transcribe(audio, turn_id)
+            timeline.mark("stt_done")
+            await listener.transcript(turn_id, transcript)
+            system = await prompt
+        finally:
+            # Only matters when the turn ends early; a finished task ignores it.
+            prompt.cancel()
+        answer = await self._answer(system, transcript, conversation, timeline, turn_id)
         timeline.mark("first_sentence_ready")
         await listener.reply(turn_id, answer.reply)
         wav = await self._speak(answer.reply, conversation.voice, turn_id)
@@ -141,9 +150,11 @@ class TurnPipeline:
 
     # Asks the model, runs any tools it calls and asks again with their results, until it
     # answers in words. Only this turn's tool messages are sent; history keeps the replies.
-    async def _answer(self, transcript: str, conversation: Conversation, timeline: Timeline, turn_id: str) -> Answer:
+    async def _answer(
+        self, system: str, transcript: str, conversation: Conversation, timeline: Timeline, turn_id: str
+    ) -> Answer:
         messages = [
-            ChatMessage(role="system", content=self._system_prompt()),
+            ChatMessage(role="system", content=system),
             *conversation.history,
             ChatMessage(role="user", content=transcript),
         ]

@@ -12,7 +12,7 @@ import time
 from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
-from sarjy_gateway.prompts import system_prompt
+from sarjy_gateway.prompts import SystemPrompt
 from sarjy_gateway.services import build_services
 from sarjy_gateway.settings import Settings
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox, ToolError
@@ -91,11 +91,8 @@ async def ask(questions: list[str]) -> None:
     ]
     stt = TypedQuestion()
     toolbox = Toolbox(tools, time.monotonic, TOOL_TIMEOUT_SECONDS)
-
-    def prompt() -> str:
-        return system_prompt(datetime.now(UAE_TIME))
-
-    pipeline = TurnPipeline(stt, services.llm, NoSpeech(), toolbox, system_prompt=prompt, clock=time.monotonic)
+    prompt = SystemPrompt(services.catalogue, lambda: datetime.now(UAE_TIME))
+    pipeline = TurnPipeline(stt, services.llm, NoSpeech(), toolbox, system_prompt=prompt.build, clock=time.monotonic)
     conversation = Conversation(max_turns=settings.max_history_turns)
     try:
         for question in questions:
