@@ -687,6 +687,24 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   network call each time, for data that is already one call away); no cache (every
   turn pays SayTech's latency and every outage reaches the traveller).
 
+### D-59 Tool results and arguments shaped for the model and for Groq
+
+- **Decision:** tool results leave out empty fields, and a tour's children's and
+  cancellation policies are stated once (`every_ticket`) when every ticket shares them,
+  which is the usual case. Tool arguments avoid names the model confuses with JSON
+  Schema keywords: `get_tour` takes `slug` and `product_type` (default `tour`), not
+  `type`. An error that a provider sends inside the stream is reported with its own
+  message (settled 8 Oct in M2.10).
+- **Reason:** every request of a turn resends all tool results, and Groq's free tier
+  allows 8,000 tokens a minute (O-27). The buggy's nine tickets repeated the same two
+  policies, so its details went from 5.3 KB to 2.1 KB (SayTech's raw answer is 7.9 KB);
+  the helicopter's from 8.7 KB raw to 2.9 KB. With an argument named `type`, Qwen
+  sometimes wrote `true` for it; Groq checks tool calls against their schema and rejected
+  those turns mid-stream with `tool_use_failed`, two runs in four. After the rename,
+  none in the following runs.
+- **Alternatives considered:** retrying a rejected round (costs a second or more, and
+  hides the cause); dropping fields the model might need, such as the summary.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -702,6 +720,7 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | O-23 | Where the TTS cache lives (SayTech's is settled in D-58) | in the gateway's process; in the TTS service; Cloud Storage | Decided by measurement. | M3.7 |
 | O-24 | Audio for the test script | recorded by me; synthesised (Kokoro or macOS `say`) | Synthesised for repeatability, plus a few real recordings as a sanity check. | M3.3 |
 | O-25 | Frontend unit tests | Vitest for pure logic (timing maths, message parsing); none | Add Vitest only if the client grows real logic. | M3.2 |
+| O-27 | Groq's rate limit for the demo and review week | Sarj's higher-limit keys (asked for in the day-one update); Groq's paid Developer tier on my account; Cerebras as a second provider | Every free-tier Groq model allows 8,000 tokens a minute, and a turn with tools uses 2,000 to 4,000, so two or three tool turns a minute hit the limit (seen three times on 8 Oct). Ask Sarj again; failing that, the Developer tier before the review. Your call. | M2.14 |
 | O-26 | Voice activity detection approach | a browser VAD library (new dependency); a simple energy threshold; server-side VAD | Decide in M4.5, once push-to-talk is solid. | M4.5 |
 
 ## Approved code-standards exceptions
