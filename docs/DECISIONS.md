@@ -527,13 +527,29 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   (smaller, but encoding costs time and adds a dependency); the int8 model (92 MB
   instead of 325 MB).
 
+### D-51 STT: Groq `whisper-large-v3-turbo`, one clip per turn
+
+- **Decision:** The gateway uploads each turn's whole clip to Groq's
+  `/openai/v1/audio/transcriptions` with `whisper-large-v3-turbo`, `language=en`,
+  temperature 0 and a short spelling prompt (Sarjy, dirhams, the emirates). The clip's
+  container (WebM, MP4, WAV, Ogg) is recognised from its first bytes. The key reaches the
+  gateway from Secret Manager on Cloud Run and from `.env` locally, held as a
+  `SecretStr` (settled 8 Oct in M1.7, was O-12).
+- **Reason:** Groq lists it as its fastest transcription model (real-time factor 216) and
+  it is on Sarj's list of preferred providers. Groq's endpoint is file-based, with no
+  streaming, which suits push-to-talk: the clip is complete at release. A Kokoro-spoken
+  test question came back word for word in about 0.4 s from Chrome's WebM and from
+  Safari's MP4. Groq bills at least 10 seconds per request.
+- **Alternatives considered:** `whisper-large-v3` (more accurate, slower); a streaming STT
+  provider (worth it only with voice activity detection, M4.5); self-hosted Whisper (a GPU
+  we do not have in `me-central1`).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
 
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
-| O-12 | STT provider and streaming (PRD open question) | Groq `whisper-large-v3-turbo` (file upload); a streaming STT provider | Groq on day 1. Check and record whether streaming is offered and worth it. | M1.7 |
 | O-13 | LLM provider and model for day 1 | Groq; Cerebras | Groq (one key for STT and LLM); the final pick comes from experiment 4. | M1.8, M3.8 |
 | O-14 | LLM client | httpx2 against the OpenAI-compatible API; vendor SDKs | httpx2 (D-43): one adapter for every provider, every line visible, and it is already a dependency. | M1.8 |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |

@@ -234,13 +234,17 @@ package beyond what M0.3 installed (D-37).
 
 ### M1.7 STT adapter
 
-- [ ] A `SpeechToText` Protocol, one hosted adapter (O-12) and a fake for tests.
-- [ ] Unit tests cover the request it builds and how provider errors map to our own
+- [x] A `SpeechToText` Protocol, one hosted adapter (Groq, D-51) and a fake for tests
+      (a fake HTTP transport).
+- [x] Unit tests cover the request it builds and how provider errors map to our own
       exceptions, with no network calls.
-- [ ] A dev script transcribes a Chrome (webm) and a Safari (mp4) recording correctly.
-- [ ] `DECISIONS.md` records the provider and whether it can stream (PRD open question).
+- [x] A dev script transcribes a Chrome (webm) and a Safari (mp4) recording correctly:
+      both returned the test question word for word, in 372 ms and 396 ms.
+- [x] `DECISIONS.md` records the provider and whether it can stream (D-51: it cannot).
+- [ ] On Cloud Run the gateway receives the key from Secret Manager (Terraform, applied
+      with your approval).
 
-New dependencies: httpx.
+New dependencies: none (httpx2 came with M1.10).
 
 ### M1.8 LLM adapter (streaming)
 
