@@ -119,10 +119,10 @@ tw-animate-css, @hugeicons/react, @hugeicons/core-free-icons,
 
 ### M0.5 Protect `main` and run tests in CI
 
-- [ ] A small CI job runs the Python tests and the frontend build (the generated
+- [x] A small CI job runs the Python tests and the frontend build (the generated
       workflows lint; they may not run tests).
-- [ ] All workflows pass on this task's pull request.
-- [ ] After your approval, `main` requires a pull request and passing checks, and the
+- [x] All workflows pass on this task's pull request.
+- [x] After your approval, `main` requires a pull request and passing checks, and the
       merge method is set (D-40).
 
 ---
