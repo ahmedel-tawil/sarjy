@@ -2,7 +2,7 @@ from collections.abc import Mapping
 import json
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocketDisconnect
 from fastapi.testclient import TestClient
 import pytest
 from sarjy_gateway.messages import AudioFollows, Reply, ServerError, Transcript, TurnMarks
@@ -133,3 +133,14 @@ def test_a_cancelled_turn_drops_its_audio() -> None:
         socket.send_text(TURN_END)
 
         assert ServerError.model_validate_json(socket.receive_text()).code == "no_audio"
+
+
+def test_a_browser_that_leaves_mid_turn_ends_the_session_quietly(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="sarjy_gateway.voice")
+    # A send to a closed socket raises this mid-turn; the fake STT raises it at that point.
+    stt = FakeSpeechToText(error=WebSocketDisconnect(code=1006))
+    with voice_client(stt=stt).websocket_connect("/ws") as socket:
+        socket.send_bytes(b"clip")
+        socket.send_text(TURN_END)
+
+    assert "browser left mid-turn" in caplog.messages

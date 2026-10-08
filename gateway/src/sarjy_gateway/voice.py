@@ -1,7 +1,7 @@
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, WebSocket
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
 from sarjy_gateway.messages import (
@@ -68,20 +68,28 @@ class VoiceRouter:
         @router.websocket("/ws")
         async def voice(websocket: WebSocket) -> None:
             await websocket.accept()
-            audio = TurnAudio(self._max_turn_audio_bytes)
-            conversation = Conversation(max_turns=self._max_history_turns)
-            listener = SocketListener(websocket)
-            while True:
-                message = await websocket.receive()
-                if message["type"] == "websocket.disconnect":
-                    return
-                chunk = message.get("bytes")
-                if isinstance(chunk, bytes):
-                    audio.add(chunk)
-                else:
-                    await self._control(message.get("text"), audio, conversation, listener)
+            try:
+                await self._serve(websocket)
+            except WebSocketDisconnect:
+                # The page was closed or reloaded while its turn was running, so the next
+                # send found the socket gone. Nothing is left to answer.
+                logger.info("browser left mid-turn")
 
         return router
+
+    async def _serve(self, websocket: WebSocket) -> None:
+        audio = TurnAudio(self._max_turn_audio_bytes)
+        conversation = Conversation(max_turns=self._max_history_turns)
+        listener = SocketListener(websocket)
+        while True:
+            message = await websocket.receive()
+            if message["type"] == "websocket.disconnect":
+                return
+            chunk = message.get("bytes")
+            if isinstance(chunk, bytes):
+                audio.add(chunk)
+            else:
+                await self._control(message.get("text"), audio, conversation, listener)
 
     async def _control(
         self, text: object, audio: TurnAudio, conversation: Conversation, listener: SocketListener
