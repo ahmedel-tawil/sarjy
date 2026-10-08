@@ -40,3 +40,7 @@ class Settings(BaseSettings):
     llm_temperature: float = Field(default=0.5, ge=0.0, le=2.0)
     # Spoken replies are short; this caps cost and runaway answers.
     llm_max_tokens: int = Field(default=300, gt=0)
+    # SayTech's assistant API for Magic Experience; the subdomain picks the operator (D-56).
+    saytech_base_url: str = "https://magicexperience.api.saytech.ae/api/v1/public/assistant"
+    # SayTech answers in well under a second; a slower answer means a voice turn stalls.
+    saytech_timeout_seconds: float = Field(default=3.0, gt=0)

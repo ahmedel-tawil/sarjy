@@ -4,6 +4,17 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
+from sarjy_gateway.catalogue import (
+    CatalogueContext,
+    City,
+    Faq,
+    ProductType,
+    TicketDetails,
+    Tour,
+    TourDetails,
+    TourQuery,
+    TourSearch,
+)
 from sarjy_gateway.llm import ChatMessage, Finished, TextDelta, ToolSpec
 from sarjy_gateway.tts import Voices
 
@@ -129,3 +140,68 @@ class TickingClock:
     def __call__(self) -> float:
         self.now += 0.01
         return self.now
+
+
+FERRARI = Tour(
+    name="Ferrari World Abu Dhabi Tickets",
+    type="tour",
+    slug="ferrari-world-abu-dhbai",
+    city="Abu Dhabi",
+    price="from AED 345",
+    accessible=True,
+    link="https://magicexperience.ae/tours/ferrari-world-abu-dhbai",
+)
+
+
+# Answers with fixed lean results, or raises `error`, and records what it was asked.
+class FakeCatalogue:
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
+        self.queries: list[TourQuery] = []
+        self.lookups: list[tuple[ProductType, str]] = []
+
+    async def context(self) -> CatalogueContext:
+        if self.error is not None:
+            raise self.error
+        return CatalogueContext(
+            operator="Magic Experience",
+            website="https://magicexperience.ae",
+            cities=[City(name="Abu Dhabi", tours=7), City(name="Dubai", tours=8)],
+            categories=["safari", "theme parks"],
+            faqs=[Faq(question="Can I cancel my booking?", answer="Up to 24 hours before.")],
+        )
+
+    async def search(self, query: TourQuery) -> TourSearch:
+        self.queries.append(query)
+        if self.error is not None:
+            raise self.error
+        return TourSearch(tours=[FERRARI], total=1)
+
+    async def tour(self, product_type: ProductType, slug: str) -> TourDetails:
+        self.lookups.append((product_type, slug))
+        if self.error is not None:
+            raise self.error
+        ticket = TicketDetails(
+            name="General Admission",
+            prices=["adult: AED 345", "child: AED 345"],
+            price="from AED 345",
+            duration="8 hours",
+            children=None,
+            cancellation=None,
+        )
+        return TourDetails(
+            name=FERRARI.name,
+            type=FERRARI.type,
+            slug=FERRARI.slug,
+            city=FERRARI.city,
+            price=FERRARI.price,
+            accessible=FERRARI.accessible,
+            link=FERRARI.link,
+            summary="The world's largest indoor theme park.",
+            duration=None,
+            tickets=[ticket],
+            restrictions=[],
+            notes=[],
+            requirements=[],
+            languages=[],
+        )
