@@ -1,6 +1,6 @@
 export interface AudioPlayer {
   play(audio: ArrayBuffer, onStart: () => void): Promise<void>
-  unlock(): Promise<void>
+  unlock(): Promise<AudioContext>
 }
 
 export class Player implements AudioPlayer {
@@ -23,12 +23,14 @@ export class Player implements AudioPlayer {
     await ended
   }
 
-  // Must run inside a user gesture: Safari keeps audio silent until then.
-  async unlock(): Promise<void> {
+  // Must run inside a user gesture: Safari keeps audio silent until then. Returns the
+  // started context, so the recorder's level meter can share it.
+  async unlock(): Promise<AudioContext> {
     const context = this.#audioContext()
     if (context.state === 'suspended') {
       await context.resume()
     }
+    return context
   }
 
   #audioContext(): AudioContext {

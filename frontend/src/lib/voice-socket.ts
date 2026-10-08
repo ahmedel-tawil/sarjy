@@ -1,6 +1,13 @@
-import { browserMarksMessage, type ServerMessage, ServerMessageSchema, TURN_END_MESSAGE } from './protocol'
+import {
+  browserMarksMessage,
+  type ServerMessage,
+  ServerMessageSchema,
+  TURN_CANCEL_MESSAGE,
+  TURN_END_MESSAGE,
+} from './protocol'
 
 export interface VoiceChannel {
+  cancelTurn(): void
   endTurn(): void
   sendAudio(chunk: Blob): void
   sendMarks(turnId: string, speechEnd: number, playbackStart: number): void
@@ -22,6 +29,10 @@ export class VoiceSocket implements VoiceChannel {
   constructor(url: string, handlers: VoiceSocketHandlers) {
     this.#url = url
     this.#handlers = handlers
+  }
+
+  cancelTurn(): void {
+    this.#send(TURN_CANCEL_MESSAGE)
   }
 
   endTurn(): void {

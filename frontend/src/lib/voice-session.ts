@@ -1,7 +1,14 @@
 import { Player } from './player'
 import type { ErrorCode, ServerMessage } from './protocol'
-import { Recorder } from './recorder'
+import { Recorder, type Recording } from './recorder'
 import { VoiceSocket } from './voice-socket'
+
+// A press shorter than this is a tap, not a question.
+const MIN_RECORDING_MS = 300
+
+// Browsers suppress background noise on the microphone, so a silent room sits well below
+// this level and speech well above it (D-55).
+const SPEECH_DBFS = -45
 
 export type Status = 'idle' | 'listening' | 'speaking' | 'thinking'
 
@@ -76,8 +83,13 @@ export class VoiceSession implements PushToTalk {
   }
 
   async #endTurn(): Promise<void> {
-    await this.#recorder.stop()
-    this.#socket.endTurn()
+    const recording = await this.#recorder.stop()
+    if (heardSpeech(recording)) {
+      this.#socket.endTurn()
+    } else {
+      this.#socket.cancelTurn()
+      this.#report('no_speech')
+    }
   }
 
   #receive(message: ServerMessage): void {
@@ -135,8 +147,8 @@ export class VoiceSession implements PushToTalk {
 
   async #startRecording(): Promise<void> {
     const releasesBefore = this.#releases
-    await this.#player.unlock()
-    await this.#recorder.prepare()
+    const context = await this.#player.unlock()
+    await this.#recorder.prepare(context)
     // Released while the permission prompt was open: wait for the next press.
     if (this.#releases !== releasesBefore) {
       return
@@ -146,4 +158,12 @@ export class VoiceSession implements PushToTalk {
     })
     this.#setStatus('listening')
   }
+}
+
+function heardSpeech(recording: Recording): boolean {
+  if (recording.durationMs < MIN_RECORDING_MS) {
+    return false
+  }
+  // Without a measurement, let the turn through rather than lose real speech.
+  return recording.loudestDbfs === null || recording.loudestDbfs >= SPEECH_DBFS
 }

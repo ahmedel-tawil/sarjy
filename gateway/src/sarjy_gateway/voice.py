@@ -13,6 +13,7 @@ from sarjy_gateway.messages import (
     ServerError,
     SetVoice,
     Transcript,
+    TurnCancel,
     TurnEnd,
     TurnMarks,
 )
@@ -82,7 +83,9 @@ class VoiceRouter:
 
         return router
 
-    async def _control(self, text: object, audio: TurnAudio, conversation: Conversation, listener: SocketListener) -> None:
+    async def _control(
+        self, text: object, audio: TurnAudio, conversation: Conversation, listener: SocketListener
+    ) -> None:
         if not isinstance(text, str):
             await listener.error("invalid_message")
             return
@@ -96,6 +99,8 @@ class VoiceRouter:
                 await self._set_voice(voice, conversation, listener)
             case TurnEnd():
                 await self._end_turn(audio, conversation, listener)
+            case TurnCancel():
+                audio.take()
             case BrowserMarks():
                 # Joined to the server's "completed" line by turn_id; M3.1 stores both.
                 logger.info("turn %(turn_id)s played", {"turn_id": control.turn_id, "ttfa_ms": control.ttfa_ms})

@@ -31,6 +31,8 @@ export type ServerMessage = z.infer<typeof ServerMessageSchema>
 
 export const TURN_END_MESSAGE = JSON.stringify({ type: 'turn_end' })
 
+export const TURN_CANCEL_MESSAGE = JSON.stringify({ type: 'turn_cancel' })
+
 export function browserMarksMessage(turnId: string, speechEnd: number, playbackStart: number): string {
   return JSON.stringify({ 'playback_start': playbackStart, 'speech_end': speechEnd, 'turn_id': turnId, 'type': 'browser_marks' })
 }
