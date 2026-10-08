@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from sarjy_gateway.health import HealthRouter
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
+from sarjy_gateway.tour_tools import GetTourTool, SearchToursTool
 from sarjy_gateway.turn import TurnPipeline
 from sarjy_gateway.voice import VoiceRouter
 from sarjy_gateway.voices import VoicesRouter
@@ -34,8 +35,9 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
                 await services.http_client.aclose()
             logger.info("gateway stopped")
 
-    # No tools yet: SayTech, weather and memory tools join in M2.6, M2.10 and M2.11.
-    toolbox = Toolbox(tools=[], clock=time.monotonic, timeout_seconds=TOOL_TIMEOUT_SECONDS)
+    # Weather and memory tools join in M2.11 and M2.6.
+    tools = [SearchToursTool(services.catalogue), GetTourTool(services.catalogue)]
+    toolbox = Toolbox(tools=tools, clock=time.monotonic, timeout_seconds=TOOL_TIMEOUT_SECONDS)
     pipeline = TurnPipeline(services.stt, services.llm, services.tts, toolbox, time.monotonic)
     app = FastAPI(title="Sarjy gateway", lifespan=lifespan)
     app.include_router(HealthRouter().build())
