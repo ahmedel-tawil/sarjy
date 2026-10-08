@@ -466,16 +466,21 @@ New dependencies: psycopg (binary), psycopg-pool.
 
 ### M2.5 Tool-calling loop
 
-- [ ] Each tool's arguments are a Pydantic model; the JSON schema sent to the LLM is
+- [x] Each tool's arguments are a Pydantic model; the JSON schema sent to the LLM is
       generated from it.
-- [ ] The pipeline collects tool-call deltas, validates the arguments (invalid ones go back
+- [x] The pipeline collects tool-call deltas, validates the arguments (invalid ones go back
       to the model as an error result, not a crash), runs the tools (several at once if
-      asked) and returns the results, up to a fixed number of rounds.
-- [ ] Each turn's tool results are stored on the turn.
-- [ ] What `llm_first_token` means when tools run first is decided and written down for
-      `LATENCY.md`.
-- [ ] Tests with a fake LLM and fake tools: one call, two calls, invalid arguments, a
-      failing tool, too many rounds.
+      asked) and returns the results, up to a fixed number of rounds (3, then one round
+      with no tools; D-57).
+- [x] Each turn's tool results are stored on the turn.
+- [x] What `llm_first_token` means when tools run first is decided and written down for
+      `LATENCY.md`: the first word of the spoken answer, after any tool rounds (D-57).
+- [x] Tests with a fake LLM and fake tools: one call, two calls, invalid arguments, a
+      failing tool, too many rounds; plus an unknown tool, broken JSON and a timeout.
+- [x] Checked against the real Groq model with a stand-in weather tool: one call, then
+      two calls in one round, each answered from the tool's numbers. The first spoken
+      word came after about 1.0 to 1.2 s with a tool round, against 0.3 s without one.
+      The toolbox is empty in production until M2.6, M2.10 and M2.11 add real tools.
 
 ### M2.6 Memory tools and facts in the prompt
 
@@ -600,7 +605,8 @@ configuration (environment variables), not code branches.
       "network and browser" is what remains.
 - [ ] A command prints p50 and p95 per gap for a labelled run.
 - [ ] Tests cover the gap and percentile maths (the PRD's "latency timeline" tests).
-- [ ] `docs/LATENCY.md` exists with the mark definitions and how each gap is computed.
+- [ ] `docs/LATENCY.md` exists with the mark definitions and how each gap is computed,
+      including what `llm_first_token` means when tools run first (D-57).
 
 ### M3.2 Live latency waterfall panel
 
