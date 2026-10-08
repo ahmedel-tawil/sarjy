@@ -85,14 +85,14 @@ New dependencies: `pytest` (dev).
 
 ### M0.3 Frontend scaffold
 
-- [ ] `frontend/` is a Vite + React + TypeScript app with Tailwind and shadcn/ui
+- [x] `frontend/` is a Vite + React + TypeScript app with Tailwind and shadcn/ui
       initialised, using npm (D-33) and Node 24 pinned in `.nvmrc` and `engines` (D-36).
-- [ ] Generator output lands in its own commits whose messages say they are generated
+- [x] Generator output lands in its own commits whose messages say they are generated
       (D-32).
-- [ ] Design tokens are defined once in a CSS file, even if there are only a few so far.
-- [ ] `npm run build` and the TypeScript build check pass; the lockfile is committed.
-- [ ] The page shows only the word "Sarjy". No UI is invented ahead of its task.
-- [ ] shadcn uses the Maia preset with HugeIcons as its icon library; its base styles are
+- [x] Design tokens are defined once in a CSS file, even if there are only a few so far.
+- [x] `npm run build` and the TypeScript build check pass; the lockfile is committed.
+- [x] The page shows only the word "Sarjy". No UI is invented ahead of its task.
+- [x] shadcn uses the Maia preset with HugeIcons as its icon library; its base styles are
       ejected into their own file, and neither the `shadcn` CLI nor lucide-react is a
       dependency (D-37).
 
