@@ -584,6 +584,23 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** a separate HTTP endpoint for marks (a second path for the
   same turn); letting the user talk over Sarjy (that is barge-in, on the cut list).
 
+### D-55 The browser drops presses with no speech before they reach Whisper
+
+- **Decision:** The browser measures the microphone level while the talk button is held.
+  A press shorter than 0.3 s, or whose loudest moment stays below -45 dBFS, is cancelled
+  with a `turn_cancel` message and never transcribed. If the level cannot be measured
+  (the audio context is not running), the turn goes through (settled 8 Oct in M1.14).
+- **Reason:** Whisper turns silence into words. Measured against Groq on 8 Oct: 1.5 s of
+  silence and 0.7 s of room noise both came back as "Thank you.", which Sarjy then
+  answered. Groq gives nothing to filter on: `no_speech_prob` was 0.000 for every clip,
+  and the invented "Thank you." scored the same `avg_logprob` as a real one (-0.26 and
+  -0.25). Browsers suppress background noise on the microphone, so a silent room sits far
+  below -45 dBFS and speech far above it. Dropping these turns in the browser also saves
+  the round trip.
+- **Alternatives considered:** a list of known Whisper phrases (would also drop a real
+  "thank you"); voice activity detection on the server (needs an audio decoder and a VAD
+  model); proper VAD in the browser, which is M4.5 and can replace this check.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
