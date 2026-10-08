@@ -3,7 +3,15 @@ import logging
 from typing import TYPE_CHECKING, Protocol
 import uuid
 
-from sarjy_gateway.llm import ChatMessage, ChatModelError, ChatRateLimitedError, TextDelta
+from sarjy_gateway.llm import (
+    ChatMessage,
+    ChatModelError,
+    ChatRateLimitedError,
+    TextDelta,
+    ToolCall,
+    ToolCallDelta,
+    assemble_tool_calls,
+)
 from sarjy_gateway.prompts import SYSTEM_PROMPT
 from sarjy_gateway.stt import RateLimitedError, SpeechToTextError
 from sarjy_gateway.timeline import Timeline
@@ -11,15 +19,20 @@ from sarjy_gateway.tts import TextToSpeechError
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import AsyncIterator, Callable, Sequence
 
-    from sarjy_gateway.llm import ChatModel
+    from sarjy_gateway.llm import ChatEvent, ChatModel, ToolSpec
     from sarjy_gateway.messages import ErrorCode
     from sarjy_gateway.stt import SpeechToText
+    from sarjy_gateway.tools import Toolbox
     from sarjy_gateway.tts import TextToSpeech
 
 
 logger = logging.getLogger(__name__)
+
+# How many rounds of tool calls one turn may make. One more round follows that offers no
+# tools, so the model has to answer with what it has (D-57).
+MAX_TOOL_ROUNDS = 3
 
 
 class TurnListener(Protocol):
@@ -56,17 +69,37 @@ class CompletedTurn:
     transcript: str
     reply: str
     marks: dict[str, float]
-    # What tools returned this turn, as the LLM saw it; empty until M2.5. Kept so a later
-    # check can test spoken prices and temperatures against it (optional deep dive).
+    # What tools returned this turn, as the LLM saw it. Kept so a later check can test
+    # spoken prices and temperatures against it (optional deep dive).
     tool_results: list[str]
+
+
+# The model's spoken answer, and what its tools returned on the way.
+@dataclass(frozen=True)
+class Answer:
+    reply: str
+    tool_results: list[str]
+
+
+# One request to the model: either text to speak, or tool calls to run first.
+@dataclass(frozen=True)
+class ModelRound:
+    text: str
+    tool_calls: list[ToolCall]
+    # Clock reading at the first piece of text, which becomes `llm_first_token` if this
+    # round is the spoken answer.
+    first_text_at: float | None
 
 
 # Experiment 1's baseline: the whole reply is collected before any of it is spoken.
 class TurnPipeline:
-    def __init__(self, stt: SpeechToText, llm: ChatModel, tts: TextToSpeech, clock: Callable[[], float]) -> None:
+    def __init__(
+        self, stt: SpeechToText, llm: ChatModel, tts: TextToSpeech, toolbox: Toolbox, clock: Callable[[], float]
+    ) -> None:
         self._stt = stt
         self._llm = llm
         self._tts = tts
+        self._toolbox = toolbox
         self._clock = clock
 
     async def run(self, audio: bytes, conversation: Conversation, listener: TurnListener) -> CompletedTurn:
@@ -76,14 +109,14 @@ class TurnPipeline:
         transcript = await self._transcribe(audio, turn_id)
         timeline.mark("stt_done")
         await listener.transcript(turn_id, transcript)
-        reply = await self._answer(transcript, conversation, timeline, turn_id)
+        answer = await self._answer(transcript, conversation, timeline, turn_id)
         timeline.mark("first_sentence_ready")
-        await listener.reply(turn_id, reply)
-        wav = await self._speak(reply, conversation.voice, turn_id)
+        await listener.reply(turn_id, answer.reply)
+        wav = await self._speak(answer.reply, conversation.voice, turn_id)
         timeline.mark("tts_first_byte")
         await listener.audio(turn_id, wav)
-        conversation.remember(transcript, reply)
-        turn = CompletedTurn(turn_id, transcript, reply, timeline.marks, [])
+        conversation.remember(transcript, answer.reply)
+        turn = CompletedTurn(turn_id, transcript, answer.reply, timeline.marks, answer.tool_results)
         logger.info("turn %(turn_id)s completed", {"turn_id": turn_id, "marks": turn.marks})
         return turn
 
@@ -98,28 +131,57 @@ class TurnPipeline:
             raise TurnError(code="no_speech", turn_id=turn_id)
         return transcript
 
-    async def _answer(self, transcript: str, conversation: Conversation, timeline: Timeline, turn_id: str) -> str:
+    # Asks the model, runs any tools it calls and asks again with their results, until it
+    # answers in words. Only this turn's tool messages are sent; history keeps the replies.
+    async def _answer(self, transcript: str, conversation: Conversation, timeline: Timeline, turn_id: str) -> Answer:
         messages = [
             ChatMessage(role="system", content=SYSTEM_PROMPT),
             *conversation.history,
             ChatMessage(role="user", content=transcript),
         ]
-        parts: list[str] = []
+        tool_results: list[str] = []
+        for round_number in range(MAX_TOOL_ROUNDS + 1):
+            tools = self._toolbox.specs if round_number < MAX_TOOL_ROUNDS else []
+            model_round = await self._ask(messages, tools, turn_id)
+            if not model_round.tool_calls:
+                return self._spoken(model_round, tool_results, timeline, turn_id)
+            results = await self._toolbox.run_all(model_round.tool_calls, turn_id)
+            messages.append(ChatMessage(role="assistant", content=model_round.text, tool_calls=model_round.tool_calls))
+            for call, result in zip(model_round.tool_calls, results, strict=True):
+                messages.append(ChatMessage(role="tool", content=result, tool_call_id=call.call_id))
+            tool_results += results
+        # Still calling tools in the round that offered none.
+        raise TurnError(code="llm_failed", turn_id=turn_id)
+
+    async def _ask(self, messages: Sequence[ChatMessage], tools: Sequence[ToolSpec], turn_id: str) -> ModelRound:
         try:
-            async with self._llm.stream(messages) as events:
-                async for event in events:
-                    if isinstance(event, TextDelta):
-                        if not parts:
-                            timeline.mark("llm_first_token")
-                        parts.append(event.text)
+            async with self._llm.stream(messages, tools) as events:
+                return await self._read(events)
         except ChatRateLimitedError as error:
             raise TurnError(code="rate_limited", turn_id=turn_id) from error
         except ChatModelError as error:
             raise TurnError(code="llm_failed", turn_id=turn_id) from error
-        reply = "".join(parts).strip()
-        if not reply:
+
+    async def _read(self, events: AsyncIterator[ChatEvent]) -> ModelRound:
+        parts: list[str] = []
+        call_pieces: list[ToolCallDelta] = []
+        first_text_at: float | None = None
+        async for event in events:
+            if isinstance(event, TextDelta):
+                first_text_at = first_text_at if first_text_at is not None else self._clock()
+                parts.append(event.text)
+            elif isinstance(event, ToolCallDelta):
+                call_pieces.append(event)
+        return ModelRound("".join(parts), assemble_tool_calls(call_pieces), first_text_at)
+
+    @staticmethod
+    def _spoken(model_round: ModelRound, tool_results: list[str], timeline: Timeline, turn_id: str) -> Answer:
+        reply = model_round.text.strip()
+        if not reply or model_round.first_text_at is None:
             raise TurnError(code="llm_failed", turn_id=turn_id)
-        return reply
+        # The first word of the answer that is spoken, after any tool rounds (D-57).
+        timeline.mark("llm_first_token", at=model_round.first_text_at)
+        return Answer(reply, tool_results)
 
     async def _speak(self, reply: str, voice: str | None, turn_id: str) -> bytes:
         try:

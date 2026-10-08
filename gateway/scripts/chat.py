@@ -42,7 +42,7 @@ async def time_one_reply(model: ChatModel, messages: list[ChatMessage]) -> Timed
     first_word: float | None = None
     parts: list[str] = []
     finish = "none"
-    async with model.stream(messages) as events:
+    async with model.stream(messages, []) as events:
         async for event in events:
             if isinstance(event, TextDelta):
                 first_word = first_word if first_word is not None else time.perf_counter() - started

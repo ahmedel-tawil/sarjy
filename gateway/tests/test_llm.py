@@ -1,5 +1,6 @@
 import asyncio
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import httpx2
 from pydantic import BaseModel, SecretStr
@@ -13,9 +14,16 @@ from sarjy_gateway.llm import (
     GenerationOptions,
     OpenAiCompatibleChatModel,
     TextDelta,
+    ToolCall,
     ToolCallDelta,
+    ToolSpec,
+    assemble_tool_calls,
     sse_data,
 )
+
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -24,7 +32,12 @@ OPTIONS = GenerationOptions(model="qwen/qwen3.8-27b", temperature=0.5, max_token
 MESSAGES = [ChatMessage(role="system", content="Be brief."), ChatMessage(role="user", content="Hello?")]
 
 
-class RequestBody(BaseModel):
+class ToolRequestBody(BaseModel):
+    messages: list[dict[str, object]]
+    tools: list[dict[str, object]]
+
+
+class RequestBody(BaseModel, extra="allow"):
     model: str
     messages: list[ChatMessage]
     stream: bool
@@ -42,8 +55,12 @@ def model_answering(answer: httpx2.Response, seen: list[httpx2.Request]) -> Open
     return OpenAiCompatibleChatModel(client, "https://api.groq.com/openai/v1", SecretStr(API_KEY), OPTIONS)
 
 
-async def collect(model: OpenAiCompatibleChatModel) -> list[ChatEvent]:
-    async with model.stream(MESSAGES) as events:
+async def collect(
+    model: OpenAiCompatibleChatModel,
+    messages: Sequence[ChatMessage] = MESSAGES,
+    tools: Sequence[ToolSpec] = (),
+) -> list[ChatEvent]:
+    async with model.stream(messages, tools) as events:
         return [event async for event in events]
 
 
@@ -84,6 +101,64 @@ def test_sends_model_messages_options_and_key() -> None:
         max_tokens=300,
         reasoning_effort="none",
     )
+    # Nothing beyond the fields above was sent: in particular, no empty "tools" list.
+    assert RequestBody.model_validate_json(request.content).model_extra == {}
+
+
+def test_sends_tools_and_tool_messages_in_the_openai_format() -> None:
+    seen: list[httpx2.Request] = []
+    call = ToolCall(call_id="call-1", name="get_weather", arguments='{"city": "Dubai"}')
+    messages = [
+        *MESSAGES,
+        ChatMessage(role="assistant", content="", tool_calls=[call]),
+        ChatMessage(role="tool", content='{"temperature_c": 31}', tool_call_id="call-1"),
+    ]
+    weather = ToolSpec("get_weather", "The forecast for a UAE city.", {"type": "object", "properties": {}})
+
+    asyncio.run(collect(model_answering(recorded("groq_text.sse"), seen), messages, [weather]))
+
+    body = ToolRequestBody.model_validate_json(seen[0].content)
+    assert body.messages[2:] == [
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {"id": "call-1", "type": "function", "function": {"name": "get_weather", "arguments": '{"city": "Dubai"}'}}
+            ],
+        },
+        {"role": "tool", "content": '{"temperature_c": 31}', "tool_call_id": "call-1"},
+    ]
+    assert body.tools == [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "The forecast for a UAE city.",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        }
+    ]
+
+
+def test_tool_calls_are_assembled_from_their_streamed_pieces() -> None:
+    pieces = [
+        ToolCallDelta(0, "call-a", "search_tours", '{"city": "Ab'),
+        ToolCallDelta(1, "call-b", "get_weather", ""),
+        ToolCallDelta(0, None, None, 'u Dhabi"}'),
+        ToolCallDelta(1, None, None, '{"city": "Dubai"}'),
+        ToolCallDelta(2, "call-c", "forget_me", ""),
+    ]
+
+    assert assemble_tool_calls(pieces) == [
+        ToolCall(call_id="call-a", name="search_tours", arguments='{"city": "Abu Dhabi"}'),
+        ToolCall(call_id="call-b", name="get_weather", arguments='{"city": "Dubai"}'),
+        ToolCall(call_id="call-c", name="forget_me", arguments="{}"),
+    ]
+
+
+def test_a_tool_call_without_a_name_is_a_model_error() -> None:
+    with pytest.raises(ChatModelError):
+        assemble_tool_calls([ToolCallDelta(0, "call-a", None, "{}")])
 
 
 def test_rate_limits_are_reported_as_their_own_error() -> None:
