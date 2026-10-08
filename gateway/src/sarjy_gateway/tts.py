@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Protocol
 
 import httpx2
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 
 if TYPE_CHECKING:
@@ -71,7 +71,11 @@ class HttpTextToSpeech:
 
     async def voices(self) -> Voices:
         response = await self._request("GET", "/voices")
-        return Voices.model_validate_json(response.content)
+        try:
+            return Voices.model_validate_json(response.content)
+        except ValidationError as error:
+            message = "TTS GET /voices answered with something other than a voice list"
+            raise TextToSpeechError(message) from error
 
     async def synthesize(self, text: str, voice: str) -> bytes:
         response = await self._request("POST", "/synthesize", json={"text": text, "voice": voice})
