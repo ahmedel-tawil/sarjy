@@ -23,6 +23,7 @@ dist/
 *.tfstate
 *.tfstate.*
 *.tfvars
+*.tfplan
 
 # Kokoro model files are downloaded at image build time, never committed
 *.onnx

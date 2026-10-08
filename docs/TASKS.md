@@ -159,7 +159,8 @@ No code: you run the steps; I prepare the exact commands.
       choose (USD 50).
 - [x] The needed APIs are enabled: Cloud Run, Artifact Registry, Secret Manager,
       Cloud SQL Admin, IAM Credentials, Security Token Service.
-- [ ] A versioned Cloud Storage bucket holds Terraform state (created in M1.2).
+- [x] A versioned Cloud Storage bucket holds Terraform state (`sarjy-ahmed-2026-tfstate`,
+      created in M1.2).
 - [x] The region is chosen and recorded in `DECISIONS.md`, after checking Cloud Run
       WebSockets, Cloud SQL, domain mapping and GPU availability there (D-44).
 - [x] GPU quota not filed: Cloud Run has no GPUs in `me-central1`, so M3.12 would need a
@@ -167,17 +168,18 @@ No code: you run the steps; I prepare the exact commands.
 
 ### M1.2 Terraform foundation
 
-- [ ] `infra/` holds the provider, the remote state backend and variables;
+- [x] `infra/` holds the provider, the remote state backend and variables;
       `terraform fmt -check`, `terraform validate` and `code-standards check` pass.
-- [ ] Resources: an Artifact Registry repository; one runtime service account each for
+- [x] Resources: an Artifact Registry repository; one runtime service account each for
       the gateway and TTS; Secret Manager secrets (names only); Cloud Run services
       `gateway` and `tts` running a placeholder image.
-- [ ] The gateway's request timeout allows long WebSocket sessions.
-- [ ] `tts` cannot be called without authentication (O-09).
-- [ ] Secret values are added by hand with `gcloud`; they never appear in Terraform state
+- [x] The gateway's request timeout allows long WebSocket sessions.
+- [x] `tts` cannot be called without authentication (D-45): an anonymous request gets 403.
+- [x] Secret values are added by hand with `gcloud`; they never appear in Terraform state
       or in git.
-- [ ] Image updates made by the deploy script do not show up as Terraform drift.
-- [ ] `terraform apply` runs only after you approve the plan.
+- [ ] Image updates made by the deploy script do not show up as Terraform drift
+      (`ignore_changes` is in place; confirmed after the first CI deploy in M1.5).
+- [x] `terraform apply` runs only after you approve the plan.
 
 ### M1.3 Gateway skeleton
 
@@ -289,7 +291,7 @@ New dependencies: fastapi, uvicorn.
 
 - [ ] CI builds and deploys the TTS image to its Cloud Run service; CPU and memory sizes
       are recorded.
-- [ ] An unauthenticated request to TTS is refused; the gateway's request succeeds (O-09).
+- [ ] An unauthenticated request to TTS is refused; the gateway's request succeeds (D-45).
 - [ ] The gateway has a `TextToSpeech` Protocol, an HTTP adapter and a fake; tests cover
       request and response handling.
 - [ ] A call from the deployed gateway to TTS returns audio.

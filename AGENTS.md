@@ -131,6 +131,20 @@ docker build -f gateway/Dockerfile -t sarjy-gateway .      # production image, f
 docker run --rm -p 8080:8080 -e PORT=8080 sarjy-gateway    # then open http://localhost:8080
 ```
 
+Infrastructure (from `infra/`; needs `gcloud auth application-default login` once).
+State lives in the `sarjy-ahmed-2026-tfstate` bucket, created by hand before the first init.
+
+```
+terraform init                    # connect to the remote state
+terraform fmt -check && terraform validate
+terraform plan -out=plan.tfplan   # review it; never apply without explicit approval
+terraform apply plan.tfplan
+terraform output                  # gateway_url, tts_url, image_repository
+```
+
+Secret values never go through Terraform or git:
+`printf %s "$VALUE" | gcloud secrets versions add <secret-id> --data-file=-`
+
 Frontend (from `frontend/`, after `nvm use` picks Node 24 from `.nvmrc`):
 
 ```
