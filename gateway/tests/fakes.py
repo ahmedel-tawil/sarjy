@@ -239,3 +239,11 @@ class FakeWeather:
             chance_of_rain_percent=0,
             hours=[Hour(time="15:00", temperature_c=35.4), Hour(time="18:00", temperature_c=33.3)],
         )
+
+
+FIXED_PROMPT = "You are Sarjy. Today is Friday 9 October 2026."
+
+
+class FakePrompt:
+    async def build(self) -> str:
+        return FIXED_PROMPT

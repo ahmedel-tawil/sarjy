@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from sarjy_gateway.health import HealthRouter
-from sarjy_gateway.prompts import system_prompt
+from sarjy_gateway.prompts import SystemPrompt
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
 from sarjy_gateway.tour_tools import GetTourTool, SearchToursTool
 from sarjy_gateway.turn import TurnPipeline
@@ -52,7 +52,7 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
         services.llm,
         services.tts,
         toolbox,
-        system_prompt=lambda: system_prompt(datetime.now(UAE_TIME)),
+        system_prompt=SystemPrompt(services.catalogue, lambda: datetime.now(UAE_TIME)).build,
         clock=time.monotonic,
     )
     app = FastAPI(title="Sarjy gateway", lifespan=lifespan)

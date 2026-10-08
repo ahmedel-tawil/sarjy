@@ -11,7 +11,14 @@ from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
 from sarjy_gateway.turn import TurnPipeline
 from sarjy_gateway.voice import VoiceRouter
 
-from gateway.tests.fakes import FakeChatModel, FakeSpeechToText, FakeTextToSpeech, SpeechRequest, TickingClock
+from gateway.tests.fakes import (
+    FakeChatModel,
+    FakePrompt,
+    FakeSpeechToText,
+    FakeTextToSpeech,
+    SpeechRequest,
+    TickingClock,
+)
 
 
 TURN_END = '{"type": "turn_end"}'
@@ -35,7 +42,7 @@ def voice_client(
     tts = tts or FakeTextToSpeech()
     toolbox = Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS)
     pipeline = TurnPipeline(
-        stt or FakeSpeechToText(), FakeChatModel(), tts, toolbox, system_prompt=lambda: "Be Sarjy.", clock=TickingClock()
+        stt or FakeSpeechToText(), FakeChatModel(), tts, toolbox, system_prompt=FakePrompt().build, clock=TickingClock()
     )
     app = FastAPI()
     app.include_router(VoiceRouter(pipeline, tts, max_turn_audio_bytes, max_history_turns=6).build())
