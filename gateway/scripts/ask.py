@@ -17,6 +17,7 @@ from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox, ToolError
 from sarjy_gateway.tour_tools import GetTourTool, SearchToursTool
 from sarjy_gateway.tts import Voices
 from sarjy_gateway.turn import Conversation, TurnPipeline
+from sarjy_gateway.weather_tool import GetWeatherTool
 
 
 if TYPE_CHECKING:
@@ -83,6 +84,7 @@ async def ask(questions: list[str]) -> None:
     tools: list[Tool] = [
         ShownTool(SearchToursTool(services.catalogue)),
         ShownTool(GetTourTool(services.catalogue)),
+        ShownTool(GetWeatherTool(services.weather, time.time)),
     ]
     stt = TypedQuestion()
     toolbox = Toolbox(tools, time.monotonic, TOOL_TIMEOUT_SECONDS)
