@@ -149,6 +149,7 @@ and every latency mark is recorded from the first turn.
 | M1.11 | Turn pipeline, baseline mode | 2 h | M1.7, M1.8, M1.10 | yes |
 | M1.12 | Frontend voice loop | 1.5 h | M1.4, M1.11 | yes |
 | M1.13 | Deploy the voice loop | 1 h | M1.6, M1.12 | yes |
+| M1.14 | Fixes from live testing | 1.5 h | M1.13 | yes |
 
 ### M1.1 GCP project bootstrap
 
@@ -369,7 +370,28 @@ New dependencies: fastapi, uvicorn, pydantic-settings.
   reloaded meanwhile, and the gateway logged an unhandled `WebSocketDisconnect` when it
   sent the audio to the closed socket. Every merge also redeploys TTS, so the first
   turn after a merge is cold. Experiment 6 (warm vs cold) covers the cold start; the
-  disconnect gets its own fix.
+  disconnect is fixed in M1.14.
+
+### M1.14 Fixes from live testing
+
+Added on 8 Oct after testing the deployed loop on a laptop and a phone.
+
+- [x] A press with no speech is not sent: the browser cancels presses shorter than 0.3 s
+      or quieter than -45 dBFS at their loudest, with a `turn_cancel` message, and says
+      it heard no words. Whisper had been answering silence with "Thank you." (D-55).
+- [x] The gateway logs one info line, not an unhandled exception, when the page leaves
+      mid-turn. A test covers it.
+- [x] An idle socket that closes (a sleeping phone, a deploy) shows no error; the next
+      press reconnects. A close mid-turn still says the connection was lost.
+- [x] Sarjy's reply text appears when its voice starts, together with the TTFA line; if
+      the voice fails, the text appears with the error.
+- [x] Checked locally in the browser pane with a stand-in microphone: a tap, a silent
+      hold and a room-noise hold were each cancelled with no call to Groq; a real
+      question after them was answered; an idle close showed nothing and the next press
+      worked; a close while thinking showed the error and the gateway logged "browser
+      left mid-turn".
+- [ ] On the deployed URL, with real microphones on the laptop and the phone: a tap and a
+      silent hold are cancelled, and soft speech still goes through (checks -45 dBFS).
 
 ---
 
