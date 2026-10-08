@@ -12,6 +12,7 @@ from sarjy_gateway.tour_tools import GetTourTool, SearchToursTool
 from sarjy_gateway.turn import TurnPipeline
 from sarjy_gateway.voice import VoiceRouter
 from sarjy_gateway.voices import VoicesRouter
+from sarjy_gateway.weather_tool import GetWeatherTool
 
 
 if TYPE_CHECKING:
@@ -35,8 +36,13 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
                 await services.http_client.aclose()
             logger.info("gateway stopped")
 
-    # Weather and memory tools join in M2.11 and M2.6.
-    tools = [SearchToursTool(services.catalogue), GetTourTool(services.catalogue)]
+    # Memory tools join in M2.6.
+    tools = [
+        SearchToursTool(services.catalogue),
+        GetTourTool(services.catalogue),
+        # The wall clock, not a monotonic one: the tool needs today's date.
+        GetWeatherTool(services.weather, time.time),
+    ]
     toolbox = Toolbox(tools=tools, clock=time.monotonic, timeout_seconds=TOOL_TIMEOUT_SECONDS)
     pipeline = TurnPipeline(services.stt, services.llm, services.tts, toolbox, time.monotonic)
     app = FastAPI(title="Sarjy gateway", lifespan=lifespan)
