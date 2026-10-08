@@ -177,8 +177,8 @@ No code: you run the steps; I prepare the exact commands.
 - [x] `tts` cannot be called without authentication (D-45): an anonymous request gets 403.
 - [x] Secret values are added by hand with `gcloud`; they never appear in Terraform state
       or in git.
-- [ ] Image updates made by the deploy script do not show up as Terraform drift
-      (`ignore_changes` is in place; confirmed after the first CI deploy in M1.5).
+- [x] Image updates made by the deploy script do not show up as Terraform drift
+      (confirmed: `terraform plan` shows no changes after the first CI deploy).
 - [x] `terraform apply` runs only after you approve the plan.
 
 ### M1.3 Gateway skeleton
@@ -211,24 +211,24 @@ component and icon need no new package beyond what M0.3 installed (D-37).
 
 ### M1.5 CI deploy with Workload Identity Federation
 
-- [ ] Terraform creates a workload identity pool and provider limited to
+- [x] Terraform creates a workload identity pool and provider limited to
       `ahmedel-tawil/sarjy`, plus a deploy service account with only the roles it needs.
-- [ ] A deploy script builds the image, pushes it to Artifact Registry and rolls out a new
+- [x] A deploy script builds the image, pushes it to Artifact Registry and rolls out a new
       Cloud Run revision. The workflow only calls the script (code-standards rule
       `workflow-embedded-program`).
-- [ ] On a merge to `main`, GitHub Actions authenticates through Workload Identity
+- [x] On a merge to `main`, GitHub Actions authenticates through Workload Identity
       Federation and deploys the gateway; TTS joins in M1.10.
-- [ ] No service-account JSON key exists anywhere.
-- [ ] `terraform apply` runs only after you approve the plan.
+- [x] No service-account JSON key exists anywhere.
+- [x] `terraform apply` runs only after you approve the plan.
 
 ### M1.6 First deploy: hello over HTTPS
 
 - [ ] Merging the M1.4 echo app deploys it through CI (D-35).
-- [ ] The `*.run.app` URL loads over HTTPS.
+- [x] The `*.run.app` URL loads over HTTPS.
 - [ ] The WebSocket connects and the echo works in Chrome on a laptop and on a phone over
       mobile data; the mic permission prompt appears on both.
-- [ ] If GCP blocks this, the same container runs on a DigitalOcean droplet instead (PRD
-      fallback), and that is recorded in `DECISIONS.md`.
+- [x] Fallback not needed: GCP worked. (Had it blocked this, the same container would
+      run on a DigitalOcean droplet, as the PRD plans.)
 
 ### M1.7 STT adapter
 
