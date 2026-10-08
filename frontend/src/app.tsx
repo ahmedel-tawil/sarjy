@@ -17,10 +17,16 @@ const STATUS_TEXT: Record<Status, string> = {
 const PROBLEM_TEXT: Record<Problem, string> = {
   'connection_lost': 'Lost the connection. Hold the button to try again.',
   'invalid_message': 'Something went wrong on our side. Please try again.',
+  'llm_failed': 'I couldn’t think of an answer just now. Please try again.',
   'mic_unavailable': 'Sarjy needs your microphone. Allow it in the browser, then try again.',
   'no_audio': 'I didn’t catch any audio. Hold the button a little longer.',
+  'no_speech': 'I didn’t hear any words. Hold the button and try again.',
   'playback_failed': 'Couldn’t play the audio back.',
+  'rate_limited': 'I’m getting a lot of questions right now. Please try again in a moment.',
+  'stt_failed': 'I couldn’t make out what you said. Please try again.',
+  'tts_failed': 'I have an answer but couldn’t say it out loud. Please try again.',
   'turn_too_long': 'That turn was too long. Try a shorter one.',
+  'unknown_voice': 'That voice isn’t available.',
 }
 
 function App() {
