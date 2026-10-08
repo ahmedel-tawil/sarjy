@@ -26,12 +26,11 @@ class TextToSpeechError(RuntimeError):
     pass
 
 
+# `voice=None` lets TTS pick its own default voice.
 class TextToSpeech(Protocol):
     async def voices(self) -> Voices: ...
 
-    async def synthesize(self, text: str, voice: str) -> bytes: ...
-
-    async def aclose(self) -> None: ...
+    async def synthesize(self, text: str, voice: str | None) -> bytes: ...
 
 
 class TokenSource(Protocol):
@@ -77,12 +76,10 @@ class HttpTextToSpeech:
             message = "TTS GET /voices answered with something other than a voice list"
             raise TextToSpeechError(message) from error
 
-    async def synthesize(self, text: str, voice: str) -> bytes:
-        response = await self._request("POST", "/synthesize", json={"text": text, "voice": voice})
+    async def synthesize(self, text: str, voice: str | None) -> bytes:
+        body = {"text": text} if voice is None else {"text": text, "voice": voice}
+        response = await self._request("POST", "/synthesize", json=body)
         return response.content
-
-    async def aclose(self) -> None:
-        await self._client.aclose()
 
     async def _request(self, method: str, path: str, json: dict[str, str] | None = None) -> httpx2.Response:
         try:
@@ -101,9 +98,6 @@ class MissingTextToSpeech:
         message = "SARJY_TTS_URL is not set"
         raise TextToSpeechError(message)
 
-    async def synthesize(self, text: str, voice: str) -> bytes:
-        message = f"SARJY_TTS_URL is not set; cannot speak {len(text)} characters as {voice}"
+    async def synthesize(self, text: str, voice: str | None) -> bytes:
+        message = f"SARJY_TTS_URL is not set; cannot speak {len(text)} characters as {voice or 'the default voice'}"
         raise TextToSpeechError(message)
-
-    async def aclose(self) -> None:
-        return None

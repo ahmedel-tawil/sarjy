@@ -1,63 +1,86 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
-from sarjy_gateway.messages import ServerError
+from sarjy_gateway.messages import AudioFollows, Reply, ServerError, Transcript, TurnMarks
+from sarjy_gateway.stt import SpeechToTextError
+from sarjy_gateway.turn import TurnPipeline
 from sarjy_gateway.voice import VoiceRouter
+
+from gateway.tests.fakes import FakeChatModel, FakeSpeechToText, FakeTextToSpeech, SpeechRequest, TickingClock
 
 
 TURN_END = '{"type": "turn_end"}'
 
 
-def voice_client(max_turn_audio_bytes: int = 1_000) -> TestClient:
+def voice_client(
+    stt: FakeSpeechToText | None = None, tts: FakeTextToSpeech | None = None, max_turn_audio_bytes: int = 1_000
+) -> TestClient:
+    tts = tts or FakeTextToSpeech()
+    pipeline = TurnPipeline(stt or FakeSpeechToText(), FakeChatModel(), tts, TickingClock())
     app = FastAPI()
-    app.include_router(VoiceRouter(max_turn_audio_bytes).build())
+    app.include_router(VoiceRouter(pipeline, tts, max_turn_audio_bytes, max_history_turns=6).build())
     return TestClient(app)
 
 
-def test_a_turns_chunks_come_back_as_one_clip() -> None:
+def test_a_turn_sends_transcript_reply_audio_and_marks() -> None:
     with voice_client().websocket_connect("/ws") as socket:
         socket.send_bytes(b"first ")
         socket.send_bytes(b"second")
         socket.send_text(TURN_END)
 
-        assert socket.receive_bytes() == b"first second"
+        transcript = Transcript.model_validate_json(socket.receive_text())
+        reply = Reply.model_validate_json(socket.receive_text())
+        audio_follows = AudioFollows.model_validate_json(socket.receive_text())
+        audio = socket.receive_bytes()
+        marks = TurnMarks.model_validate_json(socket.receive_text())
+
+    assert transcript.text == "What can we do in Abu Dhabi?"
+    assert reply.text == "Try the Louvre."
+    assert audio == b"RIFFTry the Louvre."
+    assert transcript.turn_id == reply.turn_id == audio_follows.turn_id == marks.turn_id
+    assert "tts_first_byte" in marks.marks
 
 
-def test_each_turn_starts_empty() -> None:
-    with voice_client().websocket_connect("/ws") as socket:
-        socket.send_bytes(b"turn one")
+def test_set_voice_changes_the_voice_of_later_turns() -> None:
+    tts = FakeTextToSpeech()
+    with voice_client(tts=tts).websocket_connect("/ws") as socket:
+        socket.send_text('{"type": "set_voice", "voice": "am_adam"}')
+        socket.send_bytes(b"clip")
         socket.send_text(TURN_END)
+        for _ in range(3):
+            socket.receive_text()
         socket.receive_bytes()
-        socket.send_bytes(b"turn two")
-        socket.send_text(TURN_END)
+        socket.receive_text()
 
-        assert socket.receive_bytes() == b"turn two"
+    assert tts.requests == [SpeechRequest("Try the Louvre.", "am_adam")]
 
 
 @pytest.mark.parametrize(
-    ("audio", "control", "expected_code"),
+    ("before", "control", "expected_code"),
     [
+        (b"", '{"type": "set_voice", "voice": "nobody"}', "unknown_voice"),
+        (b"", '{"type": "dance"}', "invalid_message"),
         (b"", TURN_END, "no_audio"),
         (b"x" * 11, TURN_END, "turn_too_long"),
-        (b"some audio", '{"type": "dance"}', "invalid_message"),
     ],
-    ids=["turn end without audio", "audio over the limit", "unknown control message"],
+    ids=["unknown voice", "unknown control message", "turn end without audio", "audio over the limit"],
 )
-def test_problems_are_reported_as_errors(audio: bytes, control: str, expected_code: str) -> None:
+def test_problems_before_the_pipeline_are_reported(before: bytes, control: str, expected_code: str) -> None:
     with voice_client(max_turn_audio_bytes=10).websocket_connect("/ws") as socket:
-        if audio:
-            socket.send_bytes(audio)
+        if before:
+            socket.send_bytes(before)
         socket.send_text(control)
 
         assert ServerError.model_validate_json(socket.receive_text()).code == expected_code
 
 
-def test_a_turn_after_one_that_was_too_long_works() -> None:
-    with voice_client(max_turn_audio_bytes=10).websocket_connect("/ws") as socket:
-        socket.send_bytes(b"x" * 11)
+def test_a_failed_turn_reports_its_code_and_keeps_the_socket_open() -> None:
+    with voice_client(stt=FakeSpeechToText(error=SpeechToTextError("down"))).websocket_connect("/ws") as socket:
+        socket.send_bytes(b"clip")
         socket.send_text(TURN_END)
-        socket.receive_text()
-        socket.send_bytes(b"short")
+        failure = ServerError.model_validate_json(socket.receive_text())
         socket.send_text(TURN_END)
+        after = ServerError.model_validate_json(socket.receive_text())
 
-        assert socket.receive_bytes() == b"short"
+    assert (failure.code, after.code) == ("stt_failed", "no_audio")
+    assert failure.turn_id

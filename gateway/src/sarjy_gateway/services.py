@@ -1,0 +1,64 @@
+from dataclasses import dataclass
+import time
+from typing import TYPE_CHECKING
+
+import httpx2
+
+from sarjy_gateway.llm import ChatModel, GenerationOptions, MissingChatModel, OpenAiCompatibleChatModel
+from sarjy_gateway.stt import GroqSpeechToText, MissingSpeechToText, SpeechToText
+from sarjy_gateway.tts import (
+    REQUEST_TIMEOUT_SECONDS,
+    HttpTextToSpeech,
+    MetadataIdToken,
+    MissingTextToSpeech,
+    NoToken,
+    TextToSpeech,
+)
+
+
+if TYPE_CHECKING:
+    from sarjy_gateway.settings import Settings
+
+
+# The three providers a turn needs, sharing one HTTP client (one connection pool) that
+# the app closes at shutdown. Tests pass fakes and no client.
+@dataclass(frozen=True)
+class Services:
+    stt: SpeechToText
+    llm: ChatModel
+    tts: TextToSpeech
+    http_client: httpx2.AsyncClient | None
+
+
+def build_services(settings: Settings) -> Services:
+    client = httpx2.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS)
+    return Services(
+        stt=build_speech_to_text(settings, client),
+        llm=build_chat_model(settings, client),
+        tts=build_text_to_speech(settings, client),
+        http_client=client,
+    )
+
+
+# A missing key or URL gives a stand-in that fails each call with a clear message, so the
+# gateway still starts, for example when working on the frontend alone.
+def build_speech_to_text(settings: Settings, client: httpx2.AsyncClient) -> SpeechToText:
+    if settings.groq_api_key is None:
+        return MissingSpeechToText()
+    return GroqSpeechToText(client, settings.groq_api_key, settings.stt_model)
+
+
+def build_chat_model(settings: Settings, client: httpx2.AsyncClient) -> ChatModel:
+    if settings.llm_api_key is None:
+        return MissingChatModel()
+    options = GenerationOptions(
+        settings.llm_model, settings.llm_temperature, settings.llm_max_tokens, settings.llm_reasoning_effort
+    )
+    return OpenAiCompatibleChatModel(client, settings.llm_base_url, settings.llm_api_key, options)
+
+
+def build_text_to_speech(settings: Settings, client: httpx2.AsyncClient) -> TextToSpeech:
+    if settings.tts_url is None:
+        return MissingTextToSpeech()
+    tokens = MetadataIdToken(client, settings.tts_url, time.monotonic) if settings.tts_auth == "id_token" else NoToken()
+    return HttpTextToSpeech(client, settings.tts_url, tokens)

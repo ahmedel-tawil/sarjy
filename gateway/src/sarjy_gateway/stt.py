@@ -76,6 +76,12 @@ class GroqSpeechToText:
             raise SpeechToTextError(message) from error
 
 
+class MissingSpeechToText:
+    async def transcribe(self, audio: bytes) -> str:
+        message = f"SARJY_GROQ_API_KEY is not set; cannot transcribe {len(audio)} bytes"
+        raise SpeechToTextError(message)
+
+
 # Browsers record different containers (WebM in Chrome, MP4 in Safari); each starts with
 # a fixed signature, and Groq needs the matching file extension.
 def container_of(audio: bytes) -> Container:

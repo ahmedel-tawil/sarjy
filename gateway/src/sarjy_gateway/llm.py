@@ -124,6 +124,12 @@ class OpenAiCompatibleChatModel:
         return body
 
 
+class MissingChatModel:
+    def stream(self, messages: Sequence[ChatMessage]) -> AbstractAsyncContextManager[AsyncIterator[ChatEvent]]:
+        message = f"SARJY_LLM_API_KEY is not set; cannot answer {len(messages)} messages"
+        raise ChatModelError(message)
+
+
 def raise_for_provider_status(response: httpx2.Response) -> None:
     if response.status_code == httpx2.codes.TOO_MANY_REQUESTS:
         message = "chat model rate limit reached"
