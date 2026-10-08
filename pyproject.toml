@@ -24,3 +24,6 @@ dev = ["pytest>=8"]
 testpaths = ["gateway/tests", "tts/tests"]
 # Both services have a tests/ folder; importlib mode lets test files share names.
 addopts = ["--import-mode=importlib"]
+
+[tool.ruff]
+extend = ".ruff-strict.toml"
