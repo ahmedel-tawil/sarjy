@@ -17,8 +17,15 @@ if TYPE_CHECKING:
 UNAVAILABLE = "The weather service can't be reached right now."
 
 
+# Dubai is the default in code, not only in the prompt: told to assume Dubai, the model
+# still filled in Abu Dhabi for "is tomorrow good for a desert safari?".
 class GetWeatherArguments(BaseModel):
-    city: str = Field(min_length=1, max_length=60, description="A UAE city, such as 'Dubai' or 'Abu Dhabi'.")
+    city: str = Field(
+        default="Dubai",
+        min_length=1,
+        max_length=60,
+        description="A UAE city the traveller named. Leave it out if they named none: it is then Dubai.",
+    )
     date: datetime.date = Field(description="The day in UAE time, as YYYY-MM-DD.")
 
 
