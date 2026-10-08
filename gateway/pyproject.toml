@@ -5,6 +5,7 @@ description = "Sarjy's voice gateway: owns each turn and is the only part that t
 requires-python = ">=3.14"
 dependencies = [
     "fastapi>=0.142.4",
+    "httpx2>=2.13.1",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
     "uvicorn[standard]>=0.54.0",
