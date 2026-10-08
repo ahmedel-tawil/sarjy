@@ -1,0 +1,8 @@
+data: {"id":"chatcmpl-0c54830f-e8eb-4ab2-8723-a07aa921f4b5","object":"chat.completion.chunk","created":1791464237,"model":"qwen/qwen3.8-27b","system_fingerprint":"fp_8da23ae6c7","choices":[{"index":0,"delta":{"role":"assistant","content":null},"logprobs":null,"finish_reason":null}],"x_groq":{"id":"req_01m4dsdshsebf8yjnnc5kwp5kp","seed":877821795}}
+
+data: {"id":"chatcmpl-0c54830f-e8eb-4ab2-8723-a07aa921f4b5","object":"chat.completion.chunk","created":1791464237,"model":"qwen/qwen3.8-27b","system_fingerprint":"fp_8da23ae6c7","choices":[{"index":0,"delta":{"tool_calls":[{"id":"5nd4axs1q","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Abu Dhabi\",\"date\":\"2026-10-09\"}"},"index":0}]},"logprobs":null,"finish_reason":null}]}
+
+data: {"id":"chatcmpl-0c54830f-e8eb-4ab2-8723-a07aa921f4b5","object":"chat.completion.chunk","created":1791464237,"model":"qwen/qwen3.8-27b","system_fingerprint":"fp_8da23ae6c7","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"tool_calls"}],"x_groq":{"id":"req_01m4dsdshsebf8yjnnc5kwp5kp","usage":{"queue_time":1.18255764,"prompt_tokens":313,"prompt_time":0.027339524,"completion_tokens":48,"completion_time":0.155585789,"total_tokens":361,"total_time":0.182925313}},"usage":{"queue_time":1.18255764,"prompt_tokens":313,"prompt_time":0.027339524,"completion_tokens":48,"completion_time":0.155585789,"total_tokens":361,"total_time":0.182925313}}
+
+data: [DONE]
+
