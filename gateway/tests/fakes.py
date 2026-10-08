@@ -208,6 +208,7 @@ class FakeCatalogue:
             link=FERRARI.link,
             summary="The world's largest indoor theme park.",
             duration=None,
+            every_ticket=None,
             tickets=[ticket],
             restrictions=[],
             notes=[],

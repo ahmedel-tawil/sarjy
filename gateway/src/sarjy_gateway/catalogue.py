@@ -146,9 +146,19 @@ class TicketDetails(BaseModel):
     cancellation: ApiCancellation | None
 
 
+# Children's and cancellation policies, when every ticket of a tour has the same ones.
+class SharedPolicies(BaseModel):
+    children: ApiChildren | None
+    cancellation: ApiCancellation | None
+
+
 class TourDetails(Tour):
     summary: str
     duration: str | None
+    # Most tours give every ticket the same policies (the buggy's nine tickets share
+    # one), so they are stated once here and left off the tickets. Null when tickets
+    # differ, and then each ticket carries its own.
+    every_ticket: SharedPolicies | None
     tickets: list[TicketDetails]
     restrictions: list[str]
     notes: list[str]
@@ -234,7 +244,8 @@ class SayTechCatalogue:
             link=detail.url,
             summary=detail.summary,
             duration=duration_text(detail.duration),
-            tickets=[lean_ticket(ticket) for ticket in detail.tickets],
+            every_ticket=shared_policies(detail.tickets),
+            tickets=lean_tickets(detail.tickets),
             restrictions=detail.restrictions,
             notes=detail.notes,
             requirements=detail.requirements,
@@ -309,15 +320,28 @@ def lean_tour(product: ApiProduct) -> Tour:
     )
 
 
-def lean_ticket(ticket: ApiTicket) -> TicketDetails:
-    return TicketDetails(
-        name=ticket.name,
-        prices=[f"{line.label}: {ticket.price.currency} {amount_text(line.amount)}" for line in ticket.price.lines],
-        price=price_text(ticket.price),
-        duration=duration_text(ticket.duration),
-        children=ticket.children,
-        cancellation=ticket.cancellation,
-    )
+def shared_policies(tickets: list[ApiTicket]) -> SharedPolicies | None:
+    if not tickets:
+        return None
+    first = tickets[0]
+    if all(ticket.children == first.children and ticket.cancellation == first.cancellation for ticket in tickets):
+        return SharedPolicies(children=first.children, cancellation=first.cancellation)
+    return None
+
+
+def lean_tickets(tickets: list[ApiTicket]) -> list[TicketDetails]:
+    own_policies = shared_policies(tickets) is None
+    return [
+        TicketDetails(
+            name=ticket.name,
+            prices=[f"{line.label}: {ticket.price.currency} {amount_text(line.amount)}" for line in ticket.price.lines],
+            price=price_text(ticket.price),
+            duration=duration_text(ticket.duration),
+            children=ticket.children if own_policies else None,
+            cancellation=ticket.cancellation if own_policies else None,
+        )
+        for ticket in tickets
+    ]
 
 
 def price_text(price: ApiPrice) -> str:
