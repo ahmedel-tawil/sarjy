@@ -425,13 +425,26 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   `httpx` package has had no stable release since 0.28.1 (December 2024).
 - **Alternatives considered:** keeping `httpx` and living with the deprecation warning.
 
+### D-44 Region: `me-central1` (Doha)
+
+- **Decision:** Every GCP resource runs in `me-central1`, in project `sarjy-ahmed-2026`
+  (settled 8 Oct in M1.1, was O-08).
+- **Reason:** The closest region to Gulf users, and it supports Cloud Run (WebSockets
+  included), Cloud SQL, Artifact Registry and Secret Manager.
+- **Consequences:** Calls to Groq and other US-based providers cross from the Gulf to the
+  US; experiment 7 measures that hop. Cloud Run domain mapping is not offered here (its
+  10 regions don't include `me-central1`, and it is still in preview), so the custom
+  domain (M4.7) would need a global load balancer. Cloud Run has no GPUs here, so the GPU
+  experiment (M3.12) would need a second region.
+- **Alternatives considered:** `europe-west1` or `us-central1`: closer to the providers,
+  with domain mapping and GPUs, but further from users.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
 
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
-| O-08 | GCP region (PRD open question) | a Gulf region such as `me-central1` (Doha); a European or US region | Choose after checking Cloud Run WebSockets, Cloud SQL, domain mapping and GPU support; providers' locations matter as much as users'. Measured again in experiment 7. | M1.1, M3.11 |
 | O-09 | How the gateway authenticates to TTS | Cloud Run IAM (the gateway fetches an ID token from the metadata server); a shared secret header; a public TTS | Cloud Run IAM: no secret to manage. | M1.2, M1.10 |
 | O-11 | WebSocket message contract | JSON control messages plus binary audio frames; how Python and TypeScript types stay in sync | JSON plus binary. Pydantic on the server; a runtime schema in the browser (code-standards rule `prefer-schema-for-api-payload`, likely zod), kept in sync by hand. | M1.4 |
 | O-12 | STT provider and streaming (PRD open question) | Groq `whisper-large-v3-turbo` (file upload); a streaming STT provider | Groq on day 1. Check and record whether streaming is offered and worth it. | M1.7 |

@@ -154,15 +154,16 @@ and every latency mark is recorded from the first turn.
 
 No code: you run the steps; I prepare the exact commands.
 
-- [ ] A GCP project exists with billing linked.
-- [ ] A budget alert is on the project before any other resource, at the amount you choose.
-- [ ] The needed APIs are enabled: Cloud Run, Artifact Registry, Secret Manager,
+- [x] A GCP project exists with billing linked (`sarjy-ahmed-2026`).
+- [x] A budget alert is on the project before any other resource, at the amount you
+      choose (USD 50).
+- [x] The needed APIs are enabled: Cloud Run, Artifact Registry, Secret Manager,
       Cloud SQL Admin, IAM Credentials, Security Token Service.
-- [ ] A versioned Cloud Storage bucket holds Terraform state.
-- [ ] The region is chosen and recorded in `DECISIONS.md`, after checking Cloud Run
-      WebSockets, Cloud SQL, domain mapping and GPU availability there (O-08).
-- [ ] If the GPU experiment (M3.12) stays in scope, the Cloud Run GPU quota request is
-      filed now, since approval takes time.
+- [ ] A versioned Cloud Storage bucket holds Terraform state (created in M1.2).
+- [x] The region is chosen and recorded in `DECISIONS.md`, after checking Cloud Run
+      WebSockets, Cloud SQL, domain mapping and GPU availability there (D-44).
+- [x] GPU quota not filed: Cloud Run has no GPUs in `me-central1`, so M3.12 would need a
+      second region (D-44).
 
 ### M1.2 Terraform foundation
 
@@ -180,16 +181,16 @@ No code: you run the steps; I prepare the exact commands.
 
 ### M1.3 Gateway skeleton
 
-- [ ] FastAPI app with a lifespan handler, settings read from environment variables into a
+- [x] FastAPI app with a lifespan handler, settings read from environment variables into a
       Pydantic model, and structured JSON logs that Cloud Logging parses (D-42).
-- [ ] `GET /health` returns 200 (not `/healthz`, D-41); WebSocket `/ws` echoes binary
+- [x] `GET /health` returns 200 (not `/healthz`, D-41); WebSocket `/ws` echoes binary
       frames back.
-- [ ] The gateway serves the built frontend from `/` (one origin).
-- [ ] Routers follow the `*Router.build()` shape required by code-standards
+- [x] The gateway serves the built frontend from `/` (one origin).
+- [x] Routers follow the `*Router.build()` shape required by code-standards
       (`fastapi-class-router-contract`).
-- [ ] A multi-stage Dockerfile builds the frontend and the gateway; `docker run` locally
+- [x] A multi-stage Dockerfile builds the frontend and the gateway; `docker run` locally
       serves the page.
-- [ ] Tests cover `/health` and the echo with FastAPI's test client.
+- [x] Tests cover `/health` and the echo with FastAPI's test client.
 
 New dependencies: fastapi, uvicorn (with WebSocket support), possibly pydantic-settings.
 
@@ -672,8 +673,9 @@ Do this on 9 Oct (PRD: "Test Safari on day 2, not day 4").
 
 ### M4.7 Custom domain `sarjy.saytech.ae` (cut list #2)
 
-- [ ] The domain serves the app over HTTPS, through Cloud Run domain mapping if the region
-      supports it.
+- [ ] The domain serves the app over HTTPS. Cloud Run domain mapping is not available in
+      `me-central1` (D-44), so this needs a global external load balancer: decide whether
+      it is worth the cost before starting.
 - [ ] You add the DNS record in DigitalOcean.
 - [ ] The mic and the WebSocket work on the custom domain.
 
