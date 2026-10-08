@@ -12,7 +12,6 @@ from sarjy_gateway.llm import (
     ToolCallDelta,
     assemble_tool_calls,
 )
-from sarjy_gateway.prompts import SYSTEM_PROMPT
 from sarjy_gateway.stt import RateLimitedError, SpeechToTextError
 from sarjy_gateway.timeline import Timeline
 from sarjy_gateway.tts import TextToSpeechError
@@ -93,13 +92,22 @@ class ModelRound:
 
 # Experiment 1's baseline: the whole reply is collected before any of it is spoken.
 class TurnPipeline:
+    # `system_prompt` is called for every turn, so the date in it is always today's.
     def __init__(
-        self, stt: SpeechToText, llm: ChatModel, tts: TextToSpeech, toolbox: Toolbox, clock: Callable[[], float]
+        self,
+        stt: SpeechToText,
+        llm: ChatModel,
+        tts: TextToSpeech,
+        toolbox: Toolbox,
+        *,
+        system_prompt: Callable[[], str],
+        clock: Callable[[], float],
     ) -> None:
         self._stt = stt
         self._llm = llm
         self._tts = tts
         self._toolbox = toolbox
+        self._system_prompt = system_prompt
         self._clock = clock
 
     async def run(self, audio: bytes, conversation: Conversation, listener: TurnListener) -> CompletedTurn:
@@ -135,7 +143,7 @@ class TurnPipeline:
     # answers in words. Only this turn's tool messages are sent; history keeps the replies.
     async def _answer(self, transcript: str, conversation: Conversation, timeline: Timeline, turn_id: str) -> Answer:
         messages = [
-            ChatMessage(role="system", content=SYSTEM_PROMPT),
+            ChatMessage(role="system", content=self._system_prompt()),
             *conversation.history,
             ChatMessage(role="user", content=transcript),
         ]

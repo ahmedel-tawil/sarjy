@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 
 import pytest
 from sarjy_gateway.llm import (
@@ -9,7 +10,7 @@ from sarjy_gateway.llm import (
     ToolCall,
     ToolCallDelta,
 )
-from sarjy_gateway.prompts import SYSTEM_PROMPT
+from sarjy_gateway.prompts import SYSTEM_PROMPT, system_prompt
 from sarjy_gateway.stt import RateLimitedError, SpeechToTextError
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox, ToolFailure
 from sarjy_gateway.tts import TextToSpeechError
@@ -27,6 +28,7 @@ from gateway.tests.fakes import (
 )
 
 
+PROMPT = "You are Sarjy. Today is Friday 9 October 2026."
 DUBAI_CALL = ToolCallDelta(0, "call-1", "get_weather", '{"city": "Dubai", "date": "2026-10-09"}')
 
 
@@ -36,7 +38,9 @@ def pipeline_with(
     # The toolbox's own clock only times tools for the logs, so it is kept apart from the
     # pipeline's, whose readings the mark tests count.
     toolbox = Toolbox([] if tool is None else [tool], TickingClock(), TOOL_TIMEOUT_SECONDS)
-    return TurnPipeline(FakeSpeechToText(), llm, tts or FakeTextToSpeech(), toolbox, TickingClock())
+    return TurnPipeline(
+        FakeSpeechToText(), llm, tts or FakeTextToSpeech(), toolbox, system_prompt=lambda: PROMPT, clock=TickingClock()
+    )
 
 
 def run(pipeline: TurnPipeline) -> CompletedTurn:
@@ -76,7 +80,7 @@ def test_the_llm_sees_the_system_prompt_recent_turns_and_the_new_question() -> N
     asyncio.run(pipeline.run(b"second", conversation, RecordingListener()))
 
     assert llm.requests[1] == [
-        ChatMessage(role="system", content=SYSTEM_PROMPT),
+        ChatMessage(role="system", content=PROMPT),
         ChatMessage(role="user", content="What can we do in Abu Dhabi?"),
         ChatMessage(role="assistant", content="Try the Louvre."),
         ChatMessage(role="user", content="What can we do in Abu Dhabi?"),
@@ -121,7 +125,8 @@ def test_only_the_most_recent_turns_are_kept() -> None:
 def test_a_failing_stage_raises_one_clear_code_and_leaves_history_alone(
     stt: FakeSpeechToText, llm: FakeChatModel, tts: FakeTextToSpeech, code: str
 ) -> None:
-    pipeline = TurnPipeline(stt, llm, tts, Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS), TickingClock())
+    toolbox = Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS)
+    pipeline = TurnPipeline(stt, llm, tts, toolbox, system_prompt=lambda: PROMPT, clock=TickingClock())
     conversation = Conversation(max_turns=6)
 
     with pytest.raises(TurnError) as raised:
@@ -207,3 +212,12 @@ def test_only_the_answer_after_the_tools_is_spoken_and_marks_llm_first_token() -
     # The pipeline's clock is read 10 ms apart at: audio_received, stt_done, the first word
     # of round one, the first word of round two. The mark is round two's, 30 ms in.
     assert turn.marks["llm_first_token"] == pytest.approx(30.0)
+
+
+def test_the_system_prompt_tells_the_model_the_date_and_time_in_the_uae() -> None:
+    just_after_midnight = datetime.fromisoformat("2026-10-09T00:46+04:00")
+
+    prompt = system_prompt(just_after_midnight)
+
+    assert prompt.startswith(SYSTEM_PROMPT)
+    assert prompt.endswith("Today is Friday 9 October 2026 (2026-10-09), and the time in the UAE is 00:46.\n")
