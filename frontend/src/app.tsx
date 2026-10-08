@@ -3,15 +3,15 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { EchoSession, type Problem, type Status } from '@/lib/echo-session'
+import { type Problem, type Status, VoiceSession } from '@/lib/voice-session'
 
 const SOCKET_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
 
 const STATUS_TEXT: Record<Status, string> = {
   idle: 'Hold the button and speak',
   listening: 'Listening… let go to send',
-  playing: 'Playing back what you said',
-  waiting: 'Sending…',
+  speaking: 'Sarjy is speaking',
+  thinking: 'Thinking…',
 }
 
 const PROBLEM_TEXT: Record<Problem, string> = {
@@ -32,7 +32,23 @@ const PROBLEM_TEXT: Record<Problem, string> = {
 function App() {
   const [status, setStatus] = useState<Status>('idle')
   const [problem, setProblem] = useState<null | Problem>(null)
-  const [session] = useState(() => new EchoSession(SOCKET_URL, { onProblem: setProblem, onStatus: setStatus }))
+  const [heard, setHeard] = useState<null | string>(null)
+  const [reply, setReply] = useState<null | string>(null)
+  const [ttfa, setTtfa] = useState<null | number>(null)
+  const [session] = useState(
+    () =>
+      new VoiceSession(SOCKET_URL, {
+        onProblem: setProblem,
+        onReply: setReply,
+        onStatus: setStatus,
+        onTranscript: (text) => {
+          setHeard(text)
+          setReply(null)
+          setTtfa(null)
+        },
+        onTtfa: setTtfa,
+      }),
+  )
 
   const release = () => {
     session.release()
@@ -41,10 +57,22 @@ function App() {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
       <h1 className="font-heading text-4xl font-medium">Sarjy</h1>
+      {heard !== null && (
+        <section aria-label="Last exchange" className="flex max-w-prose flex-col gap-3 text-center">
+          <p className="text-muted-foreground">“{heard}”</p>
+          {reply !== null && <p className="text-lg text-pretty">{reply}</p>}
+          {ttfa !== null && (
+            <p className="text-sm text-muted-foreground tabular-nums">
+              First audio after {(ttfa / 1000).toFixed(1)} s
+            </p>
+          )}
+        </section>
+      )}
       {/* Holding a button on a phone would otherwise scroll, select text or open a menu. */}
       <div className="touch-none select-none">
         <Button
           aria-pressed={status === 'listening'}
+          disabled={status === 'thinking' || status === 'speaking'}
           onContextMenu={(event) => {
             event.preventDefault()
           }}

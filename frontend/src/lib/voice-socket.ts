@@ -1,14 +1,15 @@
-import { type ServerError, ServerErrorSchema, TURN_END_MESSAGE } from './protocol'
+import { browserMarksMessage, type ServerMessage, ServerMessageSchema, TURN_END_MESSAGE } from './protocol'
 
 export interface VoiceChannel {
   endTurn(): void
   sendAudio(chunk: Blob): void
+  sendMarks(turnId: string, speechEnd: number, playbackStart: number): void
 }
 
 export interface VoiceSocketHandlers {
   onAudio: (audio: ArrayBuffer) => void
   onClose: () => void
-  onError: (error: ServerError) => void
+  onMessage: (message: ServerMessage) => void
 }
 
 export class VoiceSocket implements VoiceChannel {
@@ -29,6 +30,10 @@ export class VoiceSocket implements VoiceChannel {
 
   sendAudio(chunk: Blob): void {
     this.#send(chunk)
+  }
+
+  sendMarks(turnId: string, speechEnd: number, playbackStart: number): void {
+    this.#send(browserMarksMessage(turnId, speechEnd, playbackStart))
   }
 
   #send(message: Blob | string): void {
@@ -65,9 +70,9 @@ export class VoiceSocket implements VoiceChannel {
       this.#handlers.onAudio(data)
       return
     }
-    const error = ServerErrorSchema.safeParse(JSON.parse(String(data)))
-    if (error.success) {
-      this.#handlers.onError(error.data)
+    const message = ServerMessageSchema.safeParse(JSON.parse(String(data)))
+    if (message.success) {
+      this.#handlers.onMessage(message.data)
     }
   }
 }
