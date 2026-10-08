@@ -260,20 +260,23 @@ New dependencies: none beyond httpx, unless O-14 picks a vendor SDK.
 
 Our own code instead of kokoro-onnx, which does not allow Python 3.14 (D-38).
 
-- [ ] Text becomes phonemes with espeak-ng (US English), through phonemizer and
+- [x] Text becomes phonemes with espeak-ng (US English), through phonemizer and
       espeakng-loader.
-- [ ] Phonemes become token ids through the model's published vocabulary, kept as data
-      with its source noted; unknown symbols are dropped and logged.
-- [ ] onnxruntime runs the model with the tokens, the voice's style vector (picked by
+- [x] Phonemes become token ids through the model's published vocabulary, read from the
+      pinned `tokenizer.json` (D-48); unknown symbols are dropped and logged.
+- [x] onnxruntime runs the model with the tokens, the voice's style vector (picked by
       token count) and the speed, and returns 24 kHz audio.
-- [ ] Input longer than the model's token limit is split at sentence or phrase
-      boundaries, never mid-word.
-- [ ] Unit tests cover phoneme-to-token mapping, the length limit and style selection,
+- [x] Input longer than the model's token limit is split at sentence or phrase
+      boundaries, never mid-word (the limit also respects the voice files' 509 usable
+      rows).
+- [x] Unit tests cover phoneme-to-token mapping, the length limit and style selection,
       using a fake onnxruntime session, so they never load the model.
-- [ ] A dev script speaks "Hello from Sarjy" with the real model, and it sounds right next
-      to the Kokoro spike's samples.
+- [ ] The real model speaks, and it sounds right. `tts/scripts/benchmark.py` produced
+      speech-like audio and five voice samples (the Kokoro spike was never run); your
+      verdict by ear, and Sarjy's voice, are still to come.
 
-New dependencies: onnxruntime, numpy, phonemizer, espeakng-loader.
+New dependencies: onnxruntime, numpy, phonemizer, espeakng-loader, and pydantic for
+reading `tokenizer.json`.
 
 ### M1.9b Kokoro TTS service
 

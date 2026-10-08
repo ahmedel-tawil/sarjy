@@ -118,7 +118,7 @@ docs/        PRD.md, TASKS.md, DECISIONS.md, LATENCY.md
 Fill in as they are created: install, run locally, lint, type check, test, build, deploy.
 
 ```
-uv sync          # install the Python workspace (gateway and tts) into .venv
+uv sync --all-packages   # install the Python workspace (gateway and tts) into .venv
 uv run pytest    # run every Python test
 ```
 
@@ -129,6 +129,13 @@ uv run python -m sarjy_gateway                             # API only, on 127.0.
 SARJY_FRONTEND_DIST=frontend/dist uv run python -m sarjy_gateway   # also serve a built frontend
 docker build -f gateway/Dockerfile -t sarjy-gateway .      # production image, from the repo root
 docker run --rm -p 8080:8080 -e PORT=8080 sarjy-gateway    # then open http://localhost:8080
+```
+
+TTS model (from the repo root; about 420 MB, git-ignored):
+
+```
+tts/scripts/download-model.sh tts/models      # pinned revision, every SHA-256 verified
+uv run python tts/scripts/benchmark.py        # timings per model and thread count, plus voice samples
 ```
 
 Infrastructure (from `infra/`; needs `gcloud auth application-default login` once).
