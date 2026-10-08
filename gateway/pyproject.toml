@@ -3,7 +3,12 @@ name = "sarjy-gateway"
 version = "0.1.0"
 description = "Sarjy's voice gateway: owns each turn and is the only part that talks to providers."
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "fastapi>=0.142.4",
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "uvicorn[standard]>=0.54.0",
+]
 
 [build-system]
 requires = ["uv_build>=0.12.1,<0.13"]
