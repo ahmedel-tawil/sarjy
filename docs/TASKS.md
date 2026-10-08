@@ -104,18 +104,18 @@ tw-animate-css, @hugeicons/react, @hugeicons/core-free-icons,
 
 ### M0.4 Adopt Sarj code standards
 
-- [ ] `uv tool install --python 3.14 code-standards`, then `code-standards setup` with the
+- [x] `uv tool install --python 3.14 code-standards`, then `code-standards setup` with the
       agreed hook runner (O-05), passing `--python-dest` / `--typescript-dest` only if
       root detection gets them wrong.
-- [ ] `code-standards doctor` reports a healthy adoption.
-- [ ] `code-standards check` exits 0 on the whole repo.
-- [ ] `.sarj-standards.toml` pins the bundle version; `.github/workflows/standards.yml` and
+- [x] `code-standards doctor` reports a healthy adoption.
+- [x] `code-standards check` exits 0 on the whole repo.
+- [x] `.sarj-standards.toml` pins the bundle version; `.github/workflows/standards.yml` and
       `.github/workflows/commit-policy.yml` exist.
-- [ ] basedpyright runs in strict mode on both Python packages.
-- [ ] The commit-msg hook rejects `git commit -m "stuff"` and accepts `chore: ...`.
-- [ ] No exclusions. If one is unavoidable, it was approved, added with
+- [x] basedpyright runs in strict mode on both Python packages.
+- [x] The commit-msg hook rejects `git commit -m "stuff"` and accepts `chore: ...`.
+- [x] No exclusions. If one is unavoidable, it was approved, added with
       `code-standards exclude` and explained in `DECISIONS.md`.
-- [ ] The "Commands" section of `AGENTS.md` lists install, lint, type check and test.
+- [x] The "Commands" section of `AGENTS.md` lists install, lint, type check and test.
 
 ### M0.5 Protect `main` and run tests in CI
 
