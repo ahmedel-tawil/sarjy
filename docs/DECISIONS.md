@@ -648,6 +648,26 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** the website's public API with cleaning in Sarjy (wrong
   prices and 8-second calls can't be fixed by cleaning); reading the website's pages.
 
+### D-57 The tool loop, and what `llm_first_token` means with tools
+
+- **Decision:** a turn asks the model with the tools on offer, runs the tools it calls, and
+  asks again with their results, for up to 3 rounds of tool calls. One more round offers
+  no tools, so the model has to answer with what it has; a model still calling tools
+  then fails the turn with `llm_failed`. Calls in one round run side by side. An unknown
+  tool, invalid arguments, a `ToolError` or a call slower than 5 s goes back to the model
+  as `{"error": "..."}` instead of failing the turn. Only the current turn's tool
+  messages are sent; history keeps each turn's spoken reply. `llm_first_token` is the
+  first word of the answer that is spoken, after any tool rounds (settled 8 Oct in M2.5).
+- **Reason:** the mark sits on the path to the first audio, and a tool call's first token
+  is never spoken. The time spent choosing and running tools then shows up between
+  `stt_done` and `llm_first_token`, which is where experiment 5 (tool payload size) looks;
+  each tool call also logs its own duration. Error results let the model recover in
+  words ("which day?", "I can't check the weather right now"), which suits a voice call
+  better than an error code.
+- **Alternatives considered:** marking the first token of any round (it would hide the
+  tool time inside the LLM stage); a separate mark for tools (the seven marks are fixed
+  by D-04, and the per-tool log lines already give the split).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
