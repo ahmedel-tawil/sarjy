@@ -11,6 +11,12 @@ class TurnEnd(BaseModel):
     type: Literal["turn_end"]
 
 
+# Drops the audio sent so far: the browser heard no speech in it, and Whisper would have
+# turned the silence into words such as "Thank you." (D-55).
+class TurnCancel(BaseModel):
+    type: Literal["turn_cancel"]
+
+
 class SetVoice(BaseModel):
     type: Literal["set_voice"]
     voice: str
@@ -36,7 +42,7 @@ class BrowserMarks(BaseModel):
         return round(self.playback_start - self.speech_end, 1)
 
 
-class ClientMessage(RootModel[Annotated[TurnEnd | SetVoice | BrowserMarks, Field(discriminator="type")]]):
+class ClientMessage(RootModel[Annotated[TurnEnd | TurnCancel | SetVoice | BrowserMarks, Field(discriminator="type")]]):
     pass
 
 

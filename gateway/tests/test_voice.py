@@ -18,12 +18,14 @@ TURN_ID = "0199c3a4b5d67e8f9a0b1c2d3e4f5a6b"
 
 
 def browser_marks(speech_end: float, playback_start: float, turn_id: str = TURN_ID) -> str:
-    return json.dumps({
-        "type": "browser_marks",
-        "turn_id": turn_id,
-        "speech_end": speech_end,
-        "playback_start": playback_start,
-    })
+    return json.dumps(
+        {
+            "type": "browser_marks",
+            "turn_id": turn_id,
+            "speech_end": speech_end,
+            "playback_start": playback_start,
+        }
+    )
 
 
 def voice_client(
@@ -122,3 +124,12 @@ def test_browser_marks_log_the_turns_ttfa_without_a_reply(caplog: pytest.LogCapt
     assert len(played) == 1
     assert isinstance(played[0], Mapping)
     assert played[0] == {"turn_id": TURN_ID, "ttfa_ms": 3212.3}
+
+
+def test_a_cancelled_turn_drops_its_audio() -> None:
+    with voice_client().websocket_connect("/ws") as socket:
+        socket.send_bytes(b"silence")
+        socket.send_text('{"type": "turn_cancel"}')
+        socket.send_text(TURN_END)
+
+        assert ServerError.model_validate_json(socket.receive_text()).code == "no_audio"
