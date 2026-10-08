@@ -504,18 +504,24 @@ New dependencies: psycopg (binary), psycopg-pool.
 
 ### M2.8 SayTech adapter: client and data cleaning
 
-- [ ] A `Catalogue` Protocol, an HTTP adapter and a fake.
-- [ ] The three endpoints of D-56. Responses are parsed into Pydantic models (unknown
+- [x] A `Catalogue` Protocol, an HTTP adapter and a fake.
+- [x] The three endpoints of D-56. Responses are parsed into Pydantic models (unknown
       fields ignored), then mapped to lean results: name, price or "on request", city,
       link.
-- [ ] `on_request: true` becomes "price on request", never zero.
-- [ ] A 400 with a code (unknown city, unknown category) becomes a result the model can
+- [x] `on_request: true` becomes "price on request", never zero.
+- [x] A 400 with a code (unknown city, unknown category) becomes a result the model can
       act on, with the known values; a 404 is "not found"; a 429, a 5xx or a timeout is
       a SayTech error.
-- [ ] Slugs containing spaces are URL-encoded before any request.
-- [ ] Destinations pass through as they are; known inconsistencies are noted in tests, not
+- [x] Slugs containing spaces are URL-encoded before any request.
+- [x] Destinations pass through as they are; known inconsistencies are noted in tests, not
       silently "fixed".
-- [ ] Requests have timeouts. Tests use the M2.1 fixtures and cover each rule above.
+- [x] Requests have timeouts (3 s, `SARJY_SAYTECH_TIMEOUT_SECONDS`). Tests use the M2.1
+      fixtures and cover each rule above.
+- [x] Checked against production with `gateway/scripts/saytech.py`: right prices and
+      "price on request" for the buggy. From a Mac, calls on a reused connection took
+      about 160 to 200 ms; a new connection adds about 0.5 s. `context/` took 0.3 to
+      0.75 s on SayTech's side and one run saw 1.4 to 2.2 s spikes, which M2.9's cache
+      and last-known-good copy absorb. Lean results are 0.4 to 5.4 KB.
 
 ### M2.9 SayTech cache and last-known-good
 
