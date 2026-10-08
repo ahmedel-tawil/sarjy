@@ -1,5 +1,21 @@
+[project]
+name = "sarjy"
+version = "0.1.0"
+description = "Workspace root for Sarjy's Python services; holds shared dev tooling only."
+requires-python = ">=3.14"
+# Depending on both services makes a plain `uv sync` install them for local work.
+dependencies = ["sarjy-gateway", "sarjy-tts"]
+
+[tool.uv]
+# The root only groups the services; it is never built or installed itself.
+package = false
+
 [tool.uv.workspace]
 members = ["gateway", "tts"]
+
+[tool.uv.sources]
+sarjy-gateway = { workspace = true }
+sarjy-tts = { workspace = true }
 
 [dependency-groups]
 dev = ["pytest>=8"]

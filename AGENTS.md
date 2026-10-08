@@ -34,11 +34,11 @@ any task, and treat it as the source of truth for scope.
 ## Stack
 
 - **Backend:** Python, uv, FastAPI, Pydantic v2, asyncio, psycopg 3 with raw SQL (no ORM),
-  PostgreSQL. Python 3.13 (kokoro-onnx does not support 3.14 yet; see D-30 in
-  `docs/DECISIONS.md`).
+  PostgreSQL. Python 3.14, as Sarj's standards require (D-30 in `docs/DECISIONS.md`).
 - **Frontend:** React + Vite + TypeScript + Tailwind + shadcn/ui, built and served by the gateway (one origin).
 - **Voice:** hosted STT (provider to confirm), LLM on Groq or Cerebras (decided by
-  measurement), TTS with Kokoro-82M via kokoro-onnx as a separate service.
+  measurement), TTS with the Kokoro-82M ONNX model on onnxruntime, through our own
+  text front end (no kokoro-onnx, D-38), as a separate service.
 - **Infra:** GCP Cloud Run, Cloud SQL, Artifact Registry, Secret Manager; Terraform;
   GitHub Actions with Workload Identity Federation. DNS stays in DigitalOcean.
 

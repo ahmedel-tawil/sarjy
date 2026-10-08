@@ -21,16 +21,16 @@ Status: reviewed 7 Oct 2026. Scope comes from `docs/PRD.md`; decisions live in
 | Milestone | When | Tasks | Hours (upper bound) | Critical path |
 | --- | --- | --- | --- | --- |
 | M0 Repo skeleton and Sarj standards | 8 Oct, first | 5 | 5 | yes |
-| M1 Voice loop deployed | 8 Oct | 13 | 20.5 | yes |
+| M1 Voice loop deployed | 8 Oct | 14 | 22 | yes |
 | M2 Memory, tools, tests | 9 Oct | 14 | 20.5 | no |
 | M3 Latency deep dive | 9–10 Oct | 12 | 19 | no |
 | M4 UI polish, Safari and phone | 9–10 Oct | 8 | 12 | no |
 | M5 Docs, presentation, submission | 10–11 Oct | 8 | 11.5 | no |
 | M6 Optional: guardrails and reliability | only after an explicit go | 5 | 9 | never |
 
-**Schedule check.** The critical path adds up to 25.5 hours at upper bounds, for one
-calendar day, now that deploys go through CI from day one (D-35). All core work (M0–M5)
-adds up to about 89 hours across four days. Most tasks should take less than their
+**Schedule check.** The critical path adds up to 27 hours at upper bounds, for one
+calendar day, now that deploys go through CI from day one (D-35) and the Kokoro front end
+is our own code (D-38). All core work (M0–M5) adds up to about 90 hours across four days. Most tasks should take less than their
 ceiling, but the gap is real. M1.1 (GCP setup, no code) runs alongside M0 to absorb some
 of it. If scope must go, the PRD's cut list applies first: barge-in (M4.6), then the
 custom domain (M4.7), then the GPU experiment (M3.12). We revisit after day one.
@@ -69,7 +69,7 @@ Goal: an empty but correctly wired repo, where every commit already passes Sarj'
 - [x] `.gitignore` covers `.env`, `.context/`, virtualenvs, `node_modules/`, build output,
       `.terraform/`, Terraform state, Kokoro model files and `.DS_Store`.
 - [x] `.env.example` exists with variable names only.
-- [x] `.python-version` pins 3.13 (D-30).
+- [x] `.python-version` pins the Python version (3.13 at first; 3.14 since 8 Oct, D-30).
 - [x] The "Repo layout" section of `AGENTS.md` no longer says "proposed". Folders are
       created by the tasks that fill them, since git doesn't track empty folders.
 - [x] After your approval, the bootstrap commit is pushed straight to `main`: the only
@@ -143,8 +143,9 @@ and every latency mark is recorded from the first turn.
 | M1.6 | First deploy: hello over HTTPS | 1 h | M1.4, M1.5 | yes |
 | M1.7 | STT adapter | 1 h | M1.3 | yes |
 | M1.8 | LLM adapter (streaming) | 2 h | M1.3 | yes |
-| M1.9 | Kokoro TTS service | 2 h | M0.4 | yes |
-| M1.10 | Deploy TTS and connect the gateway | 1.5 h | M1.5, M1.9 | yes |
+| M1.9a | Kokoro front end and model runner | 2 h | M0.4 | yes |
+| M1.9b | Kokoro TTS service | 1.5 h | M1.9a | yes |
+| M1.10 | Deploy TTS and connect the gateway | 1.5 h | M1.5, M1.9b | yes |
 | M1.11 | Turn pipeline, baseline mode | 2 h | M1.7, M1.8, M1.10 | yes |
 | M1.12 | Frontend voice loop | 1.5 h | M1.4, M1.11 | yes |
 | M1.13 | Deploy the voice loop | 1 h | M1.6, M1.12 | yes |
@@ -249,7 +250,26 @@ New dependencies: httpx.
 
 New dependencies: none beyond httpx, unless O-14 picks a vendor SDK.
 
-### M1.9 Kokoro TTS service
+### M1.9a Kokoro front end and model runner
+
+Our own code instead of kokoro-onnx, which does not allow Python 3.14 (D-38).
+
+- [ ] Text becomes phonemes with espeak-ng (US English), through phonemizer and
+      espeakng-loader.
+- [ ] Phonemes become token ids through the model's published vocabulary, kept as data
+      with its source noted; unknown symbols are dropped and logged.
+- [ ] onnxruntime runs the model with the tokens, the voice's style vector (picked by
+      token count) and the speed, and returns 24 kHz audio.
+- [ ] Input longer than the model's token limit is split at sentence or phrase
+      boundaries, never mid-word.
+- [ ] Unit tests cover phoneme-to-token mapping, the length limit and style selection,
+      using a fake onnxruntime session, so they never load the model.
+- [ ] A dev script speaks "Hello from Sarjy" with the real model, and it sounds right next
+      to the Kokoro spike's samples.
+
+New dependencies: onnxruntime, numpy, phonemizer, espeakng-loader.
+
+### M1.9b Kokoro TTS service
 
 - [ ] `tts/` is a small FastAPI service: `POST /synthesize` takes text, voice and speed
       and returns audio in the agreed format (O-15); `GET /healthz`.
@@ -261,7 +281,7 @@ New dependencies: none beyond httpx, unless O-14 picks a vendor SDK.
 - [ ] Noted for `LATENCY.md`: local synthesis time for a 10-word sentence. Recorded in
       `DECISIONS.md`: the available voices and languages (PRD open question).
 
-New dependencies: kokoro-onnx (brings onnxruntime, numpy, phonemizer, espeakng-loader).
+New dependencies: fastapi, uvicorn.
 
 ### M1.10 Deploy TTS and connect the gateway
 

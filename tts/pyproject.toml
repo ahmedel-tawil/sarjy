@@ -2,8 +2,7 @@
 name = "sarjy-tts"
 version = "0.1.0"
 description = "Sarjy's text-to-speech service, running Kokoro-82M."
-# kokoro-onnx does not support Python 3.14 yet.
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14"
 dependencies = []
 
 [build-system]

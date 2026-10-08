@@ -2,7 +2,7 @@
 name = "sarjy-gateway"
 version = "0.1.0"
 description = "Sarjy's voice gateway: owns each turn and is the only part that talks to providers."
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14"
 dependencies = []
 
 [build-system]
