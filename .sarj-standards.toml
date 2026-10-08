@@ -1,0 +1,36 @@
+# Managed by `code-standards setup`; commit this file.
+bundle = "8.38.6"
+rule_profile = "all"
+schema = 4
+
+[capabilities]
+disable = [
+  "swiftformat",
+  "swiftlint",
+  "ktlint",
+  "detekt",
+  "mobile-security",
+  "zizmor",
+  "checkov",
+]
+
+[artifacts]
+durable = [
+  "**/README.md",
+  "docs/**",
+  "**/docs/**",
+  "architecture/**",
+  "**/adr/**",
+  ".github/**",
+  "**/AGENTS.md",
+  "**/CLAUDE.md",
+]
+
+[dest]
+kotlin = "."
+python = "."
+swift = "."
+typescript = "frontend"
+
+[hooks]
+manager = "pre-commit"
