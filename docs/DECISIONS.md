@@ -378,14 +378,33 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   day one, the fallback is the gateway on 3.14 and TTS on 3.13 with kokoro-onnx, behind
   an approved exclusion.
 
+### D-39 pre-commit runs the standards hooks
+
+- **Decision:** `code-standards setup --hooks pre-commit` installs two hooks: the staged
+  standards check before each commit and the managed commit-message check (settled
+  8 Oct in M0.4, was O-05).
+- **Reason:** `AGENTS.md` names pre-commit, and it needs no extra tool: the hooks run
+  code-standards through `uvx`.
+- **Alternatives considered:** lefthook, which code-standards also supports.
+
+### D-40 Rebase-merge only, and a protected `main`
+
+- **Decision:** Pull requests land on `main` by rebase-merge only. `main` requires a pull
+  request and passing Standards, Commit policy and Tests checks, with linear history, no
+  force pushes, and the same rules for admins. Merged branches are deleted
+  automatically, and auto-merge is allowed so a green pull request can land without
+  another manual step (settled 8 Oct in M0.5, was O-06).
+- **Reason:** Each small Conventional Commit stays on a linear `main`, so the history
+  tells the plan, and nothing reaches `main` without CI, not even a direct push.
+- **Alternatives considered:** squash-merge (one commit per task, losing the small
+  commits); merge commits (noisier history); no protection (relies on discipline).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
 
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
-| O-05 | Git hook runner | pre-commit; lefthook (code-standards supports both) | pre-commit, as `AGENTS.md` says. | M0.4 |
-| O-06 | Pull-request merge method and branch protection | rebase and merge; squash and merge; merge commits | Rebase and merge: each small Conventional Commit lands on a linear `main`, so the history tells the plan. Protect `main`: pull request and passing checks required. | M0.5 |
 | O-08 | GCP region (PRD open question) | a Gulf region such as `me-central1` (Doha); a European or US region | Choose after checking Cloud Run WebSockets, Cloud SQL, domain mapping and GPU support; providers' locations matter as much as users'. Measured again in experiment 7. | M1.1, M3.11 |
 | O-09 | How the gateway authenticates to TTS | Cloud Run IAM (the gateway fetches an ID token from the metadata server); a shared secret header; a public TTS | Cloud Run IAM: no secret to manage. | M1.2, M1.10 |
 | O-10 | Logging | standard `logging` with a JSON formatter; structlog | Standard library: no dependency, and Cloud Logging reads JSON lines. | M1.3 |
