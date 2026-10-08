@@ -25,9 +25,10 @@ dist/
 *.tfvars
 *.tfplan
 
-# Kokoro model files are downloaded at image build time, never committed
+# Kokoro model files are downloaded by tts/scripts/download-model.sh, never committed
 *.onnx
 voices*.bin
+tts/models/
 
 # macOS and editors
 .DS_Store
