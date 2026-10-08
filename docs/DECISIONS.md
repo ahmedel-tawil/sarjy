@@ -737,6 +737,27 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** Groq's paid Developer tier (costs money on my account);
   waiting for Sarj's keys alone (the demo depends on a reply).
 
+### D-62 Prompt v1: the no-guessing rule first, defaults in code, context during STT
+
+- **Decision:** the system prompt opens with its most important rule: Sarjy knows no
+  tours or prices of its own, and calls `search_tours` before naming any, bookings
+  included. Then come the speaking style, the scope, and the tool rules (details only when
+  needed, ages for families, a cooler time when it's hot, no booking or live dates).
+  SayTech's context follows, with categories framed as things to search by, then today's
+  date. The prompt is rebuilt every turn, and its SayTech part is fetched through the
+  cache while the speech is transcribed. A default that matters, such as Dubai when no
+  city is named, is set in the tool's code as well as in the prompt (settled 9 Oct in
+  M2.12).
+- **Reason:** in the first test, with the no-guessing rule further down and the catalogue
+  listing cities and categories, the model answered scenario 1 and a booking request
+  with invented prices and no tool call. Moving the rule to the top fixed both. Told to
+  assume Dubai, it still picked Abu Dhabi three times in a row; saying in the opening
+  lines that travellers mean Dubai fixed it, and the tool's default protects the rest.
+  Fetching the context alongside STT hides a cache miss behind the transcription.
+- **Alternatives considered:** forcing a tool call every turn (`tool_choice: required`,
+  which breaks greetings and off-topic replies); checking spoken numbers against tool
+  results in code (the optional guardrail milestone, M6).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
