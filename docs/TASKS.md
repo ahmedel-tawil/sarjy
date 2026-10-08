@@ -204,8 +204,8 @@ New dependencies: fastapi, uvicorn (with WebSocket support), possibly pydantic-s
 - [x] Audio playback is unlocked by the first tap, as Safari requires.
 - [x] A denied mic permission shows a clear message instead of failing silently.
 - [x] WebSocket messages have one typed definition per side (D-47).
-- [ ] Works locally in desktop Chrome. Verified in Chromium with a synthetic microphone;
-      a real microphone is checked by you.
+- [x] Works in desktop Chrome: checked with a synthetic microphone in Chromium, then by
+      you with a real microphone on the deployed app.
 
 New dependencies: zod (D-47). The shadcn Button and the HugeIcons mic needed no new
 package beyond what M0.3 installed (D-37).
@@ -224,10 +224,11 @@ package beyond what M0.3 installed (D-37).
 
 ### M1.6 First deploy: hello over HTTPS
 
-- [ ] Merging the M1.4 echo app deploys it through CI (D-35).
+- [x] Merging the M1.4 echo app deploys it through CI (D-35).
 - [x] The `*.run.app` URL loads over HTTPS.
 - [ ] The WebSocket connects and the echo works in Chrome on a laptop and on a phone over
-      mobile data; the mic permission prompt appears on both.
+      mobile data; the mic permission prompt appears on both. Laptop: done (8 Oct, you
+      heard your own words back). Phone: still to check.
 - [x] Fallback not needed: GCP worked. (Had it blocked this, the same container would
       run on a DigitalOcean droplet, as the PRD plans.)
 
