@@ -16,6 +16,7 @@ __pycache__/
 # Frontend
 node_modules/
 dist/
+*.log
 
 # Terraform: state can hold secrets, tfvars hold per-environment values
 .terraform/
@@ -27,5 +28,6 @@ dist/
 *.onnx
 voices*.bin
 
-# macOS
+# macOS and editors
 .DS_Store
+.idea/

@@ -345,15 +345,21 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   upstream.
 - **Alternatives considered:** Node 22 LTS; staying on 23.7.
 
-### D-37 Frontend packages arrive with their first use
+### D-37 shadcn/ui with the Maia preset, ejected
 
-- **Decision:** HugeIcons and each shadcn/ui component are installed in the task that
-  first uses them (the mic button in M1.4 is the first icon). shadcn's default icon
-  library, lucide-react, is not used: any shadcn component that ships with a lucide icon
-  is switched to HugeIcons when it is added (settled 8 Oct).
-- **Reason:** Unused packages add weight and may fail code-standards' dependency checks.
-  `AGENTS.md` allows one icon set.
-- **Alternatives considered:** installing HugeIcons in M0.3, as `TASKS.md` first said.
+- **Decision:** shadcn/ui is initialised with Radix primitives and the Maia preset, which
+  sets HugeIcons as shadcn's icon library and Figtree as the font. Its base stylesheet is
+  ejected into `frontend/src/styles/shadcn.css` (generated, not edited by hand), so the
+  `shadcn` CLI is not a runtime dependency. Individual shadcn components are added in the
+  task that first uses them (settled 8 Oct).
+- **Reason:** With HugeIcons set at the source, every component we add uses the one icon
+  set `AGENTS.md` allows, with no hand edits. Ejecting cuts the install from 480 to 189
+  packages. Keeping the ejected CSS in its own file leaves `index.css` holding only our
+  tokens.
+- **Alternatives considered:** the default Nova preset with lucide icons swapped by hand
+  per component; keeping the `shadcn` CLI as a dependency (no extra CSS in the repo, but
+  about 290 more packages); installing HugeIcons only at first use (first planned, but the
+  preset installs it).
 
 ## Open decisions
 
