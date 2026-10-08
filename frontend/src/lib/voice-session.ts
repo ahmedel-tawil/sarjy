@@ -51,7 +51,11 @@ export class VoiceSession implements PushToTalk {
         })
       },
       onClose: () => {
-        this.#report('connection_lost')
+        // A phone that sleeps or a deploy closes an idle socket, and the next press opens a
+        // new one, so only a turn still waiting for its answer has lost anything.
+        if (this.#status === 'listening' || this.#status === 'thinking') {
+          this.#report('connection_lost')
+        }
       },
       onMessage: (message) => {
         this.#receive(message)
