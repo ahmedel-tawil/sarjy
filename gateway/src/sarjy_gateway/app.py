@@ -30,7 +30,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
 def create_app(settings: Settings) -> FastAPI:
     app = FastAPI(title="Sarjy gateway", lifespan=lifespan)
     app.include_router(HealthRouter().build())
-    app.include_router(VoiceRouter().build())
+    app.include_router(VoiceRouter(settings.max_turn_audio_bytes).build())
     # Mounted last so the API routes above take precedence over static files.
     if settings.frontend_dist is not None:
         app.mount("/", StaticFiles(directory=settings.frontend_dist, html=True), name="frontend")
