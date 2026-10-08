@@ -16,6 +16,7 @@ from sarjy_gateway.tts import (
     NoToken,
     TextToSpeech,
 )
+from sarjy_gateway.weather import OpenMeteoWeather, Weather
 
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ class Services:
     llm: ChatModel
     tts: TextToSpeech
     catalogue: Catalogue
+    weather: Weather
     http_client: httpx2.AsyncClient | None
 
 
@@ -40,6 +42,7 @@ def build_services(settings: Settings) -> Services:
         llm=build_chat_model(settings, client),
         tts=build_text_to_speech(settings, client),
         catalogue=build_catalogue(settings, client),
+        weather=OpenMeteoWeather(client, settings.weather_url, settings.weather_timeout_seconds),
         http_client=client,
     )
 

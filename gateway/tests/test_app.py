@@ -9,7 +9,7 @@ from sarjy_gateway.settings import Settings
 from sarjy_gateway.stt import MissingSpeechToText
 from sarjy_gateway.tts import MissingTextToSpeech, TextToSpeech, Voices
 
-from gateway.tests.fakes import FakeCatalogue, FakeTextToSpeech
+from gateway.tests.fakes import FakeCatalogue, FakeTextToSpeech, FakeWeather
 
 
 if TYPE_CHECKING:
@@ -18,7 +18,12 @@ if TYPE_CHECKING:
 
 def services_with(tts: TextToSpeech) -> Services:
     return Services(
-        stt=MissingSpeechToText(), llm=MissingChatModel(), tts=tts, catalogue=FakeCatalogue(), http_client=None
+        stt=MissingSpeechToText(),
+        llm=MissingChatModel(),
+        tts=tts,
+        catalogue=FakeCatalogue(),
+        weather=FakeWeather(),
+        http_client=None,
     )
 
 

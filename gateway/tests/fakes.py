@@ -17,12 +17,15 @@ from sarjy_gateway.catalogue import (
 )
 from sarjy_gateway.llm import ChatMessage, Finished, TextDelta, ToolSpec
 from sarjy_gateway.tts import Voices
+from sarjy_gateway.weather import DayForecast, Hour
 
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator, Sequence
+    from datetime import date
 
     from sarjy_gateway.llm import ChatEvent
+    from sarjy_gateway.weather import Place
 
 
 class FakeSpeechToText:
@@ -214,4 +217,25 @@ class FakeCatalogue:
             notes=[],
             requirements=[],
             languages=[],
+        )
+
+
+# Answers every forecast with a hot, clear day, or raises `error`, and records requests.
+class FakeWeather:
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
+        self.requests: list[tuple[str, date]] = []
+
+    async def forecast(self, place: Place, day: date) -> DayForecast:
+        self.requests.append((place.name, day))
+        if self.error is not None:
+            raise self.error
+        return DayForecast(
+            city=place.name,
+            date=day.isoformat(),
+            conditions="clear sky",
+            high_c=38.3,
+            low_c=30.9,
+            chance_of_rain_percent=0,
+            hours=[Hour(time="15:00", temperature_c=35.4), Hour(time="18:00", temperature_c=33.3)],
         )

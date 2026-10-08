@@ -47,3 +47,6 @@ class Settings(BaseSettings):
     # How long a SayTech answer is reused without asking again; SayTech marks its answers
     # cacheable for 5 minutes (D-58).
     saytech_cache_seconds: float = Field(default=300.0, ge=0)
+    # Open-Meteo: no key, free for non-commercial use (O-21).
+    weather_url: str = "https://api.open-meteo.com/v1/forecast"
+    weather_timeout_seconds: float = Field(default=3.0, gt=0)
