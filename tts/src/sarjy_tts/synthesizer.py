@@ -1,4 +1,6 @@
+import io
 from typing import TYPE_CHECKING, Protocol
+import wave
 
 import numpy as np
 
@@ -80,3 +82,15 @@ class KokoroSynthesizer:
 # 16-bit PCM is half the size of the model's float32 and plays in every browser.
 def to_pcm16(audio: NDArray[np.float32]) -> bytes:
     return (np.clip(audio, -1.0, 1.0) * 32767).astype("<i2").tobytes()
+
+
+# The WAV header makes the audio self-describing: anyone can decode it without knowing
+# the sample rate or format in advance.
+def to_wav(audio: NDArray[np.float32]) -> bytes:
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as file:
+        file.setnchannels(1)
+        file.setsampwidth(2)
+        file.setframerate(SAMPLE_RATE)
+        file.writeframes(to_pcm16(audio))
+    return buffer.getvalue()

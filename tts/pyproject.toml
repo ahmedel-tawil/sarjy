@@ -5,10 +5,13 @@ description = "Sarjy's text-to-speech service, running Kokoro-82M."
 requires-python = ">=3.14"
 dependencies = [
     "espeakng-loader>=0.2.4",
+    "fastapi>=0.142.4",
     "numpy>=2.5.3",
     "onnxruntime>=1.30.0",
     "phonemizer>=3.4.0",
     "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "uvicorn[standard]>=0.54.0",
 ]
 
 [build-system]
