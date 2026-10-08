@@ -1,0 +1,106 @@
+{
+  "id": "695bfadeb0f964ca7fa53d78",
+  "type": "tour",
+  "slug": "ferrari-world-abu-dhbai",
+  "name": "Ferrari World Abu Dhabi Tickets",
+  "city": "Abu Dhabi",
+  "categories": [
+    "theme parks",
+    "ferrari world",
+    "theme park"
+  ],
+  "accessible": true,
+  "summary": "Visit one of the UAE’s most premium theme park destinations with your Ferrari World Abu Dhabi tickets. Located on Abu Dhabi's Yas Island (an island dedicated to luxury and entertainment), it is the world’s first Ferrari-based theme park. Spread around 86,000 square meters, your Ferrari World tickets price offers access to over 25 unique and thrilling rides and experiences.",
+  "price": {
+    "currency": "AED",
+    "from_amount": 345.0,
+    "on_request": false
+  },
+  "duration": null,
+  "tickets": [
+    {
+      "name": "Ferrari World Fast Track Ticket",
+      "price": {
+        "currency": "AED",
+        "from_amount": 595.0,
+        "on_request": false,
+        "lines": [
+          {
+            "pax_type": "adult",
+            "label": "adult",
+            "amount": 595.0
+          },
+          {
+            "pax_type": "child",
+            "label": "child",
+            "amount": 595.0
+          }
+        ]
+      },
+      "duration": {
+        "value": 8.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 3,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Children aged 11 and under must be accompanied by a responsible adult holding a valid ticket Child under 1.3 meters tall"
+      },
+      "cancellation": {
+        "refundable": false,
+        "note": "Once booked, Tickets cannot be cancelled, refunded, modified"
+      }
+    },
+    {
+      "name": "Ferrari World General Admission",
+      "price": {
+        "currency": "AED",
+        "from_amount": 345.0,
+        "on_request": false,
+        "lines": [
+          {
+            "pax_type": "adult",
+            "label": "adult",
+            "amount": 345.0
+          },
+          {
+            "pax_type": "child",
+            "label": "child",
+            "amount": 345.0
+          }
+        ]
+      },
+      "duration": {
+        "value": 8.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 3,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Children aged 11 and under must be accompanied by a responsible adult holding a valid ticket Child under 1.3 meters tall"
+      },
+      "cancellation": {
+        "refundable": false,
+        "note": "Once booked, Tickets cannot be cancelled, refunded, modified"
+      }
+    }
+  ],
+  "restrictions": [
+    "Guests are prohibited from bringing food and drinks into the Park.",
+    "The service provider holds no responsibility if any component of an attraction is non-operational due to technical reasons"
+  ],
+  "notes": [
+    "Height restrictions apply",
+    "Please check the operational timing on the official website to avoid any inconveniece",
+    "There will be no refund for unused or partially used services",
+    "Children must be accompanied by an adult at all times"
+  ],
+  "requirements": [],
+  "languages": [
+    "English",
+    "Arabic"
+  ],
+  "url": "https://magicexperience.ae/tours/ferrari-world-abu-dhbai"
+}

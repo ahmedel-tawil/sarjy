@@ -1,0 +1,13 @@
+{
+  "error": {
+    "code": "unknown_city",
+    "message": "No destination matches 'paris'.",
+    "details": {
+      "known_cities": [
+        "Abu Dhabi",
+        "Dubai",
+        "Sharjah"
+      ]
+    }
+  }
+}

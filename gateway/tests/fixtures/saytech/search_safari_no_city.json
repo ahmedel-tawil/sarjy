@@ -1,0 +1,41 @@
+{
+  "results": [
+    {
+      "id": "6996a998f46d569925bc9108",
+      "type": "tour",
+      "slug": "dune-desert-safari-from-fujairah",
+      "name": "Dune Desert Safari",
+      "city": null,
+      "categories": [
+        "adventure",
+        "safari"
+      ],
+      "accessible": false,
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true
+      },
+      "url": "https://magicexperience.ae/tours/dune-desert-safari-from-fujairah"
+    },
+    {
+      "id": "698870f7f20cfbc570686c72",
+      "type": "tour",
+      "slug": "DUNE- BUGGY",
+      "name": "Buggy Dune Bashing Tour",
+      "city": "Dubai",
+      "categories": [
+        "luxury buggy",
+        "safari"
+      ],
+      "accessible": false,
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true
+      },
+      "url": "https://magicexperience.ae/tours/DUNE-%20BUGGY"
+    }
+  ],
+  "total": 2
+}

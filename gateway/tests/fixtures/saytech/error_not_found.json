@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "not_found",
+    "message": "No tour matches 'does-not-exist'.",
+    "details": {
+      "type": "tour",
+      "slug": "does-not-exist"
+    }
+  }
+}
