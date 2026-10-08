@@ -24,6 +24,8 @@ dev = [
 testpaths = ["gateway/tests", "tts/tests"]
 # Both services have a tests/ folder; importlib mode lets test files share names.
 addopts = ["--import-mode=importlib"]
+# Lets tests import shared helpers by their path, such as gateway.tests.fakes.
+pythonpath = ["."]
 
 [tool.ruff]
 extend = ".ruff-strict.toml"
