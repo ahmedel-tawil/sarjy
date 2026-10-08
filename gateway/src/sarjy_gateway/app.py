@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime
 import logging
 import time
 from typing import TYPE_CHECKING
@@ -7,11 +8,13 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from sarjy_gateway.health import HealthRouter
+from sarjy_gateway.prompts import system_prompt
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
 from sarjy_gateway.tour_tools import GetTourTool, SearchToursTool
 from sarjy_gateway.turn import TurnPipeline
 from sarjy_gateway.voice import VoiceRouter
 from sarjy_gateway.voices import VoicesRouter
+from sarjy_gateway.weather import UAE_TIME
 from sarjy_gateway.weather_tool import GetWeatherTool
 
 
@@ -44,7 +47,14 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
         GetWeatherTool(services.weather, time.time),
     ]
     toolbox = Toolbox(tools=tools, clock=time.monotonic, timeout_seconds=TOOL_TIMEOUT_SECONDS)
-    pipeline = TurnPipeline(services.stt, services.llm, services.tts, toolbox, time.monotonic)
+    pipeline = TurnPipeline(
+        services.stt,
+        services.llm,
+        services.tts,
+        toolbox,
+        system_prompt=lambda: system_prompt(datetime.now(UAE_TIME)),
+        clock=time.monotonic,
+    )
     app = FastAPI(title="Sarjy gateway", lifespan=lifespan)
     app.include_router(HealthRouter().build())
     app.include_router(VoicesRouter(services.tts).build())

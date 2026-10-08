@@ -5,18 +5,21 @@
 #     uv run python gateway/scripts/ask.py "How much is the buggy dune bashing tour?"
 
 import asyncio
+from datetime import datetime
 import logging
 import sys
 import time
 from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
+from sarjy_gateway.prompts import system_prompt
 from sarjy_gateway.services import build_services
 from sarjy_gateway.settings import Settings
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox, ToolError
 from sarjy_gateway.tour_tools import GetTourTool, SearchToursTool
 from sarjy_gateway.tts import Voices
 from sarjy_gateway.turn import Conversation, TurnPipeline
+from sarjy_gateway.weather import UAE_TIME
 from sarjy_gateway.weather_tool import GetWeatherTool
 
 
@@ -88,7 +91,11 @@ async def ask(questions: list[str]) -> None:
     ]
     stt = TypedQuestion()
     toolbox = Toolbox(tools, time.monotonic, TOOL_TIMEOUT_SECONDS)
-    pipeline = TurnPipeline(stt, services.llm, NoSpeech(), toolbox, time.monotonic)
+
+    def prompt() -> str:
+        return system_prompt(datetime.now(UAE_TIME))
+
+    pipeline = TurnPipeline(stt, services.llm, NoSpeech(), toolbox, system_prompt=prompt, clock=time.monotonic)
     conversation = Conversation(max_turns=settings.max_history_turns)
     try:
         for question in questions:

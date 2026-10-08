@@ -33,7 +33,10 @@ def voice_client(
     stt: FakeSpeechToText | None = None, tts: FakeTextToSpeech | None = None, max_turn_audio_bytes: int = 1_000
 ) -> TestClient:
     tts = tts or FakeTextToSpeech()
-    pipeline = TurnPipeline(stt or FakeSpeechToText(), FakeChatModel(), tts, Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS), TickingClock())
+    toolbox = Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS)
+    pipeline = TurnPipeline(
+        stt or FakeSpeechToText(), FakeChatModel(), tts, toolbox, system_prompt=lambda: "Be Sarjy.", clock=TickingClock()
+    )
     app = FastAPI()
     app.include_router(VoiceRouter(pipeline, tts, max_turn_audio_bytes, max_history_turns=6).build())
     return TestClient(app)
