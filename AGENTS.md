@@ -152,7 +152,7 @@ Frontend (from `frontend/`, after `nvm use` picks Node 24 from `.nvmrc`):
 
 ```
 npm ci           # install exactly what package-lock.json pins
-npm run dev      # local dev server
+npm run dev      # local dev server; proxies /ws and /health to a gateway on :8080
 npm run build    # type check (tsc -b) and production build into dist/
 ```
 

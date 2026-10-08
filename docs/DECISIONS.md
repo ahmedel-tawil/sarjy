@@ -467,13 +467,27 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   credential); Cloud Build triggers (a second CI system); matching the repository by name
   (open to name reuse).
 
+### D-47 The voice socket: binary audio, JSON control, schemas on both sides
+
+- **Decision:** On `/ws`, audio travels as binary frames and control messages as JSON
+  text frames with a `type` field. The browser streams a turn's recorder chunks, then
+  sends `{"type": "turn_end"}`; the gateway answers with binary audio or
+  `{"type": "error", "code": ...}`. Messages are Pydantic models in
+  `gateway/src/sarjy_gateway/messages.py` and zod schemas in
+  `frontend/src/lib/protocol.ts`, kept in sync by hand (settled 8 Oct in M1.4, was O-11).
+- **Reason:** Binary frames carry audio without base64's 33% overhead; JSON keeps control
+  messages readable. Validating both directions turns a mismatch into a clear error
+  instead of undefined behaviour. Two hand-written files are small enough to keep in step
+  without a code generator.
+- **Alternatives considered:** everything as JSON with base64 audio (bigger, slower);
+  generating TypeScript types from the Pydantic models (one more build step).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
 
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
-| O-11 | WebSocket message contract | JSON control messages plus binary audio frames; how Python and TypeScript types stay in sync | JSON plus binary. Pydantic on the server; a runtime schema in the browser (code-standards rule `prefer-schema-for-api-payload`, likely zod), kept in sync by hand. | M1.4 |
 | O-12 | STT provider and streaming (PRD open question) | Groq `whisper-large-v3-turbo` (file upload); a streaming STT provider | Groq on day 1. Check and record whether streaming is offered and worth it. | M1.7 |
 | O-13 | LLM provider and model for day 1 | Groq; Cerebras | Groq (one key for STT and LLM); the final pick comes from experiment 4. | M1.8, M3.8 |
 | O-14 | LLM client | httpx2 against the OpenAI-compatible API; vendor SDKs | httpx2 (D-43): one adapter for every provider, every line visible, and it is already a dependency. | M1.8 |
