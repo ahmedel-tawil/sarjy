@@ -1,8 +1,10 @@
+import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from sarjy_gateway.llm import ChatMessage, Finished, TextDelta
+from pydantic import BaseModel
+from sarjy_gateway.llm import ChatMessage, Finished, TextDelta, ToolSpec
 from sarjy_gateway.tts import Voices
 
 
@@ -25,23 +27,58 @@ class FakeSpeechToText:
         return self.transcript
 
 
+# Each request plays the next scripted round of events; the last round repeats. By
+# default there is one round of plain text.
 class FakeChatModel:
-    def __init__(self, deltas: Sequence[str] = ("Try the ", "Louvre."), error: Exception | None = None) -> None:
-        self.deltas = deltas
+    def __init__(
+        self,
+        deltas: Sequence[str] = ("Try the ", "Louvre."),
+        error: Exception | None = None,
+        rounds: Sequence[Sequence[ChatEvent]] | None = None,
+    ) -> None:
+        self.rounds = rounds if rounds is not None else [[TextDelta(delta) for delta in deltas]]
         self.error = error
         self.requests: list[list[ChatMessage]] = []
+        self.offered_tools: list[list[str]] = []
 
     @asynccontextmanager
-    async def stream(self, messages: Sequence[ChatMessage]) -> AsyncGenerator[AsyncIterator[ChatEvent]]:
+    async def stream(
+        self, messages: Sequence[ChatMessage], tools: Sequence[ToolSpec]
+    ) -> AsyncGenerator[AsyncIterator[ChatEvent]]:
         self.requests.append(list(messages))
+        self.offered_tools.append([tool.name for tool in tools])
         if self.error is not None:
             raise self.error
-        yield self._events()
+        yield self._events(self.rounds[min(len(self.requests), len(self.rounds)) - 1])
 
-    async def _events(self) -> AsyncIterator[ChatEvent]:
-        for delta in self.deltas:
-            yield TextDelta(delta)
+    @staticmethod
+    async def _events(events: Sequence[ChatEvent]) -> AsyncIterator[ChatEvent]:
+        for event in events:
+            yield event
         yield Finished("stop")
+
+
+class WeatherArguments(BaseModel):
+    city: str
+    date: str
+
+
+# Answers every call with `result`, or raises `error`, after `seconds` of real waiting.
+class FakeWeatherTool:
+    spec = ToolSpec("get_weather", "The forecast for a UAE city.", WeatherArguments.model_json_schema())
+
+    def __init__(self, result: str = '{"temperature_c": 31}', error: Exception | None = None, seconds: float = 0) -> None:
+        self.result = result
+        self.error = error
+        self.seconds = seconds
+        self.calls: list[WeatherArguments] = []
+
+    async def run(self, arguments: str) -> str:
+        self.calls.append(WeatherArguments.model_validate_json(arguments))
+        await asyncio.sleep(self.seconds)
+        if self.error is not None:
+            raise self.error
+        return self.result
 
 
 @dataclass(frozen=True)

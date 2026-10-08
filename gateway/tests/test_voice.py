@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 import pytest
 from sarjy_gateway.messages import AudioFollows, Reply, ServerError, Transcript, TurnMarks
 from sarjy_gateway.stt import SpeechToTextError
+from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
 from sarjy_gateway.turn import TurnPipeline
 from sarjy_gateway.voice import VoiceRouter
 
@@ -32,7 +33,7 @@ def voice_client(
     stt: FakeSpeechToText | None = None, tts: FakeTextToSpeech | None = None, max_turn_audio_bytes: int = 1_000
 ) -> TestClient:
     tts = tts or FakeTextToSpeech()
-    pipeline = TurnPipeline(stt or FakeSpeechToText(), FakeChatModel(), tts, TickingClock())
+    pipeline = TurnPipeline(stt or FakeSpeechToText(), FakeChatModel(), tts, Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS), TickingClock())
     app = FastAPI()
     app.include_router(VoiceRouter(pipeline, tts, max_turn_audio_bytes, max_history_turns=6).build())
     return TestClient(app)

@@ -1,9 +1,9 @@
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal, Protocol
+from typing import TYPE_CHECKING, Literal, NotRequired, Protocol, TypedDict
 
 import httpx2
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 
 if TYPE_CHECKING:
@@ -13,9 +13,29 @@ if TYPE_CHECKING:
     from pydantic import SecretStr
 
 
+class ToolCall(BaseModel):
+    call_id: str
+    name: str
+    # The JSON arguments exactly as the model wrote them; the tool validates them.
+    arguments: str
+
+
 class ChatMessage(BaseModel):
-    role: Literal["system", "user", "assistant"]
+    role: Literal["system", "user", "assistant", "tool"]
     content: str
+    # Set on an assistant message that asks for tools, and on the tool message that answers
+    # one of those calls.
+    tool_calls: list[ToolCall] = Field(default_factory=list[ToolCall])
+    tool_call_id: str | None = None
+
+
+# What the model is told about one tool: its name, when to use it, and the JSON schema of
+# its arguments.
+@dataclass(frozen=True)
+class ToolSpec:
+    name: str
+    description: str
+    parameters: dict[str, object]
 
 
 @dataclass(frozen=True)
@@ -49,10 +69,12 @@ class ChatRateLimitedError(ChatModelError):
     pass
 
 
-# Used as `async with model.stream(messages) as events:`; the HTTP response stays open
-# exactly as long as the block, even if the caller stops reading early.
+# Used as `async with model.stream(messages, tools) as events:`; the HTTP response stays
+# open exactly as long as the block, even if the caller stops reading early.
 class ChatModel(Protocol):
-    def stream(self, messages: Sequence[ChatMessage]) -> AbstractAsyncContextManager[AsyncIterator[ChatEvent]]: ...
+    def stream(
+        self, messages: Sequence[ChatMessage], tools: Sequence[ToolSpec]
+    ) -> AbstractAsyncContextManager[AsyncIterator[ChatEvent]]: ...
 
 
 # The OpenAI-compatible streaming chunk, reduced to the fields Sarjy reads. Providers add
@@ -100,34 +122,93 @@ class OpenAiCompatibleChatModel:
         self._options = options
 
     @asynccontextmanager
-    async def stream(self, messages: Sequence[ChatMessage]) -> AsyncGenerator[AsyncIterator[ChatEvent]]:
+    async def stream(
+        self, messages: Sequence[ChatMessage], tools: Sequence[ToolSpec]
+    ) -> AsyncGenerator[AsyncIterator[ChatEvent]]:
         headers = {"Authorization": f"Bearer {self._api_key.get_secret_value()}"}
+        body = self._body(messages, tools)
         # Network errors while the caller reads the events also surface here.
         try:
-            async with self._client.stream("POST", self._url, json=self._body(messages), headers=headers) as response:
+            async with self._client.stream("POST", self._url, json=body, headers=headers) as response:
                 raise_for_provider_status(response)
                 yield events_from(response)
         except httpx2.HTTPError as error:
             message = f"chat model request failed: {type(error).__name__}"
             raise ChatModelError(message) from error
 
-    def _body(self, messages: Sequence[ChatMessage]) -> dict[str, object]:
+    def _body(self, messages: Sequence[ChatMessage], tools: Sequence[ToolSpec]) -> dict[str, object]:
         body: dict[str, object] = {
             "model": self._options.model,
-            "messages": [{"role": message.role, "content": message.content} for message in messages],
+            "messages": [wire_message(message) for message in messages],
             "stream": True,
             "temperature": self._options.temperature,
             "max_tokens": self._options.max_tokens,
         }
+        # No tools at all means a plain answer, so the key is left out rather than empty.
+        if tools:
+            body["tools"] = [wire_tool(tool) for tool in tools]
         if self._options.reasoning_effort is not None:
             body["reasoning_effort"] = self._options.reasoning_effort
         return body
 
 
 class MissingChatModel:
-    def stream(self, messages: Sequence[ChatMessage]) -> AbstractAsyncContextManager[AsyncIterator[ChatEvent]]:
-        message = f"SARJY_LLM_API_KEY is not set; cannot answer {len(messages)} messages"
+    def stream(
+        self, messages: Sequence[ChatMessage], tools: Sequence[ToolSpec]
+    ) -> AbstractAsyncContextManager[AsyncIterator[ChatEvent]]:
+        message = f"SARJY_LLM_API_KEY is not set; cannot answer {len(messages)} messages with {len(tools)} tools"
         raise ChatModelError(message)
+
+
+# The request shapes of the OpenAI-compatible API, as sent on the wire.
+class WireFunctionCall(TypedDict):
+    name: str
+    arguments: str
+
+
+class WireToolCall(TypedDict):
+    id: str
+    type: Literal["function"]
+    function: WireFunctionCall
+
+
+class WireMessage(TypedDict):
+    role: str
+    content: str
+    tool_calls: NotRequired[list[WireToolCall]]
+    tool_call_id: NotRequired[str]
+
+
+class WireFunction(TypedDict):
+    name: str
+    description: str
+    parameters: dict[str, object]
+
+
+class WireTool(TypedDict):
+    type: Literal["function"]
+    function: WireFunction
+
+
+def wire_message(message: ChatMessage) -> WireMessage:
+    wire = WireMessage(role=message.role, content=message.content)
+    if message.tool_calls:
+        wire["tool_calls"] = [
+            WireToolCall(
+                id=call.call_id, type="function", function=WireFunctionCall(name=call.name, arguments=call.arguments)
+            )
+            for call in message.tool_calls
+        ]
+    if message.tool_call_id is not None:
+        wire["tool_call_id"] = message.tool_call_id
+    return wire
+
+
+def wire_tool(tool: ToolSpec) -> WireTool:
+    return WireTool(
+        type="function",
+        function=WireFunction(name=tool.name, description=tool.description, parameters=tool.parameters),
+    )
 
 
 def raise_for_provider_status(response: httpx2.Response) -> None:
@@ -176,3 +257,25 @@ def events_in(chunk: StreamChunk) -> list[ChatEvent]:
         if choice.finish_reason is not None:
             events.append(Finished(choice.finish_reason))
     return events
+
+
+# Rebuilds whole tool calls from their streamed pieces: the first piece of each call
+# carries its id and name, and the arguments arrive as JSON text split across pieces.
+def assemble_tool_calls(deltas: Sequence[ToolCallDelta]) -> list[ToolCall]:
+    ids: dict[int, str] = {}
+    names: dict[int, str] = {}
+    arguments: dict[int, str] = {}
+    for delta in deltas:
+        if delta.call_id:
+            ids[delta.index] = delta.call_id
+        if delta.name:
+            names[delta.index] = delta.name
+        arguments[delta.index] = arguments.get(delta.index, "") + delta.arguments
+    calls: list[ToolCall] = []
+    for index in sorted(arguments):
+        if index not in ids or index not in names:
+            message = f"chat model sent tool call {index} without an id or a name"
+            raise ChatModelError(message)
+        # A tool without arguments may stream none; "{}" still validates as an empty object.
+        calls.append(ToolCall(call_id=ids[index], name=names[index], arguments=arguments[index] or "{}"))
+    return calls

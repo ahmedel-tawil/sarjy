@@ -17,8 +17,11 @@ class Timeline:
         self._start: float | None = None
         self._marks: dict[str, float] = {}
 
-    def mark(self, name: ServerMark) -> None:
-        now = self._clock()
+    # `at` is an earlier clock reading, for a moment only known to matter later: the
+    # first word of a model round counts as `llm_first_token` only if that round turns
+    # out to be the spoken answer rather than a tool call.
+    def mark(self, name: ServerMark, at: float | None = None) -> None:
+        now = self._clock() if at is None else at
         if self._start is None:
             self._start = now
         self._marks[name] = round((now - self._start) * 1000, 1)
