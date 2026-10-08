@@ -1,12 +1,13 @@
 export interface AudioPlayer {
-  play(audio: ArrayBuffer): Promise<void>
+  play(audio: ArrayBuffer, onStart: () => void): Promise<void>
   unlock(): Promise<void>
 }
 
 export class Player implements AudioPlayer {
   #context: AudioContext | null = null
 
-  async play(audio: ArrayBuffer): Promise<void> {
+  // onStart runs as the first sample is scheduled: the `playback_start` mark.
+  async play(audio: ArrayBuffer, onStart: () => void): Promise<void> {
     const context = this.#audioContext()
     const buffer = await context.decodeAudioData(audio)
     const source = context.createBufferSource()
@@ -18,6 +19,7 @@ export class Player implements AudioPlayer {
       }, { once: true })
     })
     source.start()
+    onStart()
     await ended
   }
 
