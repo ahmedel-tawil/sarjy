@@ -1,0 +1,38 @@
+# Deploys to Cloud Run on every push to main. Branch protection means main only ever
+# receives commits whose pull request passed every check.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  # Lets the job request a GitHub OIDC token, which Google exchanges for deployer
+  # credentials through Workload Identity Federation (no stored keys).
+  id-token: write
+
+concurrency:
+  group: deploy-main
+  # Never stop a deploy halfway; queue the next one instead.
+  cancel-in-progress: false
+
+jobs:
+  gateway:
+    name: Deploy gateway
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      - run: gcloud auth configure-docker me-central1-docker.pkg.dev --quiet
+      - run: scripts/deploy.sh gateway
