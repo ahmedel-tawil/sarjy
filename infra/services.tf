@@ -39,8 +39,23 @@ resource "google_cloud_run_v2_service" "gateway" {
         name  = "SARJY_TTS_AUTH"
         value = "id_token"
       }
+
+      # Cloud Run reads the value from Secret Manager when an instance starts, so it never
+      # passes through Terraform. "latest" picks up a rotated key on the next revision.
+      env {
+        name = "SARJY_GROQ_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.groq_api_key.secret_id
+            version = "latest"
+          }
+        }
+      }
     }
   }
+
+  # The gateway's identity must be able to read the secret before a revision uses it.
+  depends_on = [google_secret_manager_secret_iam_member.gateway_reads_groq_api_key]
 
   lifecycle {
     # CI deploys new images; Terraform owns everything else about the service.
