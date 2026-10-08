@@ -568,24 +568,31 @@ New dependencies: psycopg (binary), psycopg-pool.
 
 ### M2.12 System prompt v1: scope and grounding
 
-- [ ] The prompt covers: scope (UAE travel, Magic Experience products, weather, the user's
+- [x] The prompt covers: scope (UAE travel, Magic Experience products, weather, the user's
       own preferences); prices, availability and forecasts only from tool results;
       "price on request" wording; no booking, share the link instead; a short friendly
-      redirect for off-topic requests; replies written to be spoken.
+      redirect for off-topic requests; replies written to be spoken (D-62).
 - [x] Today's date and timezone are injected (done early in M2.11).
-- [ ] SayTech's `context/` (cities, categories, FAQs) is in the prompt; a product's own
+- [x] SayTech's `context/` (cities, categories, FAQs) is in the prompt; a product's own
       policies beat the generic FAQs; availability questions get "I can't check live
-      dates" and the product link (D-56).
-- [ ] The prompt lives in one file.
-- [ ] A dev script that sends text turns through the pipeline (skipping STT) shows the
+      dates" and the product link (D-56). The context is fetched, usually from the
+      cache, while the speech is transcribed.
+- [x] The prompt lives in one file (`prompts.py`).
+- [x] A dev script that sends text turns through the pipeline (skipping STT) shows the
       expected behaviour for: an off-topic request, price bait, a missing price, and a
       booking request. The script is `gateway/scripts/ask.py` (added in M2.10).
-- [ ] When children are mentioned, a tour's children's policy is checked before it is
-      recommended: scenario 1 must not suggest the Louvre's 18-and-over ticket.
-- [ ] A search result that already answers the question gets no `get_tour` call: each
+- [x] When children are mentioned, a tour's children's policy is checked before it is
+      recommended: scenario 1 must not suggest the Louvre's 18-and-over ticket. Sarjy
+      now names it as adults only.
+- [x] A search result that already answers the question gets no `get_tour` call: each
       extra round costs about 1.3 s and resends every token (D-61).
-- [ ] Scenario 3 suggests a cooler time (late afternoon or evening) when the afternoon is
+- [x] Scenario 3 suggests a cooler time (late afternoon or evening) when the afternoon is
       hot; a question with no city assumes Dubai, Magic Experience's home, or asks.
+      `get_weather` also defaults to Dubai in code.
+- [x] Checked against real Groq on 9 Oct, one fresh conversation per question: scenarios
+      1, 3 and 4, an off-topic request, price bait, a booking and an availability
+      question all behaved as above, with the first word after 1.2 to 2.7 s. Replies
+      still run to four sentences at times, past the fifty-word aim.
 
 ### M2.13 Public URL protection
 
