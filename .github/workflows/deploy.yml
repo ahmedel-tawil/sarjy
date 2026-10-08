@@ -18,10 +18,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  gateway:
-    name: Deploy gateway
+  deploy:
+    name: Deploy ${{ matrix.service }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      matrix:
+        service: [gateway, tts]
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
@@ -35,4 +38,4 @@ jobs:
           service_account: ${{ vars.GCP_DEPLOYER_SERVICE_ACCOUNT }}
       - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
       - run: gcloud auth configure-docker me-central1-docker.pkg.dev --quiet
-      - run: scripts/deploy.sh gateway
+      - run: scripts/deploy.sh ${{ matrix.service }}

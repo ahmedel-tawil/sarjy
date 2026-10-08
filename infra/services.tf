@@ -28,6 +28,17 @@ resource "google_cloud_run_v2_service" "gateway" {
         }
         startup_cpu_boost = true
       }
+
+      env {
+        name  = "SARJY_TTS_URL"
+        value = google_cloud_run_v2_service.tts.uri
+      }
+
+      # TTS is private, so each call carries a token for the gateway's identity (D-45).
+      env {
+        name  = "SARJY_TTS_AUTH"
+        value = "id_token"
+      }
     }
   }
 
@@ -51,6 +62,9 @@ resource "google_cloud_run_v2_service" "tts" {
 
   template {
     service_account = google_service_account.tts.email
+    # Synthesis is CPU-bound: past a few at once, requests only slow each other down,
+    # so Cloud Run starts another instance instead.
+    max_instance_request_concurrency = 4
 
     scaling {
       min_instance_count = 0
@@ -60,13 +74,20 @@ resource "google_cloud_run_v2_service" "tts" {
     containers {
       image = local.placeholder_image
 
-      # A first guess for Kokoro on CPU; the Kokoro spike and M1.10 will size it.
+      # The 325 MB model and onnxruntime's working memory fit in 2 GiB; M1.10 measures
+      # synthesis time on 2 vCPU.
       resources {
         limits = {
           cpu    = "2"
           memory = "2Gi"
         }
         startup_cpu_boost = true
+      }
+
+      # Match onnxruntime's threads to the vCPUs we pay for, not the host's cores.
+      env {
+        name  = "SARJY_THREADS"
+        value = "2"
       }
     }
   }
