@@ -415,6 +415,7 @@ Goal: the four demo scenarios work on the deployed URL.
 | M2.12 | System prompt v1: scope and grounding | 1 h | M2.6, M2.10, M2.11 | no |
 | M2.13 | Public URL protection | 1.5 h | M2.4 | no |
 | M2.14 | Demo scenarios 1–4 on the deployed URL | 1 h | M2.7, M2.12, M2.13 | no |
+| M2.15 | Second LLM provider when Groq is rate limited | 1 h | M1.8, a Cerebras key | no |
 
 ### M2.1 SayTech API discovery
 
@@ -550,12 +551,20 @@ New dependencies: psycopg (binary), psycopg-pool.
 
 ### M2.11 Weather adapter and `get_weather` tool
 
-- [ ] A `Weather` Protocol and one adapter (O-21).
-- [ ] UAE cities map to coordinates through a fixed table, with no geocoding call.
-- [ ] `get_weather(city, date)` returns that day's temperature and conditions, with dates
-      in Dubai time.
-- [ ] A date outside the forecast range gives a clear "no forecast" result.
-- [ ] Tests use fixtures; demo scenario 3 works locally.
+- [x] A `Weather` Protocol and one adapter: Open-Meteo (D-60, was O-21).
+- [x] UAE cities map to coordinates through a fixed table, with no geocoding call.
+- [x] `get_weather(city, date)` returns that day's temperature and conditions, with dates
+      in Dubai time, plus temperatures through the day for picking a cooler time.
+- [x] A date outside the forecast range gives a clear "no forecast" result.
+- [x] Tests use fixtures; demo scenario 3 works locally: with the date in the question,
+      Sarjy checked the forecast and answered with the real conditions and afternoon
+      temperature. It did not suggest a cooler time, guessed Abu Dhabi for an
+      unstated city, and called the tool twice with the same arguments; those go to
+      M2.12.
+- [x] Today's date is in the system prompt, rebuilt every turn, pulled forward from M2.12:
+      in your test Sarjy refused a forecast, believing it was April. After the fix,
+      "is tomorrow afternoon good for a desert safari in Dubai?" asked for 2026-10-10
+      with no date in the question.
 
 ### M2.12 System prompt v1: scope and grounding
 
@@ -563,7 +572,7 @@ New dependencies: psycopg (binary), psycopg-pool.
       own preferences); prices, availability and forecasts only from tool results;
       "price on request" wording; no booking, share the link instead; a short friendly
       redirect for off-topic requests; replies written to be spoken.
-- [ ] Today's date and timezone are injected.
+- [x] Today's date and timezone are injected (done early in M2.11).
 - [ ] SayTech's `context/` (cities, categories, FAQs) is in the prompt; a product's own
       policies beat the generic FAQs; availability questions get "I can't check live
       dates" and the product link (D-56).
@@ -574,7 +583,9 @@ New dependencies: psycopg (binary), psycopg-pool.
 - [ ] When children are mentioned, a tour's children's policy is checked before it is
       recommended: scenario 1 must not suggest the Louvre's 18-and-over ticket.
 - [ ] A search result that already answers the question gets no `get_tour` call: each
-      extra round costs about 1.3 s and resends every token (O-27).
+      extra round costs about 1.3 s and resends every token (D-61).
+- [ ] Scenario 3 suggests a cooler time (late afternoon or evening) when the afternoon is
+      hot; a question with no city assumes Dubai, Magic Experience's home, or asks.
 
 ### M2.13 Public URL protection
 
@@ -589,6 +600,19 @@ New dependencies: psycopg (binary), psycopg-pool.
 
 - [ ] All four PRD scenarios pass end to end on the deployed URL in desktop Chrome.
 - [ ] Results go into the 9 Oct update.
+
+### M2.15 Second LLM provider when Groq is rate limited
+
+Added 8 Oct after Groq's free-tier limit failed turns in testing (D-61).
+
+- [ ] When the first provider answers 429 before streaming, the same request goes to the
+      second one; a turn fails with `rate_limited` only if both refuse.
+- [ ] The second provider is settings only: base URL, key from Secret Manager, model.
+      Without them, nothing changes.
+- [ ] The log says which provider answered each turn, for experiment 4.
+- [ ] Tests with fake models: the first answers, the first is rate limited and the second
+      answers, both are rate limited.
+- [ ] Checked with a real Cerebras key: a turn with tools works through Cerebras alone.
 
 ---
 

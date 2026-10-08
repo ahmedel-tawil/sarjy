@@ -696,7 +696,7 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   `type`. An error that a provider sends inside the stream is reported with its own
   message (settled 8 Oct in M2.10).
 - **Reason:** every request of a turn resends all tool results, and Groq's free tier
-  allows 8,000 tokens a minute (O-27). The buggy's nine tickets repeated the same two
+  allows 8,000 tokens a minute (D-61). The buggy's nine tickets repeated the same two
   policies, so its details went from 5.3 KB to 2.1 KB (SayTech's raw answer is 7.9 KB);
   the helicopter's from 8.7 KB raw to 2.9 KB. With an argument named `type`, Qwen
   sometimes wrote `true` for it; Groq checks tool calls against their schema and rejected
@@ -704,6 +704,38 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   none in the following runs.
 - **Alternatives considered:** retrying a rejected round (costs a second or more, and
   hides the cause); dropping fields the model might need, such as the summary.
+
+### D-60 Weather: Open-Meteo, a fixed table of UAE cities, days in UAE time
+
+- **Decision:** `get_weather(city, date)` reads Open-Meteo's forecast, which needs no key
+  and is free for non-commercial use. Cities come from a fixed table of UAE coordinates,
+  matched however they are written ("abu-dhabi", "ABUDHABI"), with no geocoding call.
+  Days and hours are UAE time, a fixed UTC+4 with no daylight saving, so the container
+  needs no time zone database. The tool checks the date itself: today to 15 days ahead,
+  Open-Meteo's range, with "today" taken in the UAE. A day gives conditions, high, low,
+  chance of rain, and temperatures at 6, 9, 12, 15, 18 and 21 o'clock (settled 8 Oct in
+  M2.11, was O-21).
+- **Reason:** scenario 3 needs the afternoon's temperature and a cooler time to suggest,
+  not just a daily maximum. Checking the range before the call explains a bad date in
+  words ("forecasts cover 8 to 23 October") and costs no request. A traveller's
+  "tomorrow" is the UAE's tomorrow even when it is still today in UTC.
+- **Alternatives considered:** a keyed provider such as OpenWeatherMap (one more secret,
+  no gain for a demo); Open-Meteo's geocoding API (a second call per question, and it
+  could match a place outside the UAE).
+
+### D-61 A second LLM provider for when Groq's free tier runs out
+
+- **Decision:** when Groq answers 429 at the start of a request, the same request goes to
+  a second OpenAI-compatible provider, Cerebras, which also has a free tier. Sarj's
+  higher-limit keys replace this if they arrive (settled 8 Oct, was O-28; built in
+  M2.15). The question was first filed as O-27 by mistake: that ID belongs to D-36.
+- **Reason:** every Groq free-tier model allows 8,000 tokens a minute (checked on 8 Oct
+  for Qwen 3.8 27B and both gpt-oss models), and a turn with tools uses 2,000 to 4,000,
+  so two or three tool turns a minute hit the limit; it happened three times on 8 Oct.
+  The chat client is already provider-neutral (D-53), so a second provider is settings
+  plus a small fallback wrapper, and experiment 4 compares providers anyway.
+- **Alternatives considered:** Groq's paid Developer tier (costs money on my account);
+  waiting for Sarj's keys alone (the demo depends on a reply).
 
 ## Open decisions
 
@@ -715,12 +747,10 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | O-18 | Postgres version and ID type | Postgres 18 with `uuidv7()` defaults (code-standards rule `prefer-uuidv7-default`); an older version with IDs generated in Python | Postgres 18, if Cloud SQL offers it. | M2.2, M2.3 |
 | O-19 | Migrations | a small runner over numbered SQL files; a migration tool | A small runner: no dependency, easy to explain. | M2.3 |
 | O-20 | Database tests | real Postgres (Docker locally, a service container in CI); fakes only | Real Postgres: upsert behaviour can only be tested against Postgres. Tests go through repository classes (`no-raw-connection-in-tests`). | M2.3 |
-| O-21 | Weather provider | Open-Meteo (no key, free for non-commercial use); a keyed provider such as OpenWeatherMap | Open-Meteo. | M2.11 |
 | O-22 | Where rate-limit state lives | in memory per instance, with max instances capped; Postgres | In memory, with the trade-off written down. | M2.13 |
 | O-23 | Where the TTS cache lives (SayTech's is settled in D-58) | in the gateway's process; in the TTS service; Cloud Storage | Decided by measurement. | M3.7 |
 | O-24 | Audio for the test script | recorded by me; synthesised (Kokoro or macOS `say`) | Synthesised for repeatability, plus a few real recordings as a sanity check. | M3.3 |
 | O-25 | Frontend unit tests | Vitest for pure logic (timing maths, message parsing); none | Add Vitest only if the client grows real logic. | M3.2 |
-| O-27 | Groq's rate limit for the demo and review week | Sarj's higher-limit keys (asked for in the day-one update); Groq's paid Developer tier on my account; Cerebras as a second provider | Every free-tier Groq model allows 8,000 tokens a minute, and a turn with tools uses 2,000 to 4,000, so two or three tool turns a minute hit the limit (seen three times on 8 Oct). Ask Sarj again; failing that, the Developer tier before the review. Your call. | M2.14 |
 | O-26 | Voice activity detection approach | a browser VAD library (new dependency); a simple energy threshold; server-side VAD | Decide in M4.5, once push-to-talk is solid. | M4.5 |
 
 ## Approved code-standards exceptions
