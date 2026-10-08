@@ -15,3 +15,5 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     # Unset during local development, when Vite's dev server serves the frontend.
     frontend_dist: DirectoryPath | None = None
+    # About a minute of speech in Safari's AAC, several minutes in Chrome's Opus.
+    max_turn_audio_bytes: int = Field(default=1_000_000, gt=0)

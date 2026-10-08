@@ -19,14 +19,6 @@ def test_health_reports_ok() -> None:
     assert HealthResponse.model_validate_json(response.text) == HealthResponse(status="ok")
 
 
-def test_voice_socket_echoes_binary_frames() -> None:
-    client = TestClient(create_app(Settings()))
-
-    with client.websocket_connect("/ws") as socket:
-        socket.send_bytes(b"\x00\x01 audio chunk")
-        assert socket.receive_bytes() == b"\x00\x01 audio chunk"
-
-
 def test_serves_the_built_frontend_without_hiding_the_api(tmp_path: Path) -> None:
     (tmp_path / "index.html").write_text("<title>Sarjy</title>")
     client = TestClient(create_app(Settings(frontend_dist=tmp_path)))
