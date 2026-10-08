@@ -296,12 +296,16 @@ New dependencies: fastapi, uvicorn, pydantic-settings.
 
 ### M1.10 Deploy TTS and connect the gateway
 
-- [ ] CI builds and deploys the TTS image to its Cloud Run service; CPU and memory sizes
-      are recorded.
-- [ ] An unauthenticated request to TTS is refused; the gateway's request succeeds (D-45).
-- [ ] The gateway has a `TextToSpeech` Protocol, an HTTP adapter and a fake; tests cover
+- [x] CI builds and deploys the TTS image to its Cloud Run service: 2 vCPU, 2 GiB,
+      `SARJY_THREADS=2`, at most 4 requests per instance.
+- [x] An unauthenticated request to TTS is refused; the gateway's request succeeds (D-45).
+- [x] The gateway has a `TextToSpeech` Protocol, an HTTP adapter and a fake; tests cover
       request and response handling.
-- [ ] A call from the deployed gateway to TTS returns audio.
+- [x] The deployed gateway reaches TTS with its own identity: `GET /voices` on the public
+      gateway lists the five voices (0.5 s warm). Synthesis on Cloud Run, timed directly:
+      a 10-word sentence (3.9 s of audio) takes 3.0–3.3 s end to end, of which about 0.5 s
+      is the network from this Mac, so roughly 2.5–2.8 s of synthesis on 2 vCPU, about
+      2.5 times slower than the Mac. The gateway's own synthesis calls start in M1.11.
 
 ### M1.11 Turn pipeline, baseline mode
 
