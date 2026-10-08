@@ -29,6 +29,14 @@ def test_a_forecast_is_asked_for_the_place_and_day() -> None:
     assert DayForecast.model_validate_json(result).high_c == pytest.approx(38.3)
 
 
+def test_with_no_city_the_forecast_is_for_dubai() -> None:
+    weather = FakeWeather()
+
+    asyncio.run(tool_at(EVENING_OF_THE_8TH, weather).run('{"date": "2026-10-09"}'))
+
+    assert weather.requests == [("Dubai", date(2026, 10, 9))]
+
+
 @pytest.mark.parametrize("day", ["2026-10-08", "2026-10-23"], ids=["today", "fifteen days ahead"])
 def test_today_and_the_last_forecast_day_are_both_covered(day: str) -> None:
     weather = FakeWeather()
