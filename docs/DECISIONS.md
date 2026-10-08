@@ -482,6 +482,24 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** everything as JSON with base64 audio (bigger, slower);
   generating TypeScript types from the Pydantic models (one more build step).
 
+### D-48 Kokoro model files come from one pinned, checksummed revision
+
+- **Decision:** The model, `tokenizer.json` (for the vocabulary) and the voice files come
+  from revision `1939ad2` of `onnx-community/Kokoro-82M-v1.0-ONNX` on Hugging Face
+  (Apache-2.0). `tts/model-files.sha256` lists each file's SHA-256, and
+  `tts/scripts/download-model.sh` downloads and verifies them; nothing is committed. The
+  front end follows the model card's documented inputs: `input_ids` padded with 0 at
+  both ends, `style` = row `len(tokens)` of the voice file, `speed` (settled 8 Oct in
+  M1.9a).
+- **Reason:** One source for the model, vocabulary and voices, so they always match; a
+  checksum turns a changed or corrupted file into a hard failure. Reading the
+  vocabulary from the model's own tokenizer avoids copying a table into the repo.
+- **Trade-off:** Kokoro was trained on phonemes from its own G2P library, misaki; we use
+  espeak-ng, which is far lighter but may mispronounce some words. Worth listening for.
+- **Alternatives considered:** the kokoro-onnx release files (tied to the library we
+  dropped); hexgrad/Kokoro-82M (PyTorch weights, not ONNX); misaki for phonemes (pulls
+  in spaCy and more).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -491,7 +509,7 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | O-12 | STT provider and streaming (PRD open question) | Groq `whisper-large-v3-turbo` (file upload); a streaming STT provider | Groq on day 1. Check and record whether streaming is offered and worth it. | M1.7 |
 | O-13 | LLM provider and model for day 1 | Groq; Cerebras | Groq (one key for STT and LLM); the final pick comes from experiment 4. | M1.8, M3.8 |
 | O-14 | LLM client | httpx2 against the OpenAI-compatible API; vendor SDKs | httpx2 (D-43): one adapter for every provider, every line visible, and it is already a dependency. | M1.8 |
-| O-15 | Kokoro model, voice and audio format (PRD open question on voices) | fp32 or int8 model; which voice; 16-bit PCM, WAV or Opus on the wire | Measure fp32 vs int8 on CPU; pick a voice by ear; send 16-bit PCM as binary frames. | M1.9a, M1.9b |
+| O-15 | Kokoro model, voice and audio format (PRD open question on voices) | full precision (325 MB) or int8 (92 MB); af_heart, af_bella, af_sarah, am_michael or am_adam; 16-bit PCM, WAV or Opus | On this Mac (CPU, 15 words, 5.7 s of audio): full precision 1.0 s with all threads, 1.7 s with 2, 3.0 s with 1; int8 2.2-2.9 s. Proposal: full precision on 2 vCPU, confirmed on Cloud Run in M1.10; voice by your ear; 16-bit PCM on the wire. | M1.9b, M1.10 |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
 | O-17 | SayTech public endpoints (PRD open question) | existing list, detail, filter and FAQ endpoints; a new endpoint if search is impossible | Use what exists; time-box any new endpoint. | M2.1 |
 | O-18 | Postgres version and ID type | Postgres 18 with `uuidv7()` defaults (code-standards rule `prefer-uuidv7-default`); an older version with IDs generated in Python | Postgres 18, if Cloud SQL offers it. | M2.2, M2.3 |
