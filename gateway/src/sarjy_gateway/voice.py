@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from sarjy_gateway.messages import (
     AudioFollows,
+    BrowserMarks,
     ClientMessage,
     ErrorCode,
     Reply,
@@ -95,6 +96,9 @@ class VoiceRouter:
                 await self._set_voice(voice, conversation, listener)
             case TurnEnd():
                 await self._end_turn(audio, conversation, listener)
+            case BrowserMarks():
+                # Joined to the server's "completed" line by turn_id; M3.1 stores both.
+                logger.info("turn %(turn_id)s played", {"turn_id": control.turn_id, "ttfa_ms": control.ttfa_ms})
 
     async def _set_voice(self, voice: str, conversation: Conversation, listener: SocketListener) -> None:
         try:

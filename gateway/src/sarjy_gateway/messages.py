@@ -1,6 +1,6 @@
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, Field, FiniteFloat, RootModel, model_validator
 
 
 # The voice WebSocket carries audio as binary frames and control messages as JSON text
@@ -16,7 +16,27 @@ class SetVoice(BaseModel):
     voice: str
 
 
-class ClientMessage(RootModel[Annotated[TurnEnd | SetVoice, Field(discriminator="type")]]):
+# The browser's two marks for one turn, in milliseconds from `performance.now()` on its
+# own clock, sent once Sarjy's audio starts playing (D-04).
+class BrowserMarks(BaseModel):
+    type: Literal["browser_marks"]
+    turn_id: Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
+    speech_end: FiniteFloat
+    playback_start: FiniteFloat
+
+    @model_validator(mode="after")
+    def playback_follows_speech(self) -> Self:
+        if self.playback_start < self.speech_end:
+            msg = "playback_start is before speech_end"
+            raise ValueError(msg)
+        return self
+
+    @property
+    def ttfa_ms(self) -> float:
+        return round(self.playback_start - self.speech_end, 1)
+
+
+class ClientMessage(RootModel[Annotated[TurnEnd | SetVoice | BrowserMarks, Field(discriminator="type")]]):
     pass
 
 
