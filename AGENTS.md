@@ -140,6 +140,12 @@ PORT=8081 uv run python -m sarjy_tts          # TTS service on 127.0.0.1:8081 (r
 docker build -f tts/Dockerfile -t sarjy-tts . # production image; downloads its own model files
 ```
 
+Speech to text (needs `SARJY_GROQ_API_KEY` in the git-ignored `.env`):
+
+```
+uv run python gateway/scripts/transcribe.py clip.webm clip.mp4   # real Groq call, with timings
+```
+
 Infrastructure (from `infra/`; needs `gcloud auth application-default login` once).
 State lives in the `sarjy-ahmed-2026-tfstate` bucket, created by hand before the first init.
 
