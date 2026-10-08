@@ -1,0 +1,237 @@
+{
+  "id": "698870f7f20cfbc570686c72",
+  "type": "tour",
+  "slug": "DUNE- BUGGY",
+  "name": "Buggy Dune Bashing Tour",
+  "city": "Dubai",
+  "categories": [
+    "luxury buggy",
+    "safari"
+  ],
+  "accessible": false,
+  "summary": "Looking for a desert dune buggy Dubai experience? self-drive buggy tours across the iconic red dunes near Al Badayer, on the Sharjah border. Drive your own 195hp Polaris RZR or Can-Am X3 Maverick with an expert guide leading the convoy across dunes, gravel tracks and salt flats. Choose from morning, afternoon or night departures. All gear, GoPro photos and pickup from Dubai are included. we bring exciting desert tours to everyone.",
+  "price": {
+    "currency": "AED",
+    "from_amount": null,
+    "on_request": true
+  },
+  "duration": null,
+  "tickets": [
+    {
+      "name": "1-Hour 4-Seater Buggy Adventure",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 16,
+        "infant_max_age": 2,
+        "note": "Children below 16 years are not permitted to drive the buggy and may join only as passengers"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "Cancellation Policy: Cancellations made more than 48 hours before the activity are eligible for a 100% refund. Cancellations made less than 48 hours before the activity will incur full charges with no refund"
+      }
+    },
+    {
+      "name": "1-Hour Can-Am X3 Adventure",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 16,
+        "infant_max_age": 2,
+        "note": "Children below 16 years are not permitted to drive the buggy and may join only as passengers"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "Cancellation Policy: Cancellations made more than 48 hours before the activity are eligible for a 100% refund. Cancellations made less than 48 hours before the activity will incur full charges with no refund"
+      }
+    },
+    {
+      "name": "1-Hour Maverick R",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 16,
+        "infant_max_age": 2,
+        "note": "Children below 16 years are not permitted to drive the buggy and may join only as passengers"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "Cancellation Policy: Cancellations made more than 48 hours before the activity are eligible for a 100% refund. Cancellations made less than 48 hours before the activity will incur full charges with no refund"
+      }
+    },
+    {
+      "name": "2-Hour 4-Seater Buggy Adventure",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 2.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 16,
+        "infant_max_age": 2,
+        "note": "Children below 16 years are not permitted to drive the buggy and may join only as passengers"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "Cancellation Policy: Cancellations made more than 48 hours before the activity are eligible for a 100% refund. Cancellations made less than 48 hours before the activity will incur full charges with no refund"
+      }
+    },
+    {
+      "name": "2-Hour Can-Am X3 Adventure",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 2.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 16,
+        "infant_max_age": 2,
+        "note": "Children below 16 years are not permitted to drive the buggy and may join only as passengers"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "Cancellation Policy: Cancellations made more than 48 hours before the activity are eligible for a 100% refund. Cancellations made less than 48 hours before the activity will incur full charges with no refund"
+      }
+    },
+    {
+      "name": "2-Hour Maverick R",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 2.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 16,
+        "infant_max_age": 2,
+        "note": "Children below 16 years are not permitted to drive the buggy and may join only as passengers"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "Cancellation Policy: Cancellations made more than 48 hours before the activity are eligible for a 100% refund. Cancellations made less than 48 hours before the activity will incur full charges with no refund"
+      }
+    },
+    {
+      "name": "2-Hour Single Rider Can-Am X3",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 2.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 16,
+        "infant_max_age": 2,
+        "note": "Children below 16 years are not permitted to drive the buggy and may join only as passengers"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "Cancellation Policy: Cancellations made more than 48 hours before the activity are eligible for a 100% refund. Cancellations made less than 48 hours before the activity will incur full charges with no refund"
+      }
+    },
+    {
+      "name": "Maverick R – 4-Seater / 1 Hour",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 16,
+        "infant_max_age": 2,
+        "note": "Children below 16 years are not permitted to drive the buggy and may join only as passengers"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "Cancellation Policy: Cancellations made more than 48 hours before the activity are eligible for a 100% refund. Cancellations made less than 48 hours before the activity will incur full charges with no refund"
+      }
+    },
+    {
+      "name": "Maverick R – 4-Seater / 2 Hours",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 2.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 16,
+        "infant_max_age": 2,
+        "note": "Children below 16 years are not permitted to drive the buggy and may join only as passengers"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "Cancellation Policy: Cancellations made more than 48 hours before the activity are eligible for a 100% refund. Cancellations made less than 48 hours before the activity will incur full charges with no refund"
+      }
+    }
+  ],
+  "restrictions": [
+    "not suitable for pregnant woman"
+  ],
+  "notes": [],
+  "requirements": [],
+  "languages": [
+    "english"
+  ],
+  "url": "https://magicexperience.ae/tours/DUNE-%20BUGGY"
+}

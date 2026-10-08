@@ -1,0 +1,75 @@
+{
+  "operator": {
+    "name": "Magic Experience",
+    "website": "https://magicexperience.ae",
+    "currency": "AED"
+  },
+  "cities": [
+    {
+      "name": "Abu Dhabi",
+      "slug": "abu-dhabi",
+      "tour_count": 7
+    },
+    {
+      "name": "Dubai",
+      "slug": "dubai",
+      "tour_count": 8
+    },
+    {
+      "name": "Sharjah",
+      "slug": "sharjah",
+      "tour_count": 0
+    }
+  ],
+  "categories": [
+    "abu dhabi tour",
+    "adventure",
+    "aquarium",
+    "city tours",
+    "dining experience",
+    "ferrari world",
+    "helicopter",
+    "luxury buggy",
+    "museum",
+    "museums & culture",
+    "observation decks",
+    "safari",
+    "sightseeing",
+    "theme park",
+    "theme parks",
+    "themeparks",
+    "uae attractions",
+    "uae tour",
+    "water activity"
+  ],
+  "faqs": [
+    {
+      "question": "What languages are your tours conducted in?",
+      "answer": "All safaris are conducted in English. Bus tours include a default English-speaking bilingual guide — German, French, Italian, Polish, Czech, Japanese, Korean or Russian — depending on the scheduled language."
+    },
+    {
+      "question": "Can I cancel my booking?",
+      "answer": "Bus tours and safaris may be cancelled free of charge up to 24 hours before the start of the tour."
+    },
+    {
+      "question": "Where do tours start and finish?",
+      "answer": "All tours start and finish at hotels in the UAE."
+    },
+    {
+      "question": "Do you offer private tours?",
+      "answer": "Yes — every tour and safari in our catalogue can also be booked privately."
+    },
+    {
+      "question": "Is there a children's price?",
+      "answer": "Where a special children's price applies it is stated in the tour description, for children aged 2–12 unless other age groups are specified."
+    },
+    {
+      "question": "Are your vehicles safe?",
+      "answer": "All off-road vehicles are fitted with seat belts and air-conditioning and are licensed to carry six people plus the driver."
+    },
+    {
+      "question": "Do all tours run year-round?",
+      "answer": "Due to local climatic conditions, some tours and safaris do not run during the summer months."
+    }
+  ]
+}

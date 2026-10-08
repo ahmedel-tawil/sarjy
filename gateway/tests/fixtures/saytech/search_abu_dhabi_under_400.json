@@ -1,0 +1,95 @@
+{
+  "results": [
+    {
+      "id": "695bfadeb0f964ca7fa53d78",
+      "type": "tour",
+      "slug": "ferrari-world-abu-dhbai",
+      "name": "Ferrari World Abu Dhabi Tickets",
+      "city": "Abu Dhabi",
+      "categories": [
+        "theme parks",
+        "ferrari world",
+        "theme park"
+      ],
+      "accessible": true,
+      "price": {
+        "currency": "AED",
+        "from_amount": 345.0,
+        "on_request": false
+      },
+      "url": "https://magicexperience.ae/tours/ferrari-world-abu-dhbai"
+    },
+    {
+      "id": "695bfadfb0f964ca7fa53d79",
+      "type": "tour",
+      "slug": "warner-bros-world-abu-dhabi",
+      "name": "Warner Bros. World Abu Dhabi Tickets",
+      "city": "Abu Dhabi",
+      "categories": [
+        "theme parks"
+      ],
+      "accessible": true,
+      "price": {
+        "currency": "AED",
+        "from_amount": 345.0,
+        "on_request": false
+      },
+      "url": "https://magicexperience.ae/tours/warner-bros-world-abu-dhabi"
+    },
+    {
+      "id": "695bfadfb0f964ca7fa53d7c",
+      "type": "tour",
+      "slug": "teamlab-phenomena-ticket",
+      "name": "TeamLab Phenomena Ticket",
+      "city": "Abu Dhabi",
+      "categories": [
+        "theme parks",
+        "themeparks"
+      ],
+      "accessible": true,
+      "price": {
+        "currency": "AED",
+        "from_amount": 55.0,
+        "on_request": false
+      },
+      "url": "https://magicexperience.ae/tours/teamlab-phenomena-ticket"
+    },
+    {
+      "id": "695bfadeb0f964ca7fa53d75",
+      "type": "tour",
+      "slug": "qasr-al-watan",
+      "name": "Qasr Al Watan Tickets",
+      "city": "Abu Dhabi",
+      "categories": [
+        "sightseeing",
+        "uae tour"
+      ],
+      "accessible": true,
+      "price": {
+        "currency": "AED",
+        "from_amount": 30.0,
+        "on_request": false
+      },
+      "url": "https://magicexperience.ae/tours/qasr-al-watan"
+    },
+    {
+      "id": "695bfadeb0f964ca7fa53d77",
+      "type": "tour",
+      "slug": "louvre-abu-dhabi-18-years-and-above",
+      "name": "Louvre Abu Dhabi Ticket",
+      "city": "Abu Dhabi",
+      "categories": [
+        "museums & culture",
+        "uae attractions"
+      ],
+      "accessible": true,
+      "price": {
+        "currency": "AED",
+        "from_amount": 70.0,
+        "on_request": false
+      },
+      "url": "https://magicexperience.ae/tours/louvre-abu-dhabi-18-years-and-above"
+    }
+  ],
+  "total": 7
+}

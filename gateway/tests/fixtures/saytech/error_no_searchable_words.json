@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "invalid_parameter",
+    "message": "q has no searchable words.",
+    "details": {
+      "parameter": "q"
+    }
+  }
+}

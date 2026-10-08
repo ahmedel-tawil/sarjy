@@ -1,0 +1,303 @@
+{
+  "id": "6985c1d14241ffc373f35d12",
+  "type": "tour",
+  "slug": "Helicopter - Flight",
+  "name": "Helicopter Flight from the Palm Island",
+  "city": "Dubai",
+  "categories": [
+    "helicopter"
+  ],
+  "accessible": true,
+  "summary": "Exploring Dubai through its iconic sights is a captivating experience, yet navigating the bustling city streets during peak hours can pose challenges. However, opting for a helicopter tour offers an uninterrupted and awe-inspiring view of the cityscape. Flying over Dubai unveils a panoramic perspective, allowing close-up glimpses of renowned landmarks like the Burj Khalifa, Burj Al Arab, Palm Jumeirah, Atlantis the Palm Hotel, The World Islands, and Jumeirah Mosque.",
+  "price": {
+    "currency": "AED",
+    "from_amount": 715.0,
+    "on_request": false
+  },
+  "duration": null,
+  "tickets": [
+    {
+      "name": "12Mins Private",
+      "price": {
+        "currency": "AED",
+        "from_amount": 3145.0,
+        "on_request": false,
+        "lines": [
+          {
+            "pax_type": "per_flight",
+            "label": "per_flight",
+            "amount": 3145.0
+          }
+        ]
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Infants under 2 years old are not permitted for this activity"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "No refund will be provided for cancellations made less than 72 hours before the activity"
+      }
+    },
+    {
+      "name": "12Mins Sharing",
+      "price": {
+        "currency": "AED",
+        "from_amount": 715.0,
+        "on_request": false,
+        "lines": [
+          {
+            "pax_type": "adult",
+            "label": "adult",
+            "amount": 715.0
+          },
+          {
+            "pax_type": "child",
+            "label": "child",
+            "amount": 715.0
+          }
+        ]
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Infants under 2 years old are not permitted for this activity"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "No refund will be provided for cancellations made less than 72 hours before the activity"
+      }
+    },
+    {
+      "name": "15Mins Private",
+      "price": {
+        "currency": "AED",
+        "from_amount": 4041.0,
+        "on_request": false,
+        "lines": [
+          {
+            "pax_type": "per_flight",
+            "label": "per_flight",
+            "amount": 4041.0
+          }
+        ]
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Infants under 2 years old are not permitted for this activity"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "No refund will be provided for cancellations made less than 72 hours before the activity"
+      }
+    },
+    {
+      "name": "15Mins Sharing",
+      "price": {
+        "currency": "AED",
+        "from_amount": 921.0,
+        "on_request": false,
+        "lines": [
+          {
+            "pax_type": "adult",
+            "label": "adult",
+            "amount": 921.0
+          },
+          {
+            "pax_type": "child",
+            "label": "child",
+            "amount": 921.0
+          }
+        ]
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Infants under 2 years old are not permitted for this activity"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "No refund will be provided for cancellations made less than 72 hours before the activity"
+      }
+    },
+    {
+      "name": "17Mins Private",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Infants under 2 years old are not permitted for this activity"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "No refund will be provided for cancellations made less than 72 hours before the activity"
+      }
+    },
+    {
+      "name": "17Mins Sharing",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Infants under 2 years old are not permitted for this activity"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "No refund will be provided for cancellations made less than 72 hours before the activity"
+      }
+    },
+    {
+      "name": "25Mins Private",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Infants under 2 years old are not permitted for this activity"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "No refund will be provided for cancellations made less than 72 hours before the activity"
+      }
+    },
+    {
+      "name": "25Mins Sharing",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Infants under 2 years old are not permitted for this activity"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "No refund will be provided for cancellations made less than 72 hours before the activity"
+      }
+    },
+    {
+      "name": "45Mins Private",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Infants under 2 years old are not permitted for this activity"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "No refund will be provided for cancellations made less than 72 hours before the activity"
+      }
+    },
+    {
+      "name": "60Mins Private",
+      "price": {
+        "currency": "AED",
+        "from_amount": null,
+        "on_request": true,
+        "lines": []
+      },
+      "duration": {
+        "value": 1.0,
+        "unit": "hours"
+      },
+      "children": {
+        "age_from": 2,
+        "age_to": 12,
+        "infant_max_age": 2,
+        "note": "Infants under 2 years old are not permitted for this activity"
+      },
+      "cancellation": {
+        "refundable": true,
+        "note": "No refund will be provided for cancellations made less than 72 hours before the activity"
+      }
+    }
+  ],
+  "restrictions": [
+    "pregnancy policy: should the passenger be 7 months pregnant or more, a valid doctor's certificate must be provided stating that she is medically tit and able to fly"
+  ],
+  "notes": [
+    "should carry original passport or id",
+    "Sharing: The weight limit is 110kgs per passenger per seat",
+    "Private: The maximum total weight limit is 450kgs per flight as per the weight and balance limitation of the aircraft",
+    "Prohibited Items: Hazardous materials, explosives, weapons, flammable liquids, foods and beverages are prohibited on our helicopter flights",
+    "Guests with Disability: We are happy to accept the booking, provided the passenger is accompanied by a companion who is able to assist with boarding and deboarding during the flight",
+    "We are located at the Dubai: Atlantis Hotel helipad on The Palm Jumeirah see us on Google Maps(https://maps.app.goo.gl/cKY9xx89KzwcsmNe8)"
+  ],
+  "requirements": [
+    "ID",
+    "Passport"
+  ],
+  "languages": [
+    "english"
+  ],
+  "url": "https://magicexperience.ae/tours/Helicopter%20-%20Flight"
+}

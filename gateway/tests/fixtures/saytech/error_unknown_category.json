@@ -1,0 +1,31 @@
+{
+  "error": {
+    "code": "unknown_category",
+    "message": "No category matches 'zzz'.",
+    "details": {
+      "known_categories": [
+        "abu dhabi tour",
+        "adventure",
+        "aquarium",
+        "car-on-disposal",
+        "city tours",
+        "dining experience",
+        "ferrari world",
+        "helicopter",
+        "luxury buggy",
+        "museum",
+        "museums & culture",
+        "observation decks",
+        "safari",
+        "sightseeing",
+        "theme park",
+        "theme parks",
+        "themeparks",
+        "transfers",
+        "uae attractions",
+        "uae tour",
+        "water activity"
+      ]
+    }
+  }
+}
