@@ -11,4 +11,11 @@ export default defineConfig({
       '@': fileURLToPath(new URL('src', import.meta.url)),
     },
   },
+  // In development the gateway runs separately on 8080; production serves both from one origin.
+  server: {
+    proxy: {
+      '/health': 'http://127.0.0.1:8080',
+      '/ws': { target: 'ws://127.0.0.1:8080', ws: true },
+    },
+  },
 })
