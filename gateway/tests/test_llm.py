@@ -161,6 +161,20 @@ def test_a_tool_call_without_a_name_is_a_model_error() -> None:
         assemble_tool_calls([ToolCallDelta(0, "call-a", None, "{}")])
 
 
+def test_an_error_inside_the_stream_reports_the_providers_message() -> None:
+    error_chunk = (
+        b'data: {"error": {"message": "tool call validation failed: parameters for tool get_tour did not match '
+        b'schema", "code": "tool_use_failed", "status_code": 400}}\n\n'
+    )
+
+    with pytest.raises(ChatModelError) as raised:
+        asyncio.run(collect(model_answering(httpx2.Response(200, content=error_chunk), [])))
+
+    assert str(raised.value) == (
+        "chat model failed mid-stream: tool call validation failed: parameters for tool get_tour did not match schema"
+    )
+
+
 def test_rate_limits_are_reported_as_their_own_error() -> None:
     with pytest.raises(ChatRateLimitedError):
         asyncio.run(collect(model_answering(httpx2.Response(429, text="slow down"), [])))

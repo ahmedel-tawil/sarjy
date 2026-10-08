@@ -104,6 +104,16 @@ class StreamChunk(BaseModel):
     choices: list[Choice]
 
 
+# Some failures arrive inside the stream instead of as an HTTP error, such as Groq
+# rejecting a tool call that doesn't match the tool's schema (`tool_use_failed`).
+class StreamFailure(BaseModel):
+    message: str
+
+
+class StreamError(BaseModel):
+    error: StreamFailure
+
+
 @dataclass(frozen=True)
 class GenerationOptions:
     model: str
@@ -242,8 +252,15 @@ def parse_chunk(payload: str) -> StreamChunk:
     try:
         return StreamChunk.model_validate_json(payload)
     except ValidationError as error:
-        message = "chat model sent a chunk that is not a completion delta"
-        raise ChatModelError(message) from error
+        raise ChatModelError(chunk_problem(payload)) from error
+
+
+def chunk_problem(payload: str) -> str:
+    try:
+        failure = StreamError.model_validate_json(payload).error
+    except ValidationError:
+        return "chat model sent a chunk that is not a completion delta"
+    return f"chat model failed mid-stream: {failure.message}"
 
 
 def events_in(chunk: StreamChunk) -> list[ChatEvent]:
