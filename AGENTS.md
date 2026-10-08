@@ -122,6 +122,15 @@ uv sync          # install the Python workspace (gateway and tts) into .venv
 uv run pytest    # run every Python test
 ```
 
+Gateway (settings are `SARJY_*` environment variables, listed in `.env.example`):
+
+```
+uv run python -m sarjy_gateway                             # API only, on 127.0.0.1:8080
+SARJY_FRONTEND_DIST=frontend/dist uv run python -m sarjy_gateway   # also serve a built frontend
+docker build -f gateway/Dockerfile -t sarjy-gateway .      # production image, from the repo root
+docker run --rm -p 8080:8080 -e PORT=8080 sarjy-gateway    # then open http://localhost:8080
+```
+
 Frontend (from `frontend/`, after `nvm use` picks Node 24 from `.nvmrc`):
 
 ```

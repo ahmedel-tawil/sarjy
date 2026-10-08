@@ -399,6 +399,32 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** squash-merge (one commit per task, losing the small
   commits); merge commits (noisier history); no protection (relies on discipline).
 
+### D-41 Health checks use `/health`, not `/healthz`
+
+- **Decision:** Every service's health endpoint is `GET /health` (settled 8 Oct in M1.3).
+- **Reason:** Cloud Run reserves some URL paths ending in "z" and recommends avoiding all
+  of them, so `/healthz` could be answered by Google's front end instead of our service.
+- **Alternatives considered:** `/healthz`, the common Kubernetes convention.
+
+### D-42 Logs are JSON lines from the standard library
+
+- **Decision:** The gateway logs through Python's `logging` with a small JSON formatter:
+  one line per event with `severity`, `message`, `logger` and `time`. uvicorn runs with
+  `log_config=None`, so its logs use the same format, and its access log is off because
+  Cloud Run already logs every request (settled 8 Oct in M1.3, was O-10).
+- **Reason:** Cloud Logging parses these fields from JSON lines, and no extra dependency
+  is needed.
+- **Alternatives considered:** structlog; uvicorn's default text logs.
+
+### D-43 httpx2 instead of httpx
+
+- **Decision:** The test client uses `httpx2`, and it is the proposed HTTP client for the
+  provider adapters (O-14) (settled 8 Oct in M1.3).
+- **Reason:** Starlette 1.7 deprecates `httpx` for its test client and asks for `httpx2`.
+  `httpx2` is maintained under the pydantic organisation by httpx's original author; the
+  `httpx` package has had no stable release since 0.28.1 (December 2024).
+- **Alternatives considered:** keeping `httpx` and living with the deprecation warning.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -407,11 +433,10 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | --- | --- | --- | --- | --- |
 | O-08 | GCP region (PRD open question) | a Gulf region such as `me-central1` (Doha); a European or US region | Choose after checking Cloud Run WebSockets, Cloud SQL, domain mapping and GPU support; providers' locations matter as much as users'. Measured again in experiment 7. | M1.1, M3.11 |
 | O-09 | How the gateway authenticates to TTS | Cloud Run IAM (the gateway fetches an ID token from the metadata server); a shared secret header; a public TTS | Cloud Run IAM: no secret to manage. | M1.2, M1.10 |
-| O-10 | Logging | standard `logging` with a JSON formatter; structlog | Standard library: no dependency, and Cloud Logging reads JSON lines. | M1.3 |
 | O-11 | WebSocket message contract | JSON control messages plus binary audio frames; how Python and TypeScript types stay in sync | JSON plus binary. Pydantic on the server; a runtime schema in the browser (code-standards rule `prefer-schema-for-api-payload`, likely zod), kept in sync by hand. | M1.4 |
 | O-12 | STT provider and streaming (PRD open question) | Groq `whisper-large-v3-turbo` (file upload); a streaming STT provider | Groq on day 1. Check and record whether streaming is offered and worth it. | M1.7 |
 | O-13 | LLM provider and model for day 1 | Groq; Cerebras | Groq (one key for STT and LLM); the final pick comes from experiment 4. | M1.8, M3.8 |
-| O-14 | LLM client | httpx against the OpenAI-compatible API; vendor SDKs | httpx: one adapter for every provider, every line visible, and httpx is already needed. | M1.8 |
+| O-14 | LLM client | httpx2 against the OpenAI-compatible API; vendor SDKs | httpx2 (D-43): one adapter for every provider, every line visible, and it is already a dependency. | M1.8 |
 | O-15 | Kokoro model, voice and audio format (PRD open question on voices) | fp32 or int8 model; which voice; 16-bit PCM, WAV or Opus on the wire | Measure fp32 vs int8 on CPU; pick a voice by ear; send 16-bit PCM as binary frames. | M1.9a, M1.9b |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
 | O-17 | SayTech public endpoints (PRD open question) | existing list, detail, filter and FAQ endpoints; a new endpoint if search is impossible | Use what exists; time-box any new endpoint. | M2.1 |

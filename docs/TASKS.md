@@ -181,14 +181,15 @@ No code: you run the steps; I prepare the exact commands.
 ### M1.3 Gateway skeleton
 
 - [ ] FastAPI app with a lifespan handler, settings read from environment variables into a
-      Pydantic model, and structured JSON logs that Cloud Logging parses (O-10).
-- [ ] `GET /healthz` returns 200; WebSocket `/ws` echoes binary frames back.
+      Pydantic model, and structured JSON logs that Cloud Logging parses (D-42).
+- [ ] `GET /health` returns 200 (not `/healthz`, D-41); WebSocket `/ws` echoes binary
+      frames back.
 - [ ] The gateway serves the built frontend from `/` (one origin).
 - [ ] Routers follow the `*Router.build()` shape required by code-standards
       (`fastapi-class-router-contract`).
 - [ ] A multi-stage Dockerfile builds the frontend and the gateway; `docker run` locally
       serves the page.
-- [ ] Tests cover `/healthz` and the echo with FastAPI's test client.
+- [ ] Tests cover `/health` and the echo with FastAPI's test client.
 
 New dependencies: fastapi, uvicorn (with WebSocket support), possibly pydantic-settings.
 
@@ -272,7 +273,7 @@ New dependencies: onnxruntime, numpy, phonemizer, espeakng-loader.
 ### M1.9b Kokoro TTS service
 
 - [ ] `tts/` is a small FastAPI service: `POST /synthesize` takes text, voice and speed
-      and returns audio in the agreed format (O-15); `GET /healthz`.
+      and returns audio in the agreed format (O-15); `GET /health` (D-41).
 - [ ] Model and voice files are downloaded at image build time from pinned URLs with
       SHA-256 checks; the model loads once at startup.
 - [ ] Input is validated: text length limit, known voice.
