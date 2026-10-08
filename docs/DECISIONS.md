@@ -451,6 +451,22 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   public TTS service (anyone could spend our compute); internal-only ingress (needs a VPC
   connector for the gateway's calls).
 
+### D-46 CI deploys through Workload Identity Federation and one script
+
+- **Decision:** A push to `main` runs the Deploy workflow, which exchanges GitHub's OIDC
+  token for the `sarjy-deployer` service account and calls `scripts/deploy.sh`. The pool's
+  provider accepts only repository ID `1409336200` on `refs/heads/main`. The deployer can
+  push images, update the `gateway` and `tts` services (granted on those services, not the
+  project) and act as their runtime accounts; the script changes only the image
+  (settled 8 Oct in M1.5).
+- **Reason:** No long-lived keys anywhere; a fork, another branch or a renamed repository
+  cannot deploy. Keeping the logic in a script satisfies `workflow-embedded-program` and
+  keeps the workflow readable. Branch protection means `main` only receives commits that
+  passed every check.
+- **Alternatives considered:** a service-account JSON key in GitHub secrets (long-lived
+  credential); Cloud Build triggers (a second CI system); matching the repository by name
+  (open to name reuse).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
