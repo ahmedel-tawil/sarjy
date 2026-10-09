@@ -1096,8 +1096,11 @@ what Sarjy is really doing during a turn, and, being aria-live, tells screen rea
       "Looking for tours in Abu Dhabi", "Reading about Buggy Dune Bashing", "Checking
       tomorrow's weather in Dubai", "Noting that down", "Forgetting that" (D-94).
 - [x] The page gets `onActivity(text)`; no latency mark is added.
-- [ ] The line under the orb shows the latest activity until Sarjy speaks or the turn ends
-      (UI session).
+- [x] The line under the orb shows the latest activity until Sarjy speaks or the turn ends
+      (UI session). It also shows one that arrives after a short spoken filler, until the
+      next sentence starts; without one the line keeps "Thinking…". Checked on 10 Oct with
+      `?rehearse`: "Transcribing…", "Thinking…", "Looking for tours in Abu Dhabi", then
+      "Sarjy is speaking".
 
 ---
 
