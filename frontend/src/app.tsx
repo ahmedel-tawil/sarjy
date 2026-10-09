@@ -1,4 +1,4 @@
-import { Alert02Icon, MicOff01Icon } from '@hugeicons/core-free-icons'
+import { Alert02Icon, MicOff01Icon, WifiDisconnected01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import type { RememberedFact } from '@/lib/protocol'
 import {
   type AudioLevels,
+  type Connection,
   type Problem,
   type PushToTalk,
   type Status,
@@ -39,6 +40,9 @@ const PHASE_FOR: Record<Status, OrbPhase> = {
 
 // In development, ?rehearse plays scripted turns, to review the motion without a gateway or
 // a microphone. Production builds never rehearse.
+// How long "Back online" shows after a dropped connection recovers.
+const BACK_ONLINE_MS = 2500
+
 const REHEARSE_AS = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('rehearse') : null
 
 function App() {
@@ -54,6 +58,9 @@ function App() {
   const [orbRevealed, setOrbRevealed] = useState(!welcomed)
   // Once the visit's question limit is reached, only a new visit can ask more.
   const [visitOver, setVisitOver] = useState(false)
+  // A connection that was up and dropped; the socket reconnects by itself (D-90).
+  const [reconnecting, setReconnecting] = useState(false)
+  const [backOnline, setBackOnline] = useState(false)
   const orbRef = useRef<HTMLButtonElement>(null)
 
   const [session] = useState<AudioLevels & PushToTalk & Visit>(() => {
@@ -61,11 +68,27 @@ function App() {
     const updateLast = (change: (turn: Turn) => Partial<Turn>): void => {
       setTurns((all) => all.map((turn, index) => (index === all.length - 1 ? { ...turn, ...change(turn) } : turn)))
     }
+    let wasOnline = false
     let nextId = 0
     // The turn whose question was heard but whose answer has not started yet: a problem
     // until then belongs to it, and is noted on it in the conversation.
     let answering: null | number = null
     const callbacks: VoiceSessionCallbacks = {
+      // The first connection as the page opens says nothing; only a drop and its recovery do.
+      onConnection: (connection: Connection) => {
+        if (connection === 'online') {
+          if (wasOnline) {
+            setBackOnline(true)
+            window.setTimeout(() => {
+              setBackOnline(false)
+            }, BACK_ONLINE_MS)
+          }
+          wasOnline = true
+          setReconnecting(false)
+        } else if (wasOnline) {
+          setReconnecting(true)
+        }
+      },
       onMemory: setFacts,
       onProblem: (next) => {
         if (next === null) {
@@ -85,8 +108,8 @@ function App() {
         }
         setProblem(next)
       },
-      onReply: (reply) => {
-        updateLast(() => ({ reply }))
+      onReply: (reply, links) => {
+        updateLast(() => ({ links, reply }))
       },
       onSpeak: (text, durationMs) => {
         answering = null
@@ -103,7 +126,7 @@ function App() {
         const id = nextId
         nextId += 1
         answering = id
-        setTurns((all) => [...all, { clips: [], heard, id, reply: null, stages: null, trouble: null, ttfaMs: null }])
+        setTurns((all) => [...all, { clips: [], heard, id, links: [], reply: null, stages: null, trouble: null, ttfaMs: null }])
       },
       onStages: (stages) => {
         updateLast(() => ({ stages }))
@@ -165,7 +188,7 @@ function App() {
   )
   const shown = problem === null ? null : PROBLEMS[problem]
   const inLine = shown !== null && (shown.kind === 'hint' || shown.kind === 'trouble') ? shown : null
-  const idleText = visitOver ? 'Start a new visit to ask more' : describe(status, waitingForWords)
+  const idleText = visitOver ? 'Start a new visit to ask more' : reconnecting ? 'Waiting for the connection…' : describe(status, waitingForWords)
   const statusText = inLine === null ? idleText : inLine.text
 
   return (
@@ -180,6 +203,15 @@ function App() {
         </div>
         <div className="flex flex-col items-end gap-2">
           <PaletteSwitcher onChange={setPalette} palette={palette} />
+          <p aria-live="polite" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            {reconnecting ? (
+              <>
+                <HugeiconsIcon className="size-4" icon={WifiDisconnected01Icon} />
+                Reconnecting…
+              </>
+            ) : null}
+            {backOnline && !reconnecting ? 'Back online' : null}
+          </p>
           {facts !== null && (
             <div className="md:hidden">
               <Button
@@ -239,7 +271,7 @@ function App() {
             ) : null}
             <TalkOrb
               animateIn={welcomed}
-              disabled={visitOver || status === 'thinking' || status === 'speaking'}
+              disabled={visitOver || reconnecting || status === 'thinking' || status === 'speaking'}
               levels={session}
               onPress={() => {
                 session.press()

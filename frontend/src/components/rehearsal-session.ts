@@ -1,4 +1,4 @@
-import type { RememberedFact } from '@/lib/protocol'
+import type { RememberedFact, TourLink } from '@/lib/protocol'
 import type { AudioLevels, Problem, PushToTalk, Status, Visit, VoiceSessionCallbacks } from '@/lib/voice-session'
 
 // A stand-in for VoiceSession that plays scripted turns, so the screen's motion and its
@@ -8,6 +8,7 @@ import type { AudioLevels, Problem, PushToTalk, Status, Visit, VoiceSessionCallb
 
 interface ScriptedTurn {
   fact?: RememberedFact
+  links?: TourLink[]
   question: string
   reply: string
 }
@@ -25,6 +26,7 @@ const PROBLEM_SCRIPT: readonly ScriptedProblem[] = [
   { problem: 'no_speech' },
   { problem: 'llm_failed', question: 'Which tours run on Friday morning?' },
   { problem: 'tts_failed', question: 'Is the dhow cruise good for kids?', reply: 'Yes, it is calm, and children love the lights.' },
+  { problem: 'connection_lost', question: 'Can we see the Louvre on Monday?' },
   { problem: 'rate_limited' },
   { problem: 'visit_limit' },
 ]
@@ -32,6 +34,10 @@ const PROBLEM_SCRIPT: readonly ScriptedProblem[] = [
 const SCRIPT: readonly ScriptedTurn[] = [
   {
     question: 'I’m in Abu Dhabi next week with two kids. What can we do under 400 dirhams?',
+    links: [
+      { name: 'Example family tour', url: 'https://example.com/tours/family' },
+      { name: 'Example park day', url: 'https://example.com/tours/park' },
+    ],
     reply: 'Here are two family picks in Abu Dhabi under 400 dirhams. I can share the links for both.',
   },
   {
@@ -50,6 +56,7 @@ const SCRIPT: readonly ScriptedTurn[] = [
 ]
 
 const HEARD_AFTER_MS = 900
+const RECONNECTS_AFTER_MS = 2000
 const SPEAKS_AFTER_MS = 2200
 // Roughly Kokoro's pace, so each scripted sentence lasts about as long as a real one.
 const MS_PER_WORD = 380
@@ -67,6 +74,8 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit {
   }
 
   connect(): void {
+    this.#callbacks.onConnection?.('connecting')
+    this.#callbacks.onConnection?.('online')
     this.#callbacks.onMemory(this.#facts)
   }
 
@@ -115,7 +124,7 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit {
     }, HEARD_AFTER_MS)
     window.setTimeout(() => {
       this.#setStatus('speaking')
-      this.#callbacks.onReply(turn.reply, [])
+      this.#callbacks.onReply(turn.reply, turn.links ?? [])
       this.#callbacks.onTtfa(SPEAKS_AFTER_MS)
     }, SPEAKS_AFTER_MS)
     // One clip per sentence, back to back, as the gateway streams them (D-77).
@@ -147,7 +156,17 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit {
     }
     window.setTimeout(() => {
       if (reply !== undefined) {
-        this.#callbacks.onReply(reply)
+        this.#callbacks.onReply(reply, [])
+      }
+      // A dropped socket reports itself first, then reconnects a few seconds later.
+      if (scripted.problem === 'connection_lost') {
+        this.#callbacks.onConnection?.('offline')
+        window.setTimeout(() => {
+          this.#callbacks.onConnection?.('connecting')
+        }, RECONNECTS_AFTER_MS)
+        window.setTimeout(() => {
+          this.#callbacks.onConnection?.('online')
+        }, RECONNECTS_AFTER_MS * 2)
       }
       this.#setStatus('idle')
       this.#callbacks.onProblem(scripted.problem)

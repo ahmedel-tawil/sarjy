@@ -1,6 +1,10 @@
+import { LinkSquare02Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useRef } from 'react'
 
 import { type SpokenClip, SpokenWords } from '@/components/spoken-words'
+import { Button } from '@/components/ui/button'
+import type { TourLink } from '@/lib/protocol'
 import type { TurnStages } from '@/lib/stages-of'
 
 export interface Turn {
@@ -8,6 +12,8 @@ export interface Turn {
   clips: SpokenClip[]
   heard: string
   id: number
+  // The tours the reply named, with their pages; Sarjy never reads addresses aloud (D-90).
+  links: TourLink[]
   // The whole reply, shown as text only if its voice never played.
   reply: null | string
   // Where the turn's time went, once both clocks' marks are in (M3.2).
@@ -72,6 +78,20 @@ export function ConversationThread({ turns }: { turns: Turn[] }) {
                 {turn.clips.length > 0 ? <SpokenWords clips={turn.clips} /> : null}
                 {turn.clips.length === 0 && turn.reply !== null ? (
                   <p className="text-lg/relaxed text-pretty md:text-xl/relaxed">{turn.reply}</p>
+                ) : null}
+                {turn.links.length > 0 ? (
+                  <ul aria-label="Tours Sarjy mentioned" className="flex flex-wrap gap-2 pt-1">
+                    {turn.links.map((link) => (
+                      <li key={link.url}>
+                        <Button asChild size="sm" variant="outline">
+                          <a aria-label={`${link.name}, opens the tour page in a new tab`} href={link.url} rel="noopener noreferrer" target="_blank">
+                            {link.name}
+                            <HugeiconsIcon data-icon="inline-end" icon={LinkSquare02Icon} />
+                          </a>
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
                 ) : null}
                 {turn.trouble === null ? null : <p className="text-sm text-destructive">{turn.trouble}</p>}
                 {turn.ttfaMs === null ? null : (
