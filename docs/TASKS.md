@@ -918,13 +918,23 @@ beyond the PRD.
 
 ### M4.1 Visual identity and layout
 
-- [ ] Sarjy's own tokens (colours, type scale, spacing, radius) live in one CSS file; no hex
-      values or ad-hoc colour classes anywhere else.
-- [ ] One screen, built only from what the PRD describes: the talk control, the
-      conversation, the memory panel and the latency panel.
-- [ ] Works at phone and laptop widths.
-- [ ] HugeIcons only; shadcn/ui primitives wherever one exists.
-- [ ] Motion is at most 300 ms and switches off under `prefers-reduced-motion`.
+- [x] Sarjy's own tokens (colours, type scale, spacing, radius) live in one CSS file; no hex
+      values or ad-hoc colour classes anywhere else. Three palettes in `index.css`; the
+      generated dialog's black backdrop became a token too.
+- [x] One screen, built only from what the PRD describes: the talk control (the orb), the
+      conversation (the whole visit, replies word by word), the memory panel and the
+      latency panel. Plus the mark, a first-load welcome and a palette switcher (D-80).
+- [x] Works at phone and laptop widths: checked at 375 px and 1024 px.
+- [x] HugeIcons only; shadcn/ui primitives wherever one exists: Button, Card and
+      AlertDialog; the orb and the mark are drawn, so no icon is needed now.
+- [x] Transitions take at most 300 ms, continuous motion only shows a voice level or
+      Sarjy's state, plus the welcome of about two seconds; nothing moves under
+      `prefers-reduced-motion` (rule amended in D-80).
+
+Checked on 9 Oct in the in-app browser with `?rehearse` (scripted turns, no gateway), in
+all three palettes; the real loop needs a microphone, so it was not run here. Next, now
+that M3.6 has merged: exact word timing and the orb's real levels from `onSpeak`,
+`inputLevel` and `outputLevel` (D-77), in a change of their own.
 
 ### M4.2 Conversation states and errors
 
