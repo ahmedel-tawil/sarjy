@@ -843,7 +843,12 @@ the page's queue in M3.6.
 
 ### M3.6 Experiment 2: sentence streaming end to end
 
-- [ ] The browser queues sentence audio so playback has no gaps or overlaps.
+- [x] The browser queues sentence audio so playback has no gaps or overlaps: each clip is
+      scheduled on the audio clock for the moment the previous one ends (D-77). In the
+      in-app browser, with the microphone replaced by a script clip, a three-sentence
+      reply's clips were scheduled at 9.173, 17.173 and 27.498 s for durations of 8.0,
+      10.325 and 2.775 s, each well before its turn; the page went back to idle after the
+      last. Sentence mode is now the default, and `pipeline_mode` in Terraform switches it.
 - [ ] Before/after numbers against the baseline are in `LATENCY.md`.
 
 ### M3.7 Experiment 3: TTS cache
