@@ -989,6 +989,26 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   every turn for a two-instance demo); a fixed one-minute window (a burst at the boundary
   gets twice the limit); a login or access code (D-21 rejects it).
 
+### D-73 TTS images tagged by what they are built from; five versions kept
+
+- **Decision:** `scripts/deploy.sh` tags the gateway image with its commit, as before,
+  and the TTS image with `inputs-` and a fingerprint: the hash of the git listing of
+  `tts/`, the workspace's `pyproject.toml`, `uv.lock`, `gateway/pyproject.toml` and
+  `.dockerignore`. Before building, the script stops if the service already serves that
+  image from a successful deploy, and skips the build if the registry already has it.
+  Artifact Registry keeps the five newest versions of each image and deletes the rest
+  (settled 9 Oct in M2.16).
+- **Reason:** every merge rebuilt and pushed a 420 MB TTS image and rolled out a new TTS
+  revision, though TTS rarely changes: 48 images by 9 Oct, and one rollout failed on the
+  CPU quota (D-72). A fingerprint of the files the image is built from is the same for
+  every commit that leaves them alone, so the decision needs no knowledge of which
+  commits a push contains, and a re-run or a skipped deploy still does the right thing.
+  Five versions leave a few deploys to roll back to.
+- **Alternatives considered:** a job that diffs the push's changed files and runs the TTS
+  deploy only when a TTS path changed (needs the previous commit, which a first push or
+  a force push lacks); a path filter action (another third-party action to pin); keeping
+  images by age instead of count (a quiet week would delete the only good image).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.

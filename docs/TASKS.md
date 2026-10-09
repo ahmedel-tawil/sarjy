@@ -685,11 +685,15 @@ second provider became Claude, with Ahmed's API credits (D-63).
 Added 9 Oct: the inventory showed 18 gateway images (1.0 GB) and 14 TTS images (5.9 GB),
 because every merge rebuilds and pushes a 420 MB TTS image even when TTS hasn't changed.
 
-- [ ] CI deploys TTS only when something TTS is built from changed (`tts/`, its
-      Dockerfile, the model file hashes); the gateway still deploys on every merge.
-- [ ] An Artifact Registry clean-up policy in Terraform keeps the last five versions of
+- [x] CI deploys TTS only when something TTS is built from changed (`tts/`, its
+      Dockerfile, the model file hashes); the gateway still deploys on every merge. The
+      TTS tag is a fingerprint of those files plus the workspace's `pyproject.toml`,
+      `uv.lock`, `gateway/pyproject.toml` and `.dockerignore` (D-73); a deploy whose image
+      already serves does nothing, and one already in the registry is not rebuilt.
+- [x] An Artifact Registry clean-up policy in Terraform keeps the last five versions of
       each image and deletes older ones, so a recent rollback still finds its image.
-- [ ] `terraform apply` runs only after you approve the plan.
+- [ ] `terraform apply` runs only after you approve the plan: it lets Google delete 38 of
+      the 48 images stored on 9 Oct (21 gateway, 17 TTS).
 
 ### M2.17 TTS instance size
 
