@@ -53,7 +53,7 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
                 await services.anthropic_client.close()
             logger.info("gateway stopped")
 
-    # Memory tools join in M2.6.
+    # Shared by every visit; each visit adds its user's memory tools (D-67).
     tools = [
         SearchToursTool(services.catalogue),
         GetTourTool(services.catalogue),
@@ -78,6 +78,7 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
             pipeline,
             services.tts,
             services.conversations,
+            services.facts,
             max_turn_audio_bytes=settings.max_turn_audio_bytes,
             max_history_turns=settings.max_history_turns,
         ).build()

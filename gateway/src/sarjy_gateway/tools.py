@@ -50,6 +50,10 @@ class Toolbox:
     def specs(self) -> list[ToolSpec]:
         return [tool.spec for tool in self._tools.values()]
 
+    # The shared tools plus one visit's own, such as its user's memory tools (D-67).
+    def including(self, tools: Sequence[Tool]) -> Toolbox:
+        return Toolbox([*self._tools.values(), *tools], self._clock, self._timeout_seconds)
+
     # The model may ask for several tools in one round; they run side by side, and the
     # results come back in the order of the calls.
     async def run_all(self, calls: Sequence[ToolCall], turn_id: str) -> list[str]:

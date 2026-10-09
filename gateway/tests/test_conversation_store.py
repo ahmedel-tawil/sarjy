@@ -3,8 +3,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 import uuid
 
-from sarjy_gateway.conversation_store import PostgresConversationStore, StoredTurn, StoredUser
+from sarjy_gateway.conversation_store import PostgresConversationStore, SessionId, StoredTurn, StoredUser
 from sarjy_gateway.database import database_pool
+from sarjy_gateway.identity import new_user_id
 from sarjy_gateway.migrate import MIGRATIONS_FOLDER, MigrationRunner
 
 
@@ -30,14 +31,14 @@ def with_store[Result](url: SecretStr, body: Callable[[PostgresConversationStore
 
 @dataclass(frozen=True)
 class TwoVisits:
-    first_session: uuid.UUID
-    second_session: uuid.UUID
+    first_session: SessionId
+    second_session: SessionId
     after_first: StoredUser | None
     after_second: StoredUser | None
 
 
 def test_a_new_user_is_created_with_their_first_session(database_url: SecretStr) -> None:
-    user_id = uuid.uuid7()
+    user_id = new_user_id()
 
     async def visit(store: PostgresConversationStore) -> StoredUser | None:
         await store.start_session(user_id)
@@ -51,7 +52,7 @@ def test_a_new_user_is_created_with_their_first_session(database_url: SecretStr)
 
 
 def test_a_returning_user_keeps_their_id_and_gets_a_new_session(database_url: SecretStr) -> None:
-    user_id = uuid.uuid7()
+    user_id = new_user_id()
 
     async def visit_twice(store: PostgresConversationStore) -> TwoVisits:
         first = await store.start_session(user_id)
@@ -74,7 +75,7 @@ def test_a_saved_turn_comes_back_with_its_session(database_url: SecretStr) -> No
     )
 
     async def save_twice(store: PostgresConversationStore) -> list[StoredTurn]:
-        session_id = await store.start_session(uuid.uuid7())
+        session_id = await store.start_session(new_user_id())
         await store.save_turn(session_id, turn)
         # Saving the same turn again changes nothing (ON CONFLICT DO NOTHING).
         await store.save_turn(session_id, turn)
@@ -85,6 +86,6 @@ def test_a_saved_turn_comes_back_with_its_session(database_url: SecretStr) -> No
 
 def test_an_unknown_user_is_none(database_url: SecretStr) -> None:
     async def look_up(store: PostgresConversationStore) -> StoredUser | None:
-        return await store.user(uuid.uuid7())
+        return await store.user(new_user_id())
 
     assert with_store(database_url, look_up) is None

@@ -11,7 +11,14 @@ from sarjy_gateway.settings import Settings
 from sarjy_gateway.stt import MissingSpeechToText
 from sarjy_gateway.tts import MissingTextToSpeech, TextToSpeech, Voices
 
-from gateway.tests.fakes import FakeCatalogue, FakeConversationStore, FakeDatabase, FakeTextToSpeech, FakeWeather
+from gateway.tests.fakes import (
+    FakeCatalogue,
+    FakeConversationStore,
+    FakeDatabase,
+    FakeFactStore,
+    FakeTextToSpeech,
+    FakeWeather,
+)
 
 
 if TYPE_CHECKING:
@@ -27,6 +34,7 @@ def services_with(tts: TextToSpeech, database: FakeDatabase | None = None) -> Se
         weather=FakeWeather(),
         database=database or FakeDatabase(),
         conversations=FakeConversationStore(),
+        facts=FakeFactStore(),
         http_client=None,
         anthropic_client=None,
         database_pool=None,

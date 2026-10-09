@@ -4,6 +4,8 @@ import logging
 from typing import TYPE_CHECKING, Protocol
 import uuid
 
+from sarjy_gateway.conversation_store import SessionId
+from sarjy_gateway.identity import UserId, new_user_id
 from sarjy_gateway.llm import (
     ChatMessage,
     ChatModelError,
@@ -15,11 +17,12 @@ from sarjy_gateway.llm import (
 )
 from sarjy_gateway.stt import RateLimitedError, SpeechToTextError
 from sarjy_gateway.timeline import Timeline
+from sarjy_gateway.tools import Tool
 from sarjy_gateway.tts import TextToSpeechError
 
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+    from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 
     from sarjy_gateway.llm import ChatEvent, ChatModel, ToolSpec
     from sarjy_gateway.messages import ErrorCode
@@ -58,7 +61,14 @@ class Conversation:
     history: list[ChatMessage] = field(default_factory=list[ChatMessage])
     # Set once the visit is stored; None when the database is unavailable, and then turns
     # are spoken but not saved.
-    session_id: uuid.UUID | None = None
+    session_id: SessionId | None = None
+    # The browser's id; the voice socket sets it, and tests and scripts get a throwaway one.
+    user_id: UserId = field(default_factory=new_user_id)
+    # What Sarjy knows about this user, loaded when the visit starts and kept current by the
+    # memory tools, so each turn's prompt has it without reading the database (D-67).
+    facts: dict[str, str] = field(default_factory=dict[str, str])
+    # Tools that belong to this visit, on top of the shared ones: the user's memory tools.
+    tools: list[Tool] = field(default_factory=list[Tool])
 
     def remember(self, user: str, assistant: str) -> None:
         self.history += [ChatMessage(role="user", content=user), ChatMessage(role="assistant", content=assistant)]
@@ -104,7 +114,7 @@ class TurnPipeline:
         tts: TextToSpeech,
         toolbox: Toolbox,
         *,
-        system_prompt: Callable[[], Awaitable[str]],
+        system_prompt: Callable[[Mapping[str, str]], Awaitable[str]],
         clock: Callable[[], float],
     ) -> None:
         self._stt = stt
@@ -120,7 +130,7 @@ class TurnPipeline:
         timeline.mark("audio_received")
         # The prompt is built while the speech is transcribed, so fetching SayTech's
         # context on a cache miss adds nothing to the wait.
-        prompt = asyncio.ensure_future(self._system_prompt())
+        prompt = asyncio.ensure_future(self._system_prompt(conversation.facts))
         try:
             transcript = await self._transcribe(audio, turn_id)
             timeline.mark("stt_done")
@@ -161,13 +171,14 @@ class TurnPipeline:
             *conversation.history,
             ChatMessage(role="user", content=transcript),
         ]
+        toolbox = self._toolbox.including(conversation.tools)
         tool_results: list[str] = []
         for round_number in range(MAX_TOOL_ROUNDS + 1):
-            tools = self._toolbox.specs if round_number < MAX_TOOL_ROUNDS else []
+            tools = toolbox.specs if round_number < MAX_TOOL_ROUNDS else []
             model_round = await self._ask(messages, tools, turn_id)
             if not model_round.tool_calls:
                 return self._spoken(model_round, tool_results, timeline, turn_id)
-            results = await self._toolbox.run_all(model_round.tool_calls, turn_id)
+            results = await toolbox.run_all(model_round.tool_calls, turn_id)
             messages.append(ChatMessage(role="assistant", content=model_round.text, tool_calls=model_round.tool_calls))
             for call, result in zip(model_round.tool_calls, results, strict=True):
                 messages.append(ChatMessage(role="tool", content=result, tool_call_id=call.call_id))

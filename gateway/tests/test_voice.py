@@ -7,7 +7,7 @@ from fastapi import FastAPI, WebSocketDisconnect
 from fastapi.testclient import TestClient
 import pytest
 from sarjy_gateway.database import DatabaseUnavailableError
-from sarjy_gateway.identity import COOKIE_NAME
+from sarjy_gateway.identity import COOKIE_NAME, UserId
 from sarjy_gateway.messages import AudioFollows, Reply, ServerError, Transcript, TurnMarks
 from sarjy_gateway.stt import SpeechToTextError
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
@@ -17,6 +17,7 @@ from sarjy_gateway.voice import VoiceRouter
 from gateway.tests.fakes import (
     FakeChatModel,
     FakeConversationStore,
+    FakeFactStore,
     FakePrompt,
     FakeSpeechToText,
     FakeTextToSpeech,
@@ -27,7 +28,7 @@ from gateway.tests.fakes import (
 
 TURN_END = '{"type": "turn_end"}'
 TURN_ID = "0199c3a4b5d67e8f9a0b1c2d3e4f5a6b"
-USER_ID = uuid.UUID("0199c3a4-0000-7000-8000-00000000abcd")
+USER_ID = UserId(uuid.UUID("0199c3a4-0000-7000-8000-00000000abcd"))
 
 
 def browser_marks(speech_end: float, playback_start: float, turn_id: str = TURN_ID) -> str:
@@ -42,22 +43,27 @@ def browser_marks(speech_end: float, playback_start: float, turn_id: str = TURN_
 
 
 def voice_client(
+    *,
     stt: FakeSpeechToText | None = None,
     tts: FakeTextToSpeech | None = None,
     max_turn_audio_bytes: int = 1_000,
     store: FakeConversationStore | None = None,
     cookie: str | None = str(USER_ID),
+    facts: FakeFactStore | None = None,
+    llm: FakeChatModel | None = None,
+    prompt: FakePrompt | None = None,
 ) -> TestClient:
     tts = tts or FakeTextToSpeech()
     toolbox = Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS)
     pipeline = TurnPipeline(
-        stt or FakeSpeechToText(), FakeChatModel(), tts, toolbox, system_prompt=FakePrompt().build, clock=TickingClock()
+        stt or FakeSpeechToText(), llm or FakeChatModel(), tts, toolbox, system_prompt=(prompt or FakePrompt()).build, clock=TickingClock()
     )
     app = FastAPI()
     router = VoiceRouter(
         pipeline,
         tts,
         store or FakeConversationStore(),
+        facts or FakeFactStore(),
         max_turn_audio_bytes=max_turn_audio_bytes,
         max_history_turns=6,
     )
@@ -210,3 +216,17 @@ def test_without_the_database_the_turn_is_still_answered(caplog: pytest.LogCaptu
 
     assert reply[1].text == "Try the Louvre."
     assert caplog.messages == ["session not stored: database unreachable: PoolTimeout"]
+
+
+def test_a_visit_starts_knowing_the_users_facts_and_with_memory_tools() -> None:
+    facts = FakeFactStore({USER_ID: {"favourite_colour": "green"}})
+    llm = FakeChatModel()
+    prompt = FakePrompt()
+    with voice_client(facts=facts, llm=llm, prompt=prompt).websocket_connect("/ws") as socket:
+        socket.send_bytes(b"clip")
+        socket.send_text(TURN_END)
+        Transcript.model_validate_json(socket.receive_text())
+        Reply.model_validate_json(socket.receive_text())
+
+    assert prompt.facts_seen == [{"favourite_colour": "green"}]
+    assert llm.offered_tools[0] == ["remember_fact", "forget_fact"]
