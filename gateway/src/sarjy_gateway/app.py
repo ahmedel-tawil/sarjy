@@ -7,13 +7,14 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from sarjy_gateway.catalogue import SayTechCatalogue
 from sarjy_gateway.health import HealthRouter
 from sarjy_gateway.identity import identity_cookie
 from sarjy_gateway.limits import MAX_KEYS, SlidingWindow, TurnLimits
 from sarjy_gateway.migrate import MIGRATIONS_FOLDER, MigrationError, MigrationRunner, Migrations
 from sarjy_gateway.prompts import SystemPrompt
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
-from sarjy_gateway.tour_tools import GetTourTool, SearchToursTool
+from sarjy_gateway.tour_tools import GetTourTool, RawGetTourTool, RawSearchToursTool, SearchToursTool
 from sarjy_gateway.turn import TurnPipeline
 from sarjy_gateway.voice import VoiceRouter
 from sarjy_gateway.voices import VoicesRouter
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 
     from sarjy_gateway.services import Services
     from sarjy_gateway.settings import Settings
+    from sarjy_gateway.tools import Tool
 
 
 logger = logging.getLogger(__name__)
@@ -56,8 +58,7 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
 
     # Shared by every visit; each visit adds its user's memory tools (D-67).
     tools = [
-        SearchToursTool(services.catalogue),
-        GetTourTool(services.catalogue),
+        *tour_tools(settings, services),
         # The wall clock, not a monotonic one: the tool needs today's date.
         GetWeatherTool(services.weather, time.time),
     ]
@@ -98,3 +99,12 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
     if settings.frontend_dist is not None:
         app.mount("/", StaticFiles(directory=settings.frontend_dist, html=True), name="frontend")
     return app
+
+
+# Experiment 5 (M3.9): raw payloads come straight from SayTech, uncached, so only what the
+# model reads differs from the lean tools. Without an HTTP client (tests) they stay lean.
+def tour_tools(settings: Settings, services: Services) -> list[Tool]:
+    if settings.tool_payload == "raw" and services.http_client is not None:
+        saytech = SayTechCatalogue(services.http_client, settings.saytech_base_url, settings.saytech_timeout_seconds)
+        return [RawSearchToursTool(saytech), RawGetTourTool(saytech)]
+    return [SearchToursTool(services.catalogue), GetTourTool(services.catalogue)]

@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     # Experiment 2 (D-76, D-77): "sentence" speaks each sentence as soon as it is written
     # and the page plays the clips back to back; "baseline" waits for the whole reply.
     pipeline_mode: Literal["baseline", "sentence"] = "sentence"
+    # Experiment 5 (M3.9): "lean" gives the model Sarjy's trimmed tour results, "raw"
+    # SayTech's responses exactly as they came.
+    tool_payload: Literal["lean", "raw"] = "lean"
     # Public URL protection (D-72). A spoken turn takes at least 20 seconds, so a person
     # stays well under 30 in ten minutes; an IP gets room for a few people behind one
     # router. A visit's cap stops a runaway client, not a determined one.
