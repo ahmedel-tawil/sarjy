@@ -932,9 +932,10 @@ beyond the PRD.
       `prefers-reduced-motion` (rule amended in D-80).
 
 Checked on 9 Oct in the in-app browser with `?rehearse` (scripted turns, no gateway), in
-all three palettes; the real loop needs a microphone, so it was not run here. Next, now
-that M3.6 has merged: exact word timing and the orb's real levels from `onSpeak`,
-`inputLevel` and `outputLevel` (D-77), in a change of their own.
+all three palettes; the real loop needs a microphone, so it was not run here. After M3.6,
+the words follow each sentence's audio through `onSpeak` and the orb the session's real
+`inputLevel` and `outputLevel` (D-77); in rehearsal a sentence's twelve words appeared
+one by one over its four seconds.
 
 ### M4.2 Conversation states and errors
 

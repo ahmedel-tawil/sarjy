@@ -1122,14 +1122,15 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   screen serves the demo scenarios, which ask about earlier turns. Tokens under shadcn's
   own names keep every shadcn component right in each palette. A plain Canvas 2D drawing,
   with no new dependency, keeps every line explainable.
-- **Until the next change:** words are paced at an estimated 2.6 a second, the orb
-  follows the microphone through a second stream of its own, and Sarjy's voice moves it
-  with a stand-in rhythm. M3.6 has since added `onSpeak(text, durationMs)` per sentence
-  clip, `inputLevel()` and `outputLevel()` (D-77), and the screen switches to them in its
-  own small change.
+- **Timing:** Sarjy's words follow its voice through `onSpeak(text, durationMs)`, one
+  clip per sentence (D-77): each sentence's words are spread across its audio, longer
+  words taking longer, revealed by CSS delays rather than timers; the full `onReply` text
+  shows only when the voice never played. The orb reads the session's `inputLevel()`
+  while listening and `outputLevel()` while speaking, so the page opens no microphone of
+  its own.
 - **Trade-off:** the orb redraws every frame while the tab is visible; the welcome costs
-  every visit two seconds unless tapped away; a second microphone stream may misbehave on
-  iOS until the switch to `inputLevel()`; three palettes mean three sets of
+  every visit two seconds unless tapped away; words are timed by their length, not by
+  Kokoro, so a long pause inside a sentence runs ahead; three palettes mean three sets of
   colours to check for contrast in M4.8.
 - **Alternatives considered:** dunes that answer the voice (too literally desert); a
   lattice of light; a screen of type alone; one palette; a Three.js or WebGL orb such as
