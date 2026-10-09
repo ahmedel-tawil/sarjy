@@ -1096,6 +1096,48 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   (more code, and a clip arriving late still stalls); word timestamps from TTS (Kokoro
   has none).
 
+### D-80 Sarjy's identity: a voice-trail mark, a talk orb, three palettes
+
+- **Decision:** Sarjy's mark is an S traced by eleven dots that grow like a voice, the
+  last in the accent colour, beside a lowercase "sarjy" in Figtree. The talk control is a
+  sphere of dots drawn on a canvas: hold it (or Space) to talk; it ripples with the
+  microphone, sweeps a band of light while thinking and pulses while speaking. One screen
+  holds the visit's conversation, set like a script, with Sarjy's reply appearing word by
+  word as it is spoken; the memory panel (saved facts fly from the orb onto it) and the
+  latency panel (the last five turns, where M3.2's waterfall goes) sit beside it on a
+  laptop and behind a "Remembers" button on a phone. The colours come in three palettes in
+  `index.css`, Pearl, Night and Coral, switched by `data-palette` on `<html>`, chosen with
+  three swatches and kept in the browser; a system in dark mode starts in Night. Every
+  visit opens with a welcome of about two seconds: the trail draws itself, its name
+  appears, then the trail gathers, flies to the talk control and the orb grows out of it.
+  A tap skips it, and under reduced motion the page simply appears. The motion rule in `AGENTS.md` now reads: transitions take at most
+  300 ms; continuous motion only when it shows something real (a voice level or Sarjy's
+  state), plus this welcome. The favicon, light or dark with the browser, was exported
+  from the design board, so its colours live in image files, not in code. In development, `?rehearse` plays scripted
+  turns without a gateway (settled 9 Oct in M4.1).
+- **Reason:** A first plan of two columns of cards and a round mic button looked like
+  every voice app, and a desert scene made Sarjy look like a safari seller rather than a
+  concierge for every UAE activity. Orbs are common in voice products, so the brand lives
+  in the mark and in the moment the mark becomes the orb. Keeping the conversation on
+  screen serves the demo scenarios, which ask about earlier turns. Tokens under shadcn's
+  own names keep every shadcn component right in each palette. A plain Canvas 2D drawing,
+  with no new dependency, keeps every line explainable.
+- **Until the next change:** words are paced at an estimated 2.6 a second, the orb
+  follows the microphone through a second stream of its own, and Sarjy's voice moves it
+  with a stand-in rhythm. M3.6 has since added `onSpeak(text, durationMs)` per sentence
+  clip, `inputLevel()` and `outputLevel()` (D-77), and the screen switches to them in its
+  own small change.
+- **Trade-off:** the orb redraws every frame while the tab is visible; the welcome costs
+  every visit two seconds unless tapped away; a second microphone stream may misbehave on
+  iOS until the switch to `inputLevel()`; three palettes mean three sets of
+  colours to check for contrast in M4.8.
+- **Alternatives considered:** dunes that answer the voice (too literally desert); a
+  lattice of light; a screen of type alone; one palette; a Three.js or WebGL orb such as
+  ElevenLabs UI's or LiveKit's Aura (new dependencies, and harder to explain); copying the
+  21st.dev "thinking orb" component Ahmed found (MIT, but `AGENTS.md` asks for code
+  written from scratch, so only its ideas were reused: the pill becoming a ball, the
+  dotted sphere, the blurred word reveal).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.

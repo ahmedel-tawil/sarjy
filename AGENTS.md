@@ -81,8 +81,9 @@ code-standards check
 - Tailwind + shadcn/ui primitives; never hand-roll a component that already exists.
 - Colours come from design tokens defined once in CSS; no hex or ad-hoc colour classes.
 - One icon set (HugeIcons).
-- Flat and calm: motion is purposeful, at most 300 ms, and respects
-  `prefers-reduced-motion`.
+- Flat and calm: transitions take at most 300 ms; continuous motion only when it shows
+  something real (a voice level or Sarjy's state), plus the short first-load welcome
+  (D-80); nothing moves under `prefers-reduced-motion`.
 - No generic "AI app" look: every element must earn its place.
 - Sarjy has its own visual identity. Do not copy Sarj's brand assets, tokens or
   components; their repos inform principles only.
