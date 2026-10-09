@@ -415,7 +415,7 @@ Goal: the four demo scenarios work on the deployed URL.
 | M2.12 | System prompt v1: scope and grounding | 1 h | M2.6, M2.10, M2.11 | no |
 | M2.13 | Public URL protection | 1.5 h | M2.4 | no |
 | M2.14 | Demo scenarios 1–4 on the deployed URL | 1 h | M2.7, M2.12, M2.13 | no |
-| M2.15 | Second LLM provider when Groq is rate limited | 1 h | M1.8, a Cerebras key | no |
+| M2.15 | Groq and Claude, switchable, each the other's fallback | 2 h | M1.8, a Claude key | no |
 
 ### M2.1 SayTech API discovery
 
@@ -608,18 +608,27 @@ New dependencies: psycopg (binary), psycopg-pool.
 - [ ] All four PRD scenarios pass end to end on the deployed URL in desktop Chrome.
 - [ ] Results go into the 9 Oct update.
 
-### M2.15 Second LLM provider when Groq is rate limited
+### M2.15 Groq and Claude, switchable, each the other's fallback
 
-Added 8 Oct after Groq's free-tier limit failed turns in testing (D-61).
+Added 8 Oct after Groq's free-tier limit failed turns in testing (D-61); on 9 Oct the
+second provider became Claude, with Ahmed's API credits (D-63).
 
-- [ ] When the first provider answers 429 before streaming, the same request goes to the
-      second one; a turn fails with `rate_limited` only if both refuse.
-- [ ] The second provider is settings only: base URL, key from Secret Manager, model.
-      Without them, nothing changes.
-- [ ] The log says which provider answered each turn, for experiment 4.
-- [ ] Tests with fake models: the first answers, the first is rate limited and the second
-      answers, both are rate limited.
-- [ ] Checked with a real Cerebras key: a turn with tools works through Cerebras alone.
+- [x] When the first provider fails before its first word (rate limit, refused or
+      deactivated key, server or network error), the same request goes to the second; a
+      turn fails only if both do. Once words have arrived nothing switches.
+- [x] Claude through Anthropic's official SDK (`anthropic`, approved), behind the same
+      `ChatModel` interface: Haiku 5.5, thinking off, effort low, no temperature, SDK
+      retries off. Messages and tool results translate both ways.
+- [x] `SARJY_LLM_PRIMARY` (`groq` or `claude`) picks the order; on Cloud Run it is the
+      Terraform variable `llm_primary`. A provider without a key simply takes no part.
+- [x] The log says which provider answered each request, for experiment 4.
+- [x] Tests with fakes and recorded Claude streams: the first answers; it is rate
+      limited, its key is refused or missing and the second answers; both fail; a
+      failure after the first words is not handed over; Claude's request and stream
+      mapping; Claude's errors.
+- [x] Checked with real keys: Claude alone answered scenarios 1 and 4 and the safari
+      question correctly (first word after 2.7 to 3.5 s, against about 1.5 s on Groq);
+      with a broken Groq key and Groq first, Claude took over every request.
 
 ---
 

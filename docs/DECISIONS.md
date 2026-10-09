@@ -723,7 +723,7 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   no gain for a demo); Open-Meteo's geocoding API (a second call per question, and it
   could match a place outside the UAE).
 
-### D-61 A second LLM provider for when Groq's free tier runs out
+### D-61 A second LLM provider for when Groq's free tier runs out (replaced by D-63)
 
 - **Decision:** when Groq answers 429 at the start of a request, the same request goes to
   a second OpenAI-compatible provider, Cerebras, which also has a free tier. Sarj's
@@ -757,6 +757,34 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** forcing a tool call every turn (`tool_choice: required`,
   which breaks greetings and off-topic replies); checking spoken numbers against tool
   results in code (the optional guardrail milestone, M6).
+
+### D-63 Groq and Claude Haiku 5.5, switchable, each the other's fallback
+
+- **Decision:** Sarjy has two chat providers: Groq's Qwen 3.8 27B through the
+  OpenAI-compatible client (D-53), and Claude Haiku 5.5 (`claude-haiku-5-5`) through
+  Anthropic's official Python SDK, behind the same `ChatModel` interface.
+  `SARJY_LLM_PRIMARY` (on Cloud Run the Terraform variable `llm_primary`) says which
+  answers first. If it fails before its first word (rate limit, refused or deactivated
+  key, server or network error), `FallbackChatModel` sends the same request to the other;
+  once words have arrived nothing switches. Claude runs with thinking off and effort
+  `low`: thinking would delay the first word, and its blocks would have to travel back
+  with every tool result through a message shape that has no place for them. Temperature
+  is not sent, since Haiku 5.5 only takes its default, and the SDK's own retries are off,
+  so the other provider answers at once instead (settled 9 Oct in M2.15; replaces D-61's
+  Cerebras).
+- **Reason:** Ahmed has $100 of Anthropic API credit, valid to 8 November, and reviewers
+  use the deployed app, so no reviewer needs a key. Claude's rate limits are far above
+  Groq's free tier (8,000 tokens a minute), so either order survives a busy demo, and
+  deactivating the Claude key later just leaves Groq on its own. Anthropic recommends its
+  SDK over its OpenAI-compatible endpoint; the SDK runs on httpx2, which the gateway
+  already uses. Haiku is the fastest Claude to a first word, which is what a voice turn
+  waits for. Measured on 9 Oct from a Mac: with tools, Claude's first word came after 2.7
+  to 3.5 s, Groq's after about 1.5 s, so Groq stays first by default.
+- **Alternatives considered:** Cerebras (D-61; another free tier to sign up for, while
+  credit was already in hand); Anthropic's OpenAI-compatible endpoint (settings only, but
+  Anthropic advises against it for production); Claude Sonnet 5.5 or Opus 5.5 (stronger
+  but slower to the first word; Opus cannot turn thinking off). The API key must belong to
+  a workspace: an organisation-level key is refused without a workspace header.
 
 ## Open decisions
 
