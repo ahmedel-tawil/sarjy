@@ -48,7 +48,5 @@ class MissingDatabase:
 # A few connections kept open, so a turn doesn't wait for a new one. The app opens the pool
 # at startup without waiting for it: if the database is down, voice still works and
 # /ready says so.
-def database_pool(url: SecretStr, max_size: int) -> Pool:
-    return AsyncConnectionPool(
-        url.get_secret_value(), min_size=1, max_size=max_size, timeout=CONNECTION_WAIT_SECONDS, open=False
-    )
+def database_pool(url: SecretStr, max_size: int, wait_seconds: float) -> Pool:
+    return AsyncConnectionPool(url.get_secret_value(), min_size=1, max_size=max_size, timeout=wait_seconds, open=False)

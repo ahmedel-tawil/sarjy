@@ -8,7 +8,14 @@ import httpx2
 from sarjy_gateway.catalogue import Catalogue, SayTechCatalogue
 from sarjy_gateway.catalogue_cache import CachedCatalogue
 from sarjy_gateway.claude import ClaudeChatModel
-from sarjy_gateway.database import Database, MissingDatabase, Pool, PostgresDatabase, database_pool
+from sarjy_gateway.database import (
+    CONNECTION_WAIT_SECONDS,
+    Database,
+    MissingDatabase,
+    Pool,
+    PostgresDatabase,
+    database_pool,
+)
 from sarjy_gateway.llm import (
     ChatModel,
     FallbackChatModel,
@@ -52,7 +59,11 @@ class Services:
 def build_services(settings: Settings) -> Services:
     client = httpx2.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS)
     claude_client = build_anthropic_client(settings)
-    pool = None if settings.database_url is None else database_pool(settings.database_url, settings.database_pool_max)
+    pool = (
+        None
+        if settings.database_url is None
+        else database_pool(settings.database_url, settings.database_pool_max, CONNECTION_WAIT_SECONDS)
+    )
     return Services(
         stt=build_speech_to_text(settings, client),
         llm=build_chat_model(settings, client, claude_client),
