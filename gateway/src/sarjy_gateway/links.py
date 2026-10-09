@@ -43,6 +43,7 @@ STOP_WORDS = frozenset(
 class LinkedTour(BaseModel):
     name: str
     link: str | None = None
+    slug: str | None = None
 
 
 # What a tool returned, read only for tours: search_tours lists them under `tours`,
@@ -51,6 +52,7 @@ class ToolTours(BaseModel):
     tours: list[LinkedTour] = []
     name: str | None = None
     link: str | None = None
+    slug: str | None = None
 
 
 # The pages of the tours a reply names, in the order it names them (D-90). Sarjy never
@@ -80,7 +82,7 @@ def tours_in(tool_results: Sequence[str]) -> list[LinkedTour]:
             continue
         tours += found.tours
         if found.name is not None:
-            tours.append(LinkedTour(name=found.name, link=found.link))
+            tours.append(LinkedTour(name=found.name, link=found.link, slug=found.slug))
     return tours
 
 

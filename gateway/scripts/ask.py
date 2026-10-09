@@ -54,6 +54,9 @@ class NoListener:
     async def transcript(self, turn_id: str, text: str) -> None:
         pass
 
+    async def activity(self, turn_id: str, text: str) -> None:
+        pass
+
     async def reply(self, turn_id: str, text: str, links: list[TourLink]) -> None:
         pass
 

@@ -41,6 +41,8 @@ export type EarlierVisit = z.infer<typeof EarlierVisitSchema>
 export const ServerMessageSchema = z.discriminatedUnion('type', [
   z.object({ code: ErrorCodeSchema, 'turn_id': z.string().nullable(), type: z.literal('error') }),
   z.object({ text: z.string(), 'turn_id': z.string(), type: z.literal('transcript') }),
+  // What Sarjy is doing while a tool runs, one per tool call, in order (D-94).
+  z.object({ text: z.string(), 'turn_id': z.string(), type: z.literal('activity') }),
   z.object({ links: z.array(TourLinkSchema), text: z.string(), 'turn_id': z.string(), type: z.literal('reply') }),
   // Announces the binary WAV frame that comes next, which cannot carry the turn id itself,
   // with the words it speaks: the whole reply, or one sentence when streaming.

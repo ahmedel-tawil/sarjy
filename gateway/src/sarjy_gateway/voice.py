@@ -12,6 +12,7 @@ from sarjy_gateway.identity import COOKIE_NAME, user_id_from
 from sarjy_gateway.limits import client_ip
 from sarjy_gateway.memory import Fact, ForgetFactTool, RememberFactTool
 from sarjy_gateway.messages import (
+    Activity,
     AudioFollows,
     BrowserMarks,
     ClientMessage,
@@ -66,6 +67,9 @@ class SocketListener:
 
     async def transcript(self, turn_id: str, text: str) -> None:
         await self._websocket.send_text(Transcript(turn_id=turn_id, text=text).model_dump_json())
+
+    async def activity(self, turn_id: str, text: str) -> None:
+        await self._websocket.send_text(Activity(turn_id=turn_id, text=text).model_dump_json())
 
     async def reply(self, turn_id: str, text: str, links: list[TourLink]) -> None:
         await self._websocket.send_text(Reply(turn_id=turn_id, text=text, links=links).model_dump_json())
