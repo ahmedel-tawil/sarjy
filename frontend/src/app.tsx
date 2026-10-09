@@ -1,29 +1,48 @@
-import { Mic01Icon } from '@hugeicons/core-free-icons'
-import { HugeiconsIcon } from '@hugeicons/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
+import { ConversationThread, type Turn } from '@/components/conversation-thread'
+import { LatencyPanel } from '@/components/latency-panel'
 import { MemoryPanel } from '@/components/memory-panel'
+import type { OrbPhase } from '@/components/orb-renderer'
+import { applyPalette, initialPalette, type Palette, PaletteSwitcher } from '@/components/palette-switcher'
+import { RehearsalSession,rehearsedMicLevel } from '@/components/rehearsal-session'
+import { TalkOrb } from '@/components/talk-orb'
 import { Button } from '@/components/ui/button'
+import { useMicLevel } from '@/components/use-mic-level'
 import type { RememberedFact } from '@/lib/protocol'
-import { type Problem, type Status, VoiceSession } from '@/lib/voice-session'
+import {
+  type Problem,
+  type PushToTalk,
+  type Status,
+  type Visit,
+  VoiceSession,
+  type VoiceSessionCallbacks,
+} from '@/lib/voice-session'
+
+// One screen: the visit's conversation, Sarjy as a sphere of dots you hold to talk to, and
+// what Sarjy remembers and how fast it answered beside them (D-80).
 
 const SOCKET_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
 
-const STATUS_TEXT: Record<Status, string> = {
-  idle: 'Hold the button and speak',
-  listening: 'Listening… let go to send',
-  speaking: 'Sarjy is speaking',
-  thinking: 'Thinking…',
+const PHASE_FOR: Record<Status, OrbPhase> = {
+  idle: 'rest',
+  listening: 'listening',
+  speaking: 'speaking',
+  thinking: 'thinking',
 }
 
+// In development, ?rehearse plays scripted turns, to review the motion without a gateway or
+// a microphone. Production builds never rehearse.
+const REHEARSE = import.meta.env.DEV && new URLSearchParams(window.location.search).has('rehearse')
+
 const PROBLEM_TEXT: Record<Problem, string> = {
-  'connection_lost': 'Lost the connection. Hold the button to try again.',
+  'connection_lost': 'Lost the connection. Hold the orb to try again.',
   'forget_failed': 'I couldn’t forget you just now. Please try again.',
   'invalid_message': 'Something went wrong on our side. Please try again.',
   'llm_failed': 'I couldn’t think of an answer just now. Please try again.',
   'mic_unavailable': 'Sarjy needs your microphone. Allow it in the browser, then try again.',
-  'no_audio': 'I didn’t catch any audio. Hold the button a little longer.',
-  'no_speech': 'I didn’t hear any words. Hold the button and try again.',
+  'no_audio': 'I didn’t catch any audio. Hold the orb a little longer.',
+  'no_speech': 'I didn’t hear any words. Hold the orb and try again.',
   'playback_failed': 'Couldn’t play the audio back.',
   'rate_limited': 'I’m getting a lot of questions right now. Please try again in a moment.',
   'stt_failed': 'I couldn’t make out what you said. Please try again.',
@@ -37,83 +56,171 @@ const PROBLEM_TEXT: Record<Problem, string> = {
 function App() {
   const [status, setStatus] = useState<Status>('idle')
   const [problem, setProblem] = useState<null | Problem>(null)
-  const [heard, setHeard] = useState<null | string>(null)
-  const [reply, setReply] = useState<null | string>(null)
-  const [ttfa, setTtfa] = useState<null | number>(null)
-  // Unknown until the gateway sends the first memory message.
+  const [turns, setTurns] = useState<Turn[]>([])
+  const [waitingForWords, setWaitingForWords] = useState(false)
   const [facts, setFacts] = useState<null | RememberedFact[]>(null)
-  const [session] = useState(
-    () =>
-      new VoiceSession(SOCKET_URL, {
-        onMemory: setFacts,
-        onProblem: setProblem,
-        onReply: setReply,
-        onStatus: setStatus,
-        onTranscript: (text) => {
-          setHeard(text)
-          setReply(null)
-          setTtfa(null)
-        },
-        onTtfa: setTtfa,
-      }),
-  )
+  const [memoryOpen, setMemoryOpen] = useState(false)
+  const [palette, setPalette] = useState<Palette>(initialPalette)
+  const orbRef = useRef<HTMLButtonElement>(null)
+  const liveMicLevel = useMicLevel(status === 'listening' && !REHEARSE)
+  const micLevel = REHEARSE ? rehearsedMicLevel : liveMicLevel
+
+  const [session] = useState<PushToTalk & Visit>(() => {
+    // Each change lands on the newest turn, the one being answered.
+    const updateLast = (change: Partial<Turn>): void => {
+      setTurns((all) => all.map((turn, index) => (index === all.length - 1 ? { ...turn, ...change } : turn)))
+    }
+    const callbacks: VoiceSessionCallbacks = {
+      onMemory: setFacts,
+      onProblem: (next) => {
+        setProblem(next)
+        if (next !== null) {
+          setWaitingForWords(false)
+        }
+      },
+      onReply: (reply) => {
+        updateLast({ reply })
+      },
+      onStatus: (next) => {
+        if (next === 'thinking') {
+          setWaitingForWords(true)
+        }
+        setStatus(next)
+      },
+      onTranscript: (heard) => {
+        setWaitingForWords(false)
+        setTurns((all) => [...all, { heard, id: all.length, reply: null, ttfaMs: null }])
+      },
+      onTtfa: (ttfaMs) => {
+        updateLast({ ttfaMs })
+      },
+    }
+    return REHEARSE ? new RehearsalSession(callbacks) : new VoiceSession(SOCKET_URL, callbacks)
+  })
+
+  useLayoutEffect(() => {
+    applyPalette(palette)
+  }, [palette])
 
   useEffect(() => {
     session.connect()
   }, [session])
 
+  // Hold Space to talk, as well as the orb.
+  useEffect(() => {
+    const ownsKey = (event: KeyboardEvent): boolean =>
+      event.code === 'Space' && (event.target === document.body || event.target === orbRef.current)
+    const down = (event: KeyboardEvent): void => {
+      if (ownsKey(event)) {
+        event.preventDefault()
+        if (!event.repeat) {
+          session.press()
+        }
+      }
+    }
+    const up = (event: KeyboardEvent): void => {
+      if (ownsKey(event)) {
+        session.release()
+      }
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+    }
+  }, [session])
+
   const release = () => {
     session.release()
   }
+  const forgetMe = () => {
+    session.forgetMe()
+  }
+  const timed = turns.flatMap((turn) => (turn.ttfaMs === null ? [] : [{ id: turn.id, ttfaMs: turn.ttfaMs }]))
+  const statusText = problem === null ? describe(status, waitingForWords) : PROBLEM_TEXT[problem]
 
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center gap-6 p-6">
-      <h1 className="font-heading text-4xl font-medium">Sarjy</h1>
-      {heard !== null && (
-        <section aria-label="Last exchange" className="flex max-w-prose flex-col gap-3 text-center">
-          <p className="text-muted-foreground">“{heard}”</p>
-          {reply !== null && <p className="text-lg text-pretty">{reply}</p>}
-          {ttfa !== null && (
-            <p className="text-sm text-muted-foreground tabular-nums">
-              First audio after {(ttfa / 1000).toFixed(1)} s
-            </p>
+    <div className="flex h-svh flex-col bg-background text-foreground">
+      <header className="flex items-start justify-between gap-4 px-4 pt-4 md:px-8 md:pt-6">
+        <div>
+          <h1 className="font-heading text-2xl font-medium">Sarjy</h1>
+          <p className="text-sm text-muted-foreground">Your Magic Experience concierge</p>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          <PaletteSwitcher onChange={setPalette} palette={palette} />
+          {facts !== null && (
+            <div className="md:hidden">
+              <Button
+                onClick={() => {
+                  setMemoryOpen(!memoryOpen)
+                }}
+                size="sm"
+                variant="secondary"
+              >
+                Remembers {facts.length}
+              </Button>
+            </div>
           )}
-        </section>
-      )}
-      {/* Holding a button on a phone would otherwise scroll, select text or open a menu. */}
-      <div className="touch-none select-none">
-        <Button
-          aria-pressed={status === 'listening'}
-          disabled={status === 'thinking' || status === 'speaking'}
-          onContextMenu={(event) => {
-            event.preventDefault()
-          }}
-          onPointerCancel={release}
-          onPointerDown={() => {
-            session.press()
-          }}
-          onPointerLeave={release}
-          onPointerUp={release}
-          size="lg"
-        >
-          <HugeiconsIcon icon={Mic01Icon} />
-          Hold to talk
-        </Button>
+        </div>
+      </header>
+
+      <div className="flex min-h-0 flex-1 gap-8 px-4 md:px-8">
+        <main className="flex min-h-0 flex-1 flex-col">
+          {memoryOpen && facts !== null ? (
+            <div className="pt-4 md:hidden">
+              <MemoryPanel busy={status !== 'idle'} facts={facts} onForgetMe={forgetMe} orbRef={orbRef} />
+            </div>
+          ) : null}
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-6">
+            <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-end">
+              <ConversationThread speaking={status === 'speaking'} turns={turns} />
+            </div>
+          </div>
+          <div className="pb-safe flex flex-col items-center gap-1 pt-2">
+            <TalkOrb
+              disabled={status === 'thinking' || status === 'speaking'}
+              micLevel={micLevel}
+              onPress={() => {
+                session.press()
+              }}
+              onRelease={release}
+              orbRef={orbRef}
+              palette={palette}
+              phase={PHASE_FOR[status]}
+            />
+            <p aria-live="polite" className={problem === null ? 'text-sm text-muted-foreground' : 'text-sm text-destructive'}>
+              <span className="label-in inline-block" key={statusText}>
+                {statusText}
+              </span>
+            </p>
+          </div>
+        </main>
+
+        <aside className="hidden w-80 shrink-0 flex-col gap-4 overflow-y-auto pb-6 md:flex">
+          {facts !== null && <MemoryPanel busy={status !== 'idle'} facts={facts} onForgetMe={forgetMe} orbRef={orbRef} />}
+          <LatencyPanel turns={timed} />
+        </aside>
       </div>
-      <p aria-live="polite" className={problem === null ? 'text-muted-foreground' : 'text-destructive'}>
-        {problem === null ? STATUS_TEXT[status] : PROBLEM_TEXT[problem]}
-      </p>
-      {facts !== null && (
-        <MemoryPanel
-          busy={status !== 'idle'}
-          facts={facts}
-          onForgetMe={() => {
-            session.forgetMe()
-          }}
-        />
-      )}
-    </main>
+    </div>
   )
+}
+
+function describe(status: Status, waitingForWords: boolean): string {
+  switch (status) {
+    case 'idle': {
+      return 'Hold to talk, or hold Space'
+    }
+    case 'listening': {
+      return 'Listening… let go to send'
+    }
+    case 'speaking': {
+      return 'Sarjy is speaking'
+    }
+    case 'thinking': {
+      return waitingForWords ? 'Transcribing…' : 'Thinking…'
+    }
+  }
 }
 
 export default App
