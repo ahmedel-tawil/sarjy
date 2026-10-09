@@ -187,7 +187,9 @@ function App() {
     turn.ttfaMs === null ? [] : [{ id: turn.id, stages: turn.stages, ttfaMs: turn.ttfaMs }],
   )
   const shown = problem === null ? null : PROBLEMS[problem]
-  const inLine = shown !== null && (shown.kind === 'hint' || shown.kind === 'trouble') ? shown : null
+  // Cards show the microphone and the full visit; everything else is said under the orb,
+  // including a turn problem that came before any question was heard.
+  const inLine = shown !== null && shown.kind !== 'microphone' && shown.kind !== 'visit' ? shown : null
   const idleText = visitOver ? 'Start a new visit to ask more' : reconnecting ? 'Waiting for the connection…' : describe(status, waitingForWords)
   const statusText = inLine === null ? idleText : inLine.text
 
@@ -282,7 +284,7 @@ function App() {
               phase={PHASE_FOR[status]}
               revealed={orbRevealed}
             />
-            <p aria-live="polite" className={inLine?.kind === 'trouble' ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'}>
+            <p aria-live="polite" className={inLine === null || inLine.kind === 'hint' ? 'text-sm text-muted-foreground' : 'text-sm text-destructive'}>
               <span className="label-in inline-block" key={statusText}>
                 {statusText}
               </span>
