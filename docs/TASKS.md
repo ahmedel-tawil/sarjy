@@ -781,10 +781,22 @@ configuration (environment variables), not code branches.
 
 ### M3.2 Live latency waterfall panel
 
-- [ ] After each turn, the UI shows a waterfall of its stages and the TTFA as a headline.
-- [ ] The last few turns stay visible for comparison.
-- [ ] Colours come from tokens; motion respects `prefers-reduced-motion`.
-- [ ] Any client-side timing maths has unit tests if O-25 adds a frontend test runner.
+- [x] After each turn, the UI shows a waterfall of its stages and the TTFA as a headline:
+      the "How fast Sarjy answered" card splits each turn's bar into speech to text,
+      first word, first sentence, voice and network, with the last turn's values in a
+      legend (D-79). A turn still speaking shows its plain bar until the gateway's marks
+      arrive with its last clip.
+- [x] The last few turns stay visible for comparison: five, on one 6-second scale.
+- [x] Colours come from tokens; motion respects `prefers-reduced-motion`: the stages use
+      each palette's `--chart-1` to `--chart-5`, and the bars don't animate.
+- [x] Any client-side timing maths has unit tests if O-25 adds a frontend test runner: no
+      runner was added, so `stagesOf` stays a few subtractions that mirror the Python
+      gaps, which are tested.
+
+Checked in the in-app browser against a local gateway in sentence mode, with the
+microphone replaced by a script clip: three turns drew bars of 4.4, 4.1 and 3.1 s, each
+split into its stages, in the night and coral palettes. The UI session was paused, so
+this touched its card and wiring directly.
 
 ### M3.3 Test script and experiment harness
 
