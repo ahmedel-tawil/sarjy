@@ -504,16 +504,20 @@ New dependencies: psycopg (binary), psycopg-pool (approved).
 
 ### M2.6 Memory tools and facts in the prompt
 
-- [ ] `remember_fact(key, value)` upserts with `ON CONFLICT`; `forget_fact(key)` removes
-      the fact.
-- [ ] Keys are normalised (for example `favourite_colour`), so "actually it's blue" updates
-      the same fact.
-- [ ] Saved facts go into the system prompt at session start, and again after a save in
-      the same session.
-- [ ] The prompt tells the model to save stable facts and preferences only.
-- [ ] Tests: saving the same key twice leaves one row with the latest value; forgetting
-      removes it.
-- [ ] Demo scenario 2 works locally: say the colour, reconnect, ask.
+- [x] `remember_fact(key, value)` upserts with `ON CONFLICT`; `forget_fact(key)` removes
+      the fact (D-67).
+- [x] Keys are normalised (for example `favourite_colour`), so "actually it's blue" updates
+      the same fact; the prompt shows the keys, so the model reuses them.
+- [x] Saved facts go into the system prompt at session start, and again after a save in
+      the same session: the visit's copy of the facts is updated by the tools, so no
+      database read per turn.
+- [x] The prompt tells the model to save stable facts and preferences only.
+- [x] Tests: saving the same key twice leaves one row with the latest value; forgetting
+      removes it (real Postgres), plus the tools, the prompt and the visit wiring.
+- [x] Demo scenario 2 works locally: say the colour, reconnect, ask. Over the real socket
+      with real Groq: visit 1 saved `favorite_color: green` and `dislikes: heights`; visit
+      2 answered "Your favorite color is green" and suggested tours from a search,
+      leaving out the helicopter "since you dislike heights".
 
 ### M2.7 Memory panel and "Forget me"
 
@@ -626,7 +630,8 @@ New dependencies: psycopg (binary), psycopg-pool (approved).
 
 - [ ] All four PRD scenarios pass end to end on the deployed URL in desktop Chrome.
 - [ ] A general "what can I do in Dubai?" names only tours from `search_tours`: on 9 Oct
-      Groq's model once named the Dubai Frame and a dhow cruise without searching.
+      Groq's model once named the Dubai Frame and a dhow cruise without searching, and
+      once called the weekend hot without calling `get_weather`.
 - [ ] Results go into the 9 Oct update.
 
 ### M2.15 Groq and Claude, switchable, each the other's fallback
