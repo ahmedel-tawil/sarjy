@@ -16,6 +16,7 @@ from sarjy_gateway.llm import (
     ToolCall,
     ToolCallDelta,
     ToolSpec,
+    Usage,
     assemble_tool_calls,
 )
 
@@ -61,7 +62,8 @@ def test_streams_the_text_of_a_recorded_claude_reply() -> None:
     events = asyncio.run(collect(claude_answering(recorded("claude_text.sse"), [])))
 
     assert "".join(event.text for event in events if isinstance(event, TextDelta)) == "Hello! How can I help you today?"
-    assert events[-1] == Finished("end_turn")
+    # The input count comes from the message's start, the output count with its end.
+    assert events[-2:] == [Usage(input_tokens=17, output_tokens=13), Finished("end_turn")]
 
 
 def test_streams_the_tool_call_of_a_recorded_claude_reply() -> None:

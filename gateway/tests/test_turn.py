@@ -1,4 +1,6 @@
 import asyncio
+from collections.abc import Mapping
+import logging
 
 import pytest
 from sarjy_gateway.llm import (
@@ -8,6 +10,7 @@ from sarjy_gateway.llm import (
     TextDelta,
     ToolCall,
     ToolCallDelta,
+    Usage,
 )
 from sarjy_gateway.stt import RateLimitedError, SpeechToTextError
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox, ToolFailure
@@ -303,3 +306,23 @@ def test_a_reply_carries_the_links_of_the_tours_it_names() -> None:
     asyncio.run(pipeline_with(llm, tool, sentence_streaming=True).run(b"clip", Conversation(max_turns=6), listener))
 
     assert [(link.name, link.url) for link in listener.links] == [("Louvre Abu Dhabi Ticket", "https://me.example/louvre")]
+
+
+def test_each_round_logs_the_tokens_the_provider_counted(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="sarjy_gateway.turn")
+    llm = FakeChatModel(
+        rounds=[
+            [DUBAI_CALL, Usage(input_tokens=1200, output_tokens=30)],
+            [TextDelta("It will be sunny."), Usage(input_tokens=1450, output_tokens=12)],
+        ]
+    )
+
+    run(pipeline_with(llm, FakeWeatherTool()))
+
+    rounds = [record.args for record in caplog.records if "input tokens" in record.msg]
+    counted = [
+        (args["round"], args["input_tokens"], args["output_tokens"], args["tool_calls"])
+        for args in rounds
+        if isinstance(args, Mapping)
+    ]
+    assert counted == [(0, 1200, 30, 1), (1, 1450, 12, 0)]

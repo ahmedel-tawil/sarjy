@@ -15,6 +15,7 @@ from sarjy_gateway.llm import (
     TextDelta,
     ToolCall,
     ToolCallDelta,
+    Usage,
     assemble_tool_calls,
 )
 from sarjy_gateway.sentences import SentenceChunker, speakable
@@ -110,6 +111,8 @@ class ModelRound:
     # Clock reading at the first piece of text, which becomes `llm_first_token` if this
     # round is the spoken answer.
     first_text_at: float | None
+    # The provider's token count for the round, when it gave one (M3.9).
+    usage: Usage | None = None
 
 
 # The round that answered in words, and what tools returned on the way.
@@ -292,6 +295,7 @@ class TurnPipeline:
         for round_number in range(MAX_TOOL_ROUNDS + 1):
             tools = toolbox.specs if round_number < MAX_TOOL_ROUNDS else []
             model_round = await self._ask(messages, tools, turn_id, speaker)
+            log_round(model_round, turn_id, round_number)
             if speaker is not None:
                 speaker.round_ended()
             if not model_round.tool_calls:
@@ -319,15 +323,18 @@ class TurnPipeline:
         parts: list[str] = []
         call_pieces: list[ToolCallDelta] = []
         first_text_at: float | None = None
+        usage: Usage | None = None
         async for event in events:
-            if isinstance(event, TextDelta):
+            if isinstance(event, Usage):
+                usage = event
+            elif isinstance(event, TextDelta):
                 first_text_at = first_text_at if first_text_at is not None else self._clock()
                 parts.append(event.text)
                 if speaker is not None:
                     speaker.heard(event.text)
             elif isinstance(event, ToolCallDelta):
                 call_pieces.append(event)
-        return ModelRound("".join(parts), assemble_tool_calls(call_pieces), first_text_at)
+        return ModelRound("".join(parts), assemble_tool_calls(call_pieces), first_text_at, usage)
 
     @staticmethod
     def _spoken(model_round: ModelRound, tool_results: list[str], timeline: Timeline, turn_id: str) -> Answer:
@@ -343,3 +350,19 @@ class TurnPipeline:
             return await self._tts.synthesize(reply, voice)
         except TextToSpeechError as error:
             raise TurnError(code="tts_failed", turn_id=turn_id) from error
+
+
+# How much each request read and wrote, so experiment 5 can compare tool payloads.
+def log_round(model_round: ModelRound, turn_id: str, round_number: int) -> None:
+    if model_round.usage is None:
+        return
+    logger.info(
+        "turn %(turn_id)s round %(round)s used %(input_tokens)s input tokens",
+        {
+            "turn_id": turn_id,
+            "round": round_number,
+            "input_tokens": model_round.usage.input_tokens,
+            "output_tokens": model_round.usage.output_tokens,
+            "tool_calls": len(model_round.tool_calls),
+        },
+    )

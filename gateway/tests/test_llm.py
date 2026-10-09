@@ -22,6 +22,7 @@ from sarjy_gateway.llm import (
     ToolCall,
     ToolCallDelta,
     ToolSpec,
+    Usage,
     assemble_tool_calls,
     sse_data,
 )
@@ -80,7 +81,8 @@ def test_streams_the_text_of_a_recorded_groq_reply() -> None:
 
     text = "".join(event.text for event in events if isinstance(event, TextDelta))
     assert text == "Hello, and welcome to Dubai!"
-    assert events[-1] == Finished("stop")
+    # Groq counts the request's tokens on its last chunk, beside the finish reason.
+    assert events[-2:] == [Finished("stop"), Usage(input_tokens=31, output_tokens=8)]
 
 
 def test_streams_the_tool_call_of_a_recorded_groq_reply() -> None:
@@ -89,6 +91,7 @@ def test_streams_the_tool_call_of_a_recorded_groq_reply() -> None:
     assert events == [
         ToolCallDelta(0, "5nd4axs1q", "get_weather", '{"city":"Abu Dhabi","date":"2026-10-09"}'),
         Finished("tool_calls"),
+        Usage(input_tokens=313, output_tokens=48),
     ]
 
 
