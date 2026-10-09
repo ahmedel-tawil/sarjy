@@ -1009,6 +1009,24 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   a force push lacks); a path filter action (another third-party action to pin); keeping
   images by age instead of count (a quiet week would delete the only good image).
 
+### D-74 Timings in Postgres for every turn, runs as JSON Lines files
+
+- **Decision:** the gateway saves its five marks with each turn and the browser's two
+  when `browser_marks` arrives, all in `turn_timings`; an insert only lands for a turn of
+  the same visit, and a mark already stored is kept. A labelled run is a JSON Lines file
+  in `docs/latency/runs/`, one turn per line with both clocks' marks, written by the
+  experiment harness; `gateway/scripts/latency.py` prints p50 and p95 per gap from it.
+  Gaps never mix clocks, and percentiles use the nearest rank (settled 9 Oct in M3.1).
+- **Reason:** storing every turn keeps real visits measurable later, while the runs the
+  deep dive reports on need no access to Cloud SQL from a laptop, which has no
+  authorised networks and would need the Cloud SQL Auth Proxy. Run files committed with
+  the docs let anyone recompute every number in `LATENCY.md`. Tying a mark to its
+  session stops a browser from writing into another visit's turns.
+- **Alternatives considered:** a run label stored on the session and a summary query over
+  Cloud SQL (needs the proxy, and a column for one script); an HTTP endpoint for the
+  summary (a public surface for an internal tool); interpolated percentiles (report
+  values nobody measured).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
