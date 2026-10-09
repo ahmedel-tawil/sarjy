@@ -15,7 +15,7 @@ export function wantsWelcome(): boolean {
 interface FirstLoadProps {
   // Called as the gathered dots reach the orb, so it can grow out of them.
   onDocked: () => void
-  // Called when the welcome is over, or skipped with a tap.
+  // Called when the welcome is over, or skipped with a tap or a key.
   onDone: () => void
   orbRef: RefObject<HTMLButtonElement | null>
 }
@@ -39,10 +39,17 @@ export function FirstLoad({ onDocked, onDone, orbRef }: FirstLoadProps) {
     }, DOCK_AT_MS)
     const formOrb = window.setTimeout(onDocked, ORB_FORMS_AT_MS)
     const done = window.setTimeout(onDone, DONE_AT_MS)
+    // Any key skips the welcome, as a tap does.
+    const skip = (): void => {
+      onDocked()
+      onDone()
+    }
+    window.addEventListener('keydown', skip)
     return () => {
       window.clearTimeout(dock)
       window.clearTimeout(formOrb)
       window.clearTimeout(done)
+      window.removeEventListener('keydown', skip)
     }
   }, [onDocked, onDone, orbRef])
 

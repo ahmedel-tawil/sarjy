@@ -8,12 +8,12 @@ interface VoicePickerProps {
   voices: string[]
 }
 
-// Sarjy's voice, chosen beside the talk control (D-82). The gateway applies a new voice to
+// Sarjy's voice, chosen in the settings (D-82, D-83). The gateway applies a new voice to
 // the next reply and keeps it as the user's `voice` fact for their next visit (D-90).
 export function VoicePicker({ disabled, onChoose, voice, voices }: VoicePickerProps) {
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      <span>Voice</span>
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-sm font-medium">Voice</span>
       <Select disabled={disabled} onValueChange={onChoose} value={voice}>
         <SelectTrigger aria-label="Sarjy’s voice" size="sm">
           <SelectValue />

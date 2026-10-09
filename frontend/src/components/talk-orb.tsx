@@ -6,7 +6,11 @@ import type { AudioLevels } from '@/lib/voice-session'
 interface TalkOrbProps {
   // The orb grows in when revealed, rather than simply being there.
   animateIn: boolean
+  // The id of the line under the orb, read out as its current state (D-83).
+  describedBy: string
   disabled: boolean
+  // What the orb does when pressed: hold or tap, to talk or to send.
+  label: string
   // The microphone while the orb is held, and Sarjy's voice while it speaks.
   levels: AudioLevels
   onPress: () => void
@@ -18,8 +22,8 @@ interface TalkOrbProps {
   revealed: boolean
 }
 
-// The talk control is Sarjy itself: hold the orb to speak to it.
-export function TalkOrb({ animateIn, disabled, levels, onPress, onRelease, orbRef, palette, phase, revealed }: TalkOrbProps) {
+// The talk control is Sarjy itself: hold or tap the orb to speak to it.
+export function TalkOrb({ animateIn, describedBy, disabled, label, levels, onPress, onRelease, orbRef, palette, phase, revealed }: TalkOrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<null | OrbRenderer>(null)
 
@@ -55,7 +59,9 @@ export function TalkOrb({ animateIn, disabled, levels, onPress, onRelease, orbRe
     // Holding a button on a phone would otherwise scroll, select text or open a menu.
     <div className="touch-none select-none">
       <button
-        aria-label="Hold to talk to Sarjy"
+        aria-describedby={describedBy}
+        aria-keyshortcuts="Space"
+        aria-label={label}
         aria-pressed={phase === 'listening'}
         className="talk-orb"
         disabled={disabled}
