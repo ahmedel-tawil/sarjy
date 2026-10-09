@@ -13,6 +13,8 @@ services:
     volumes:
       # Postgres 18's image keeps its data under /var/lib/postgresql/18.
       - db-data:/var/lib/postgresql
+      # Creates sarjy_test for the database tests on first start.
+      - ./infra/local/postgres-init.sql:/docker-entrypoint-initdb.d/postgres-init.sql:ro
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "sarjy", "-d", "sarjy"]
       interval: 2s
