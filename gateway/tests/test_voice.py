@@ -9,6 +9,7 @@ from fastapi import FastAPI, WebSocketDisconnect
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 import pytest
+from sarjy_gateway.conversation_store import TurnId
 from sarjy_gateway.database import DatabaseUnavailableError
 from sarjy_gateway.identity import COOKIE_NAME, UserId, new_user_id
 from sarjy_gateway.limits import MAX_KEYS, SlidingWindow, TurnLimits
@@ -389,3 +390,33 @@ def test_a_visit_stops_at_its_turn_limit() -> None:
         refused = refused_turn(socket)
 
     assert refused == "visit_limit"
+
+
+def test_a_turns_marks_are_stored_with_the_browsers_once_it_plays() -> None:
+    store = FakeConversationStore()
+    with visit(voice_client(store=store)) as socket:
+        socket.send_bytes(b"clip")
+        socket.send_text(TURN_END)
+        for _ in range(3):
+            socket.receive_text()
+        socket.receive_bytes()
+        marks = TurnMarks.model_validate_json(socket.receive_text())
+        socket.send_text(browser_marks(speech_end=1000.0, playback_start=4212.34, turn_id=marks.turn_id))
+        # Anything after the marks proves they were handled.
+        socket.send_text(TURN_END)
+        ServerError.model_validate_json(socket.receive_text())
+
+    stored = store.stored_marks[TurnId(uuid.UUID(hex=marks.turn_id))]
+    assert set(stored) == {*marks.marks, "speech_end", "playback_start"}
+    assert len(stored) == 7
+    assert (stored["speech_end"], stored["playback_start"]) == (1000.0, 4212.34)
+
+
+def test_browser_marks_for_a_turn_of_another_visit_are_not_stored() -> None:
+    store = FakeConversationStore()
+    with visit(voice_client(store=store)) as socket:
+        socket.send_text(browser_marks(speech_end=1000.0, playback_start=4212.34))
+        socket.send_text(TURN_END)
+        ServerError.model_validate_json(socket.receive_text())
+
+    assert store.stored_marks == {}

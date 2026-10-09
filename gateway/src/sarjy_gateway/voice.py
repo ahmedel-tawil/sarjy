@@ -5,7 +5,7 @@ import uuid
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from pydantic import ValidationError
 
-from sarjy_gateway.conversation_store import StoredTurn
+from sarjy_gateway.conversation_store import StoredTurn, TurnId
 from sarjy_gateway.database import DatabaseUnavailableError
 from sarjy_gateway.identity import COOKIE_NAME, user_id_from
 from sarjy_gateway.limits import client_ip
@@ -159,8 +159,9 @@ class VoiceRouter:
             case ForgetMe():
                 await self._forget_me(conversation, listener)
             case BrowserMarks():
-                # Joined to the server's "completed" line by turn_id; M3.1 stores both.
                 logger.info("turn %(turn_id)s played", {"turn_id": control.turn_id, "ttfa_ms": control.ttfa_ms})
+                if conversation.session_id is not None:
+                    await self._save_browser_marks(control, conversation.session_id)
 
     # Without the database the visit goes ahead unrecorded: voice matters more than history.
     async def _start_session(self, user_id: UserId) -> SessionId | None:
@@ -231,11 +232,22 @@ class VoiceRouter:
         if conversation.session_id is not None:
             await self._save(turn, conversation.session_id)
 
+    # The turn and the gateway's marks; the browser's two marks follow once it plays (D-74).
     async def _save(self, turn: CompletedTurn, session_id: SessionId) -> None:
-        stored = StoredTurn(
-            id=uuid.UUID(hex=turn.turn_id), transcript=turn.transcript, reply=turn.reply, tool_results=turn.tool_results
-        )
+        turn_id = TurnId(uuid.UUID(hex=turn.turn_id))
+        stored = StoredTurn(id=turn_id, transcript=turn.transcript, reply=turn.reply, tool_results=turn.tool_results)
         try:
             await self._store.save_turn(session_id, stored)
+            await self._store.save_marks(session_id, turn_id, turn.marks)
         except DatabaseUnavailableError as error:
             logger.warning("turn %(turn_id)s not stored: %(reason)s", {"turn_id": turn.turn_id, "reason": str(error)})
+
+    async def _save_browser_marks(self, marks: BrowserMarks, session_id: SessionId) -> None:
+        browser = {"speech_end": marks.speech_end, "playback_start": marks.playback_start}
+        try:
+            await self._store.save_marks(session_id, TurnId(uuid.UUID(hex=marks.turn_id)), browser)
+        except DatabaseUnavailableError as error:
+            logger.warning(
+                "browser marks of turn %(turn_id)s not stored: %(reason)s",
+                {"turn_id": marks.turn_id, "reason": str(error)},
+            )

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 import uuid
 
-from sarjy_gateway.conversation_store import PostgresConversationStore, SessionId, StoredTurn, StoredUser
+from sarjy_gateway.conversation_store import PostgresConversationStore, SessionId, StoredTurn, StoredUser, TurnId
 from sarjy_gateway.database import database_pool
 from sarjy_gateway.identity import new_user_id
 from sarjy_gateway.migrate import MIGRATIONS_FOLDER, MigrationRunner
@@ -71,7 +71,7 @@ def test_a_returning_user_keeps_their_id_and_gets_a_new_session(database_url: Se
 
 def test_a_saved_turn_comes_back_with_its_session(database_url: SecretStr) -> None:
     turn = StoredTurn(
-        id=uuid.uuid7(), transcript="How much is the buggy tour?", reply="It's on request.", tool_results=['{"a": 1}']
+        id=TurnId(uuid.uuid7()), transcript="How much is the buggy tour?", reply="It's on request.", tool_results=['{"a": 1}']
     )
 
     async def save_twice(store: PostgresConversationStore) -> list[StoredTurn]:
@@ -89,3 +89,29 @@ def test_an_unknown_user_is_none(database_url: SecretStr) -> None:
         return await store.user(new_user_id())
 
     assert with_store(database_url, look_up) is None
+
+
+@dataclass(frozen=True)
+class StoredMarks:
+    own: dict[str, float]
+    someone_elses: dict[str, float]
+
+
+def test_marks_are_kept_for_a_turn_of_the_same_session_only(database_url: SecretStr) -> None:
+    async def body(store: PostgresConversationStore) -> StoredMarks:
+        mine, theirs = await store.start_session(new_user_id()), await store.start_session(new_user_id())
+        own_turn, their_turn = TurnId(uuid.uuid7()), TurnId(uuid.uuid7())
+        await store.save_turn(mine, StoredTurn(own_turn, "Hi", "Hello", []))
+        await store.save_turn(theirs, StoredTurn(their_turn, "Hi", "Hello", []))
+        await store.save_marks(mine, own_turn, {"audio_received": 0.0, "tts_first_byte": 2400.5})
+        await store.save_marks(mine, own_turn, {"speech_end": 1000.0, "playback_start": 4100.0})
+        # Sent again with another value: the first one stays.
+        await store.save_marks(mine, own_turn, {"playback_start": 9999.0})
+        # A visit can't attach marks to another session's turn.
+        await store.save_marks(mine, their_turn, {"speech_end": 1.0})
+        return StoredMarks(own=await store.marks(own_turn), someone_elses=await store.marks(their_turn))
+
+    marks = with_store(database_url, body)
+
+    assert marks.own == {"audio_received": 0.0, "tts_first_byte": 2400.5, "speech_end": 1000.0, "playback_start": 4100.0}
+    assert marks.someone_elses == {}

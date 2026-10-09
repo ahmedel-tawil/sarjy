@@ -18,7 +18,7 @@ from sarjy_gateway.catalogue import (
     TourQuery,
     TourSearch,
 )
-from sarjy_gateway.conversation_store import SessionId, StoredUser
+from sarjy_gateway.conversation_store import SessionId, StoredUser, TurnId
 from sarjy_gateway.llm import ChatMessage, Finished, TextDelta, ToolSpec
 from sarjy_gateway.memory import Fact
 from sarjy_gateway.tts import Voices
@@ -280,6 +280,7 @@ class FakeConversationStore:
         self.error = error
         self.sessions: list[tuple[UserId, SessionId]] = []
         self.saved: dict[SessionId, list[StoredTurn]] = {}
+        self.stored_marks: dict[TurnId, dict[str, float]] = {}
 
     async def start_session(self, user_id: UserId) -> SessionId:
         if self.error is not None:
@@ -304,6 +305,18 @@ class FakeConversationStore:
         if self.error is not None:
             raise self.error
         return self.saved.get(session_id, [])
+
+    # Like Postgres: marks only for a turn of this session, and the first value kept.
+    async def save_marks(self, session_id: SessionId, turn_id: TurnId, marks: Mapping[str, float]) -> None:
+        if self.error is not None:
+            raise self.error
+        if any(turn.id == turn_id for turn in self.saved.get(session_id, [])):
+            self.stored_marks[turn_id] = dict(marks) | self.stored_marks.get(turn_id, {})
+
+    async def marks(self, turn_id: TurnId) -> dict[str, float]:
+        if self.error is not None:
+            raise self.error
+        return self.stored_marks.get(turn_id, {})
 
 
 # Keeps facts per user in memory, or raises `error` as an unreachable database would.
