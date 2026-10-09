@@ -98,6 +98,12 @@ resource "google_cloud_run_v2_service" "gateway" {
         name  = "SARJY_LLM_PRIMARY"
         value = var.llm_primary
       }
+      # Experiment 2's switch: each sentence spoken as soon as it is written, or the whole
+      # reply at once as in the baseline (D-77).
+      env {
+        name  = "SARJY_PIPELINE_MODE"
+        value = var.pipeline_mode
+      }
 
       # The database URL, password included, points at the socket above.
       env {

@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     max_turn_audio_bytes: int = Field(default=1_000_000, gt=0)
     # Recent turns sent to the LLM as context; older ones only cost tokens and time (D-15).
     max_history_turns: int = Field(default=6, gt=0)
-    # Experiment 2 (D-76): "sentence" speaks each sentence as soon as it is written;
-    # "baseline" waits for the whole reply. The page plays sentence audio from M3.6 on.
-    pipeline_mode: Literal["baseline", "sentence"] = "baseline"
+    # Experiment 2 (D-76, D-77): "sentence" speaks each sentence as soon as it is written
+    # and the page plays the clips back to back; "baseline" waits for the whole reply.
+    pipeline_mode: Literal["baseline", "sentence"] = "sentence"
     # Public URL protection (D-72). A spoken turn takes at least 20 seconds, so a person
     # stays well under 30 in ten minutes; an IP gets room for a few people behind one
     # router. A visit's cap stops a runaway client, not a determined one.

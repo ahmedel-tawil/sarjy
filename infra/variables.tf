@@ -26,3 +26,14 @@ variable "llm_primary" {
     error_message = "llm_primary must be groq or claude."
   }
 }
+
+variable "pipeline_mode" {
+  type        = string
+  description = "How the gateway speaks a reply: sentence (each sentence as soon as it is written) or baseline (the whole reply at once) (D-77)."
+  default     = "sentence"
+
+  validation {
+    condition     = contains(["baseline", "sentence"], var.pipeline_mode)
+    error_message = "pipeline_mode must be baseline or sentence."
+  }
+}
