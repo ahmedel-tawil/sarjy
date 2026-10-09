@@ -635,12 +635,20 @@ No new dependencies: the shadcn alert dialog and card use radix-ui, already inst
 
 ### M2.13 Public URL protection
 
-- [ ] New turns are rate-limited per user and per IP; the limits come from configuration
-      (O-22).
-- [ ] Audio length per turn and turns per session have maximums.
-- [ ] Hitting a limit gives the user a friendly message.
-- [ ] Cloud Run's maximum instance count is capped, as a cost guard.
-- [ ] Tests cover each limit with a fake clock.
+- [x] New turns are rate-limited per user and per IP; the limits come from configuration
+      (D-72): 30 turns per user and 90 per IP in any ten minutes, counted in memory. The
+      IP is the last `X-Forwarded-For` entry, the one Cloud Run adds.
+- [x] Audio length per turn and turns per session have maximums: 1 MB of audio (since
+      M1.11) and 100 turns per visit.
+- [x] Hitting a limit gives the user a friendly message: `too_many_turns` asks them to
+      wait a few minutes, `visit_limit` to reload the page.
+- [x] Cloud Run's maximum instance count is capped, as a cost guard: the gateway at two
+      per revision and, now in Terraform too, two per service (Google's default was 3);
+      TTS at one, since a deploy that ran two old and two new 8-vCPU instances exceeded
+      the region's 20 vCPU and failed. The $50 budget alert has been on since day 1.
+- [x] Tests cover each limit with a fake clock: the window filling and freeing, new
+      cookies sharing an IP's limit, a forged header, a refused turn costing nothing, idle
+      keys dropped, and the visit cap.
 
 ### M2.14 Demo scenarios 1–4 on the deployed URL
 
