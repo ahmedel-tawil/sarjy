@@ -37,3 +37,25 @@ variable "pipeline_mode" {
     error_message = "pipeline_mode must be baseline or sentence."
   }
 }
+
+variable "gateway_min_instances" {
+  type        = number
+  description = "Gateway instances kept warm: 1 for the review week (about $0.45 a day idle), 0 otherwise (D-78)."
+  default     = 0
+
+  validation {
+    condition     = contains([0, 1], var.gateway_min_instances)
+    error_message = "gateway_min_instances must be 0 or 1."
+  }
+}
+
+variable "tts_min_instances" {
+  type        = number
+  description = "TTS instances kept warm: 1 for the review week (about $3.60 a day idle), 0 otherwise (D-78)."
+  default     = 0
+
+  validation {
+    condition     = contains([0, 1], var.tts_min_instances)
+    error_message = "tts_min_instances must be 0 or 1."
+  }
+}
