@@ -22,3 +22,8 @@ output "image_repository" {
   description = "Artifact Registry path that CI pushes images to."
   value       = "${var.region}-docker.pkg.dev/${var.project_id}/${google_artifact_registry_repository.images.repository_id}"
 }
+
+output "database_connection_name" {
+  description = "The Cloud SQL instance, as the gateway's socket path and gcloud name it."
+  value       = google_sql_database_instance.main.connection_name
+}
