@@ -1,12 +1,14 @@
 import { type RefObject, useEffect, useRef } from 'react'
 
 import { type OrbPhase, OrbRenderer } from '@/components/orb-renderer'
+import type { AudioLevels } from '@/lib/voice-session'
 
 interface TalkOrbProps {
   // The orb grows in when revealed, rather than simply being there.
   animateIn: boolean
   disabled: boolean
-  micLevel: () => number
+  // The microphone while the orb is held, and Sarjy's voice while it speaks.
+  levels: AudioLevels
   onPress: () => void
   onRelease: () => void
   orbRef: RefObject<HTMLButtonElement | null>
@@ -17,7 +19,7 @@ interface TalkOrbProps {
 }
 
 // The talk control is Sarjy itself: hold the orb to speak to it.
-export function TalkOrb({ animateIn, disabled, micLevel, onPress, onRelease, orbRef, palette, phase, revealed }: TalkOrbProps) {
+export function TalkOrb({ animateIn, disabled, levels, onPress, onRelease, orbRef, palette, phase, revealed }: TalkOrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<null | OrbRenderer>(null)
 
@@ -26,14 +28,14 @@ export function TalkOrb({ animateIn, disabled, micLevel, onPress, onRelease, orb
     if (canvas === null) {
       return
     }
-    const renderer = new OrbRenderer(canvas, micLevel, animateIn)
+    const renderer = new OrbRenderer(canvas, levels, animateIn)
     rendererRef.current = renderer
     renderer.start()
     return () => {
       renderer.stop()
       rendererRef.current = null
     }
-  }, [animateIn, micLevel])
+  }, [animateIn, levels])
 
   useEffect(() => {
     if (animateIn && revealed) {

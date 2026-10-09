@@ -1,3 +1,5 @@
+import type { AudioLevels } from '@/lib/voice-session'
+
 // Sarjy's presence: a sphere of dots drawn on a canvas. It turns slowly at rest, ripples
 // with the traveller's voice while listening, sweeps a band of light while thinking and
 // pulses while speaking.
@@ -41,7 +43,7 @@ export class OrbRenderer implements Orb {
   #frame = 0
   #last = 0
   #level = 0
-  readonly #micLevel: () => number
+  readonly #levels: AudioLevels
   #phase: OrbPhase = 'rest'
   readonly #reducedMotion: MediaQueryList
   #spin = 0
@@ -49,14 +51,14 @@ export class OrbRenderer implements Orb {
   #weights: Record<OrbPhase, number> = { listening: 0, rest: 1, speaking: 0, thinking: 0 }
 
   // startHidden keeps the orb empty until assemble(), for the first-load welcome.
-  constructor(canvas: HTMLCanvasElement, micLevel: () => number, startHidden = false) {
+  constructor(canvas: HTMLCanvasElement, levels: AudioLevels, startHidden = false) {
     const context = canvas.getContext('2d')
     if (context === null) {
       throw new Error('This browser cannot draw on a canvas')
     }
     this.#canvas = canvas
     this.#context = context
-    this.#micLevel = micLevel
+    this.#levels = levels
     this.#colours = readColours(canvas)
     this.#reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
     this.#formStart = startHidden ? Infinity : null
@@ -92,7 +94,7 @@ export class OrbRenderer implements Orb {
     for (const phase of ['listening', 'rest', 'speaking', 'thinking'] as const) {
       this.#weights[phase] = ease(this.#weights[phase], phase === this.#phase ? 1 : 0, dt, 0.12, still)
     }
-    this.#level = ease(this.#level, this.#targetLevel(time, still), dt, 0.06, still)
+    this.#level = ease(this.#level, this.#targetLevel(still), dt, 0.06, still)
     this.#spin += dt * (0.2 + this.#weights.thinking * 0.9)
     const formed = still || this.#formStart === null ? 1 : Math.min(1, Math.max(0, (now - this.#formStart) / FORM_MS))
     this.#render(time, formed)
@@ -164,23 +166,15 @@ export class OrbRenderer implements Orb {
     context.globalAlpha = 1
   }
 
-  #targetLevel(time: number, still: boolean): number {
+  #targetLevel(still: boolean): number {
     if (still) {
       return 0
     }
     if (this.#phase === 'listening') {
-      return this.#micLevel()
+      return this.#levels.inputLevel()
     }
-    // Until the player exposes its output level, Sarjy's voice is a gentle stand-in rhythm.
-    return this.#phase === 'speaking' ? speechRhythm(time) : 0
+    return this.#phase === 'speaking' ? this.#levels.outputLevel() : 0
   }
-}
-
-// Syllable-like bursts with short pauses, between 0 and 1.
-export function speechRhythm(time: number): number {
-  const syllables = Math.max(0, Math.sin(time * 8.5)) ** 0.6
-  const phrase = Math.sin(time * 0.8) > -0.7 ? 1 : 0.1
-  return Math.min(1, syllables * (0.6 + 0.4 * Math.sin(time * 2.1 + 1.3)) * phrase)
 }
 
 function easeOut(progress: number): number {

@@ -1,41 +1,57 @@
-import { useEffect, useState } from 'react'
+import { Fragment } from 'react'
 
-// Kokoro's af_heart says about this many words a second at normal speed. Until the
-// session tells us how long each sentence's audio is, words are paced by this estimate.
-const WORDS_PER_SECOND = 2.6
+// A word stays in the accent colour a little longer than it takes to say, then settles.
+const HIGHLIGHT_STRETCH = 1.5
+const SHORTEST_HIGHLIGHT_MS = 240
 
-interface SpokenWordsProps {
-  speaking: boolean
+// One clip of Sarjy's voice and the words it speaks: a sentence when streaming (D-77).
+export interface SpokenClip {
+  durationMs: number
   text: string
 }
 
-// Sarjy's reply appears word by word while it is spoken, the current word in the accent
-// colour; once the voice stops, the whole reply stays.
-export function SpokenWords({ speaking, text }: SpokenWordsProps) {
-  const words = text.split(/\s+/).filter(Boolean)
-  const [shown, setShown] = useState(speaking ? 0 : words.length)
+interface TimedWord {
+  atMs: number
+  lengthMs: number
+  text: string
+}
 
-  useEffect(() => {
-    if (!speaking || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return
-    }
-    const timer = window.setInterval(() => {
-      setShown((count) => count + 1)
-    }, 1000 / WORDS_PER_SECOND)
-    return () => {
-      window.clearInterval(timer)
-    }
-  }, [speaking])
-
-  const visible = speaking ? Math.min(shown, words.length) : words.length
+// Sarjy's reply, word by word as it is spoken. Each clip's words arrive as its audio starts
+// and are spread across the clip's length, longer words taking longer; a CSS delay reveals
+// each one at its moment, in the accent colour, before it settles into ink.
+export function SpokenWords({ clips }: { clips: SpokenClip[] }) {
   return (
     <p className="text-lg/relaxed text-pretty md:text-xl/relaxed">
-      {words.slice(0, visible).map((word, index) => (
-        // Words can repeat, so the position is part of the key; the list only grows.
-        <span className={speaking && index === visible - 1 ? 'spoken-word text-primary' : 'spoken-word'} key={`${String(index)}-${word}`}>
-          {word}{' '}
-        </span>
-      ))}
+      {clips.map((clip, clipIndex) =>
+        timeWords(clip).map((word, index) => (
+          // Clips and their words only append, so their positions are stable keys.
+          <Fragment key={`${String(clipIndex)}-${String(index)}-${word.text}`}>
+            <span
+              className="spoken-word"
+              ref={(span) => {
+                span?.style.setProperty('--word-at', `${String(Math.round(word.atMs))}ms`)
+                span?.style.setProperty('--word-ms', `${String(Math.round(word.lengthMs))}ms`)
+              }}
+            >
+              {word.text}
+            </span>{' '}
+          </Fragment>
+        )),
+      )}
     </p>
   )
+}
+
+// Kokoro gives no word timings, so a word's share of the clip follows its letters, plus one
+// for the gap after it.
+function timeWords(clip: SpokenClip): TimedWord[] {
+  const words = clip.text.split(/\s+/).filter(Boolean)
+  const total = words.reduce((sum, word) => sum + word.length + 1, 0)
+  let before = 0
+  return words.map((text) => {
+    const share = (text.length + 1) / total
+    const atMs = (before / total) * clip.durationMs
+    before += text.length + 1
+    return { atMs, lengthMs: Math.max(SHORTEST_HIGHLIGHT_MS, share * clip.durationMs * HIGHLIGHT_STRETCH), text }
+  })
 }
