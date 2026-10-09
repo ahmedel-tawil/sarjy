@@ -1,9 +1,28 @@
 // How often the microphone level is read while the button is held.
 const SAMPLE_EVERY_MS = 50
 
+// Speech peaks around a quarter of full scale, so this maps a speaking voice near 1.
+const LEVEL_GAIN = 4
+
 export interface LoudnessMeter {
+  // The microphone's level right now, from 0 (silent) to 1.
+  current(): number
   start(): void
   stop(): null | number
+}
+
+// The RMS amplitude of the samples, the measure the speech gate and the levels share.
+export function rmsOf(samples: Float32Array<ArrayBuffer>): number {
+  let sumOfSquares = 0
+  for (const sample of samples) {
+    sumOfSquares += sample * sample
+  }
+  return Math.sqrt(sumOfSquares / samples.length)
+}
+
+// A level from 0 to 1 for the page to draw, from the samples' RMS amplitude.
+export function levelOf(samples: Float32Array<ArrayBuffer>): number {
+  return Math.min(1, rmsOf(samples) * LEVEL_GAIN)
 }
 
 // Keeps the loudest moment of a recording, so a press with no speech in it can be
@@ -21,6 +40,14 @@ export class LevelMeter implements LoudnessMeter {
     this.#analyser = context.createAnalyser()
     context.createMediaStreamSource(stream).connect(this.#analyser)
     this.#samples = new Float32Array(this.#analyser.fftSize)
+  }
+
+  current(): number {
+    if (this.#timer === null || this.#context.state !== 'running') {
+      return 0
+    }
+    this.#analyser.getFloatTimeDomainData(this.#samples)
+    return levelOf(this.#samples)
   }
 
   start(): void {
@@ -45,10 +72,6 @@ export class LevelMeter implements LoudnessMeter {
       return
     }
     this.#analyser.getFloatTimeDomainData(this.#samples)
-    let sumOfSquares = 0
-    for (const sample of this.#samples) {
-      sumOfSquares += sample * sample
-    }
-    this.#loudest = Math.max(this.#loudest ?? 0, Math.sqrt(sumOfSquares / this.#samples.length))
+    this.#loudest = Math.max(this.#loudest ?? 0, rmsOf(this.#samples))
   }
 }
