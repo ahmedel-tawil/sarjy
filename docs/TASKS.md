@@ -441,23 +441,31 @@ No code. The PRD makes this the first thing on day one, so it can fill any gap o
       protection, a database, a user, and the password in Secret Manager. The user and the
       `database-url` value are created by hand, so the password never passes through
       Terraform.
-- [ ] On Cloud Run the gateway connects through the Cloud SQL socket, with a connection pool
+- [x] On Cloud Run the gateway connects through the Cloud SQL socket, with a connection pool
       opened at startup; a readiness check proves the connection. Locally: `/ready` gave 200
       against Postgres 18.6, 503 with the reason once Postgres stopped (while `/health`
-      stayed 200), and 200 again after a restart. On Cloud Run: checked after the deploy.
+      stayed 200), and 200 again after a restart. On Cloud Run (`gateway-00025-x8n`):
+      `/ready` answered 200 three times in a row, in 0.5 to 0.6 s.
 - [x] `terraform apply` runs only after you approve the plan.
 
 New dependencies: psycopg (binary), psycopg-pool (approved).
 
 ### M2.3 Schema and migrations
 
-- [ ] Numbered SQL files create `users`, `facts` (unique on `user_id, key`), `sessions`,
-      `turns` and `turn_timings`, as in the PRD.
-- [ ] DDL is idempotent; times are `timestamptz`; strings are `text`; foreign keys have
-      indexes; IDs follow O-18. The SQL rules pass.
-- [ ] A small runner applies pending files in order, in a transaction, and records which
-      ran; running it twice changes nothing (O-19).
-- [ ] Tests run against a real Postgres locally and in CI (O-20).
+- [x] Numbered SQL files create `users`, `facts` (unique on `user_id, key`), `sessions`,
+      `turns` and `turn_timings`, as in the PRD, except that a `turns` row is one exchange
+      (transcript, reply, tool results) under the pipeline's turn id (D-65).
+- [x] DDL is idempotent; times are `timestamptz`; strings are `text`; foreign keys have
+      indexes (two of their own; the primary keys of `facts` and `turn_timings` lead with
+      theirs); IDs use `uuidv7()` (D-64). The SQL rules pass.
+- [x] A small runner applies pending files in order, in a transaction, and records which
+      ran; running it twice changes nothing (D-65, was O-19). It runs at gateway startup
+      under an advisory lock; a failure is logged and voice carries on.
+- [x] Tests run against a real Postgres locally and in CI (D-65, was O-20): a
+      `sarjy_test` database in the Docker container, a Postgres 18 service in CI. Without
+      a database they skip locally and fail in CI.
+- [x] Checked with the production image against local Postgres: the first start applied
+      `001_schema.sql`, a restart applied nothing, and `/ready` answered 200.
 
 ### M2.4 Identity cookie, sessions and turns
 
