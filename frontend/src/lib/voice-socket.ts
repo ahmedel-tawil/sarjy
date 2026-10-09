@@ -1,5 +1,6 @@
 import {
   browserMarksMessage,
+  FORGET_ME_MESSAGE,
   type ServerMessage,
   ServerMessageSchema,
   TURN_CANCEL_MESSAGE,
@@ -8,7 +9,9 @@ import {
 
 export interface VoiceChannel {
   cancelTurn(): void
+  connect(): void
   endTurn(): void
+  forgetMe(): void
   sendAudio(chunk: Blob): void
   sendMarks(turnId: string, speechEnd: number, playbackStart: number): void
 }
@@ -35,8 +38,18 @@ export class VoiceSocket implements VoiceChannel {
     this.#send(TURN_CANCEL_MESSAGE)
   }
 
+  // Opened as the page loads, so the memory panel fills before the first question; a socket
+  // that closes while idle reopens on the next message.
+  connect(): void {
+    this.#socket ??= this.#open()
+  }
+
   endTurn(): void {
     this.#send(TURN_END_MESSAGE)
+  }
+
+  forgetMe(): void {
+    this.#send(FORGET_ME_MESSAGE)
   }
 
   sendAudio(chunk: Blob): void {

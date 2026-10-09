@@ -1,5 +1,5 @@
 import { Player } from './player'
-import type { ErrorCode, ServerMessage } from './protocol'
+import type { ErrorCode, RememberedFact, ServerMessage } from './protocol'
 import { Recorder, type Recording } from './recorder'
 import { VoiceSocket } from './voice-socket'
 
@@ -15,6 +15,8 @@ export type Status = 'idle' | 'listening' | 'speaking' | 'thinking'
 export type Problem = 'connection_lost' | 'mic_unavailable' | 'playback_failed' | ErrorCode
 
 export interface VoiceSessionCallbacks {
+  // Everything Sarjy remembers about the user, in full each time it changes.
+  onMemory: (facts: RememberedFact[]) => void
   onProblem: (problem: null | Problem) => void
   onReply: (text: string) => void
   onStatus: (status: Status) => void
@@ -28,6 +30,13 @@ export interface PushToTalk {
   release(): void
 }
 
+// What the page needs from the visit besides talking.
+export interface Visit {
+  // Opens the socket early, so the memory panel fills before the first question.
+  connect(): void
+  forgetMe(): void
+}
+
 // What the page knows about the turn waiting for its answer, filled in as the gateway's
 // messages arrive.
 interface TurnInFlight {
@@ -39,7 +48,7 @@ interface TurnInFlight {
   turnId: null | string
 }
 
-export class VoiceSession implements PushToTalk {
+export class VoiceSession implements PushToTalk, Visit {
   readonly #callbacks: VoiceSessionCallbacks
   readonly #player = new Player()
   readonly #recorder = new Recorder()
@@ -69,6 +78,15 @@ export class VoiceSession implements PushToTalk {
         this.#receive(message)
       },
     })
+  }
+
+  connect(): void {
+    this.#socket.connect()
+  }
+
+  forgetMe(): void {
+    this.#callbacks.onProblem(null)
+    this.#socket.forgetMe()
   }
 
   press(): void {
@@ -118,6 +136,10 @@ export class VoiceSession implements PushToTalk {
       }
       case 'marks': {
         // The latency waterfall (M3.2) draws these; the gateway already logs them.
+        break
+      }
+      case 'memory': {
+        this.#callbacks.onMemory(message.facts)
         break
       }
       case 'reply': {

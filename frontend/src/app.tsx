@@ -1,8 +1,10 @@
 import { Mic01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
+import { MemoryPanel } from '@/components/memory-panel'
 import { Button } from '@/components/ui/button'
+import type { RememberedFact } from '@/lib/protocol'
 import { type Problem, type Status, VoiceSession } from '@/lib/voice-session'
 
 const SOCKET_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
@@ -16,6 +18,7 @@ const STATUS_TEXT: Record<Status, string> = {
 
 const PROBLEM_TEXT: Record<Problem, string> = {
   'connection_lost': 'Lost the connection. Hold the button to try again.',
+  'forget_failed': 'I couldn’t forget you just now. Please try again.',
   'invalid_message': 'Something went wrong on our side. Please try again.',
   'llm_failed': 'I couldn’t think of an answer just now. Please try again.',
   'mic_unavailable': 'Sarjy needs your microphone. Allow it in the browser, then try again.',
@@ -35,9 +38,12 @@ function App() {
   const [heard, setHeard] = useState<null | string>(null)
   const [reply, setReply] = useState<null | string>(null)
   const [ttfa, setTtfa] = useState<null | number>(null)
+  // Unknown until the gateway sends the first memory message.
+  const [facts, setFacts] = useState<null | RememberedFact[]>(null)
   const [session] = useState(
     () =>
       new VoiceSession(SOCKET_URL, {
+        onMemory: setFacts,
         onProblem: setProblem,
         onReply: setReply,
         onStatus: setStatus,
@@ -49,6 +55,10 @@ function App() {
         onTtfa: setTtfa,
       }),
   )
+
+  useEffect(() => {
+    session.connect()
+  }, [session])
 
   const release = () => {
     session.release()
@@ -91,6 +101,15 @@ function App() {
       <p aria-live="polite" className={problem === null ? 'text-muted-foreground' : 'text-destructive'}>
         {problem === null ? STATUS_TEXT[status] : PROBLEM_TEXT[problem]}
       </p>
+      {facts !== null && (
+        <MemoryPanel
+          busy={status !== 'idle'}
+          facts={facts}
+          onForgetMe={() => {
+            session.forgetMe()
+          }}
+        />
+      )}
     </main>
   )
 }
