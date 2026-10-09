@@ -32,3 +32,14 @@ export const PROBLEMS: Record<Problem, ProblemShown> = {
   'unknown_voice': { kind: 'trouble', text: 'That voice isn’t available.' },
   'visit_limit': { kind: 'visit', text: 'That’s as many questions as one visit allows. Start a new visit to keep going; Sarjy still remembers you.' },
 }
+
+// What the line under the orb says: a problem in words of its own, or the resting text. The
+// microphone and a full visit have cards instead; a turn problem with no turn to note it on
+// (no question heard yet) is said here too.
+export function statusLine(problem: null | Problem, resting: string): { text: string; trouble: boolean } {
+  const shown = problem === null ? null : PROBLEMS[problem]
+  if (shown === null || shown.kind === 'microphone' || shown.kind === 'visit') {
+    return { text: resting, trouble: false }
+  }
+  return { text: shown.text, trouble: shown.kind !== 'hint' }
+}
