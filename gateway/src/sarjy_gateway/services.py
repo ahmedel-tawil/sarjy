@@ -8,6 +8,7 @@ import httpx2
 from sarjy_gateway.catalogue import Catalogue, SayTechCatalogue
 from sarjy_gateway.catalogue_cache import CachedCatalogue
 from sarjy_gateway.claude import ClaudeChatModel
+from sarjy_gateway.database import Database, MissingDatabase, Pool, PostgresDatabase, database_pool
 from sarjy_gateway.llm import (
     ChatModel,
     FallbackChatModel,
@@ -41,21 +42,27 @@ class Services:
     tts: TextToSpeech
     catalogue: Catalogue
     weather: Weather
+    database: Database
     http_client: httpx2.AsyncClient | None
     anthropic_client: anthropic.AsyncAnthropic | None
+    # Opened and closed with the app, like the clients.
+    database_pool: Pool | None
 
 
 def build_services(settings: Settings) -> Services:
     client = httpx2.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS)
     claude_client = build_anthropic_client(settings)
+    pool = None if settings.database_url is None else database_pool(settings.database_url, settings.database_pool_max)
     return Services(
         stt=build_speech_to_text(settings, client),
         llm=build_chat_model(settings, client, claude_client),
         tts=build_text_to_speech(settings, client),
         catalogue=build_catalogue(settings, client),
         weather=OpenMeteoWeather(client, settings.weather_url, settings.weather_timeout_seconds),
+        database=MissingDatabase() if pool is None else PostgresDatabase(pool),
         http_client=client,
         anthropic_client=claude_client,
+        database_pool=pool,
     )
 
 
