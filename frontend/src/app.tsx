@@ -95,7 +95,10 @@ function App() {
       },
       onTranscript: (heard) => {
         setWaitingForWords(false)
-        setTurns((all) => [...all, { clips: [], heard, id: all.length, reply: null, ttfaMs: null }])
+        setTurns((all) => [...all, { clips: [], heard, id: all.length, reply: null, stages: null, ttfaMs: null }])
+      },
+      onStages: (stages) => {
+        updateLast(() => ({ stages }))
       },
       onTtfa: (ttfaMs) => {
         updateLast(() => ({ ttfaMs }))
@@ -149,7 +152,9 @@ function App() {
   const endWelcome = useCallback(() => {
     setWelcoming(false)
   }, [])
-  const timed = turns.flatMap((turn) => (turn.ttfaMs === null ? [] : [{ id: turn.id, ttfaMs: turn.ttfaMs }]))
+  const timed = turns.flatMap((turn) =>
+    turn.ttfaMs === null ? [] : [{ id: turn.id, stages: turn.stages, ttfaMs: turn.ttfaMs }],
+  )
   const statusText = problem === null ? describe(status, waitingForWords) : PROBLEM_TEXT[problem]
 
   return (
