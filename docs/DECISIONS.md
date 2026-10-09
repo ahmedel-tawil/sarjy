@@ -1027,6 +1027,26 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   summary (a public surface for an internal tool); interpolated percentiles (report
   values nobody measured).
 
+### D-75 A synthesised script, played by a harness that stands in for the browser
+
+- **Decision:** the latency script is ten questions stored as WAV clips spoken by Kokoro's
+  `am_michael` voice, with their text in `script.json`. A Python harness plays the whole
+  script over the gateway's WebSocket, one visit per repetition with a fresh identity:
+  it streams each clip at its spoken pace, marks `speech_end` when the clip ends and
+  `playback_start` at the reply's first audio byte, sends `browser_marks` like the page,
+  writes the run to `docs/latency/runs/<label>.jsonl` (never over an existing run), and
+  prints the M3.1 table. Each visit forgets its facts at the end (settled 9 Oct in M3.3,
+  was O-24).
+- **Reason:** the same audio every run is what makes runs comparable; a recording of a
+  person would vary with the microphone and the room, and none of Ahmed's voice goes into
+  a public repository. Pacing the upload like a held button keeps `speech_end` honest.
+  The harness reports what it can measure itself and says in `LATENCY.md` how a browser
+  differs.
+- **Alternatives considered:** recorded questions (not repeatable, and personal);
+  driving the real page in a headless browser (closest to a user, but needs a fake
+  microphone and a browser automation dependency); sending each clip at once (would
+  count the whole upload after `speech_end`).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -1035,7 +1055,6 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | --- | --- | --- | --- | --- |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
 | O-23 | Where the TTS cache lives (SayTech's is settled in D-58) | in the gateway's process; in the TTS service; Cloud Storage | Decided by measurement. | M3.7 |
-| O-24 | Audio for the test script | recorded by me; synthesised (Kokoro or macOS `say`) | Synthesised for repeatability, plus a few real recordings as a sanity check. | M3.3 |
 | O-25 | Frontend unit tests | Vitest for pure logic (timing maths, message parsing); none | Add Vitest only if the client grows real logic. | M3.2 |
 | O-29 | Cloud Run or a VM for the deployed services | stay on Cloud Run (D-22: scale to zero, managed HTTPS and WebSockets, keyless deploys, private TTS); a VM or a mix, for a faster always-warm CPU or a GPU for Kokoro | To discuss in detail with Ahmed (asked on 9 Oct): cold starts, CPU speed, the cost of keeping instances warm, GPU options, and what experiments 6 and 8 show. | a session before the review |
 | O-26 | Voice activity detection approach | a browser VAD library (new dependency); a simple energy threshold; server-side VAD | Decide in M4.5, once push-to-talk is solid. | M4.5 |
