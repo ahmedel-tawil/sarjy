@@ -1180,6 +1180,29 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   space); the gateway sending stages itself (it can't know the browser's playback start);
   a chart library (a new dependency for five coloured spans).
 
+### D-90 Tour links beside the reply, a remembered voice, and reconnecting
+
+- **Decision:** with each reply the gateway sends the pages of the tours it names, taken
+  only from that turn's tool results: a tour counts as named when the reply contains two
+  of its distinctive words, or its only one ("Louvre"), and links come in the order the
+  reply names them. A voice picked with `set_voice` is saved as the user's `voice` fact,
+  pushed to the memory panel, and applied when their next visit starts. The page's socket
+  reopens by itself after an unexpected close, after 1, 2, 4 and then every 10 seconds,
+  only while the tab is visible, and reports `connecting`, `online` or `offline`. The
+  page reads voices through `VoicesClient`, with a 5-second timeout (settled 9 Oct, for
+  the UI session's M4.2 and M4.9).
+- **Reason:** Sarjy never says a web address (prompt v1), yet M4.2 wants its tours
+  clickable, so the links travel beside the words; taking them only from tool results
+  means no link is ever invented. Two distinctive words keep "World" from linking Ferrari
+  World when the reply named Warner Bros. World. A fact is already where a user's
+  preferences live and what "Forget me" deletes. Reconnecting only in a visible tab keeps
+  a forgotten tab from holding the gateway open all night, since an open socket is an
+  active request on Cloud Run.
+- **Alternatives considered:** asking the model to list the tours it named (another
+  round, and it can still be wrong); linking every tour the search returned (noise); a
+  voice column on users (a schema change for one setting); reconnecting in hidden tabs
+  too (the cost above).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
