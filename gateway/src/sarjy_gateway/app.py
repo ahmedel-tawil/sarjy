@@ -37,6 +37,8 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
         finally:
             if services.http_client is not None:
                 await services.http_client.aclose()
+            if services.anthropic_client is not None:
+                await services.anthropic_client.close()
             logger.info("gateway stopped")
 
     # Memory tools join in M2.6.

@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import asynccontextmanager
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -8,10 +10,13 @@ import pytest
 from sarjy_gateway.llm import (
     ChatEvent,
     ChatMessage,
+    ChatModel,
     ChatModelError,
     ChatRateLimitedError,
+    FallbackChatModel,
     Finished,
     GenerationOptions,
+    MissingChatModel,
     OpenAiCompatibleChatModel,
     TextDelta,
     ToolCall,
@@ -21,9 +26,11 @@ from sarjy_gateway.llm import (
     sse_data,
 )
 
+from gateway.tests.fakes import FakeChatModel
+
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import AsyncGenerator, AsyncIterator, Sequence
 
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -200,3 +207,70 @@ def test_failures_raise_chat_model_errors_without_the_key(answer: httpx2.Respons
 )
 def test_sse_data_reads_only_data_lines(line: str, expected: str | None) -> None:
     assert sse_data(line) == expected
+
+
+class BreaksAfterOneWord:
+    @asynccontextmanager
+    async def stream(
+        self, messages: Sequence[ChatMessage], tools: Sequence[ToolSpec]
+    ) -> AsyncGenerator[AsyncIterator[ChatEvent]]:
+        yield self._events(len(messages) + len(tools))
+
+    @staticmethod
+    async def _events(count: int) -> AsyncIterator[ChatEvent]:
+        yield TextDelta(f"Sure, {count}")
+        message = "connection dropped"
+        raise ChatModelError(message)
+
+
+async def answer_of(model: ChatModel) -> str:
+    async with model.stream(MESSAGES, ()) as events:
+        return "".join([event.text async for event in events if isinstance(event, TextDelta)])
+
+
+def test_the_first_model_answers_when_it_can() -> None:
+    first, second = FakeChatModel(deltas=["From the first."]), FakeChatModel(deltas=["From the second."])
+
+    answer = asyncio.run(answer_of(FallbackChatModel(first, second, "groq", "claude")))
+
+    assert answer == "From the first."
+    assert second.requests == []
+
+
+@pytest.mark.parametrize(
+    "first",
+    [
+        FakeChatModel(error=ChatRateLimitedError("chat model rate limit reached")),
+        FakeChatModel(error=ChatModelError("chat model request failed with HTTP 401")),
+        MissingChatModel(),
+    ],
+    ids=["rate limited", "key refused", "no key"],
+)
+def test_a_first_model_that_fails_before_answering_hands_over(
+    first: ChatModel, caplog: pytest.LogCaptureFixture
+) -> None:
+    second = FakeChatModel(deltas=["From the second."])
+
+    with caplog.at_level(logging.INFO, logger="sarjy_gateway.llm"):
+        answer = asyncio.run(answer_of(FallbackChatModel(first, second, "groq", "claude")))
+
+    assert answer == "From the second."
+    assert second.requests == [MESSAGES]
+    assert caplog.messages == ["groq failed before answering, asking claude", "chat answered by claude"]
+
+
+def test_when_both_fail_the_second_failure_is_reported() -> None:
+    first = FakeChatModel(error=ChatRateLimitedError("chat model rate limit reached"))
+    second = FakeChatModel(error=ChatModelError("chat model request failed with HTTP 503"))
+
+    with pytest.raises(ChatModelError, match="HTTP 503"):
+        asyncio.run(answer_of(FallbackChatModel(first, second, "groq", "claude")))
+
+
+def test_a_failure_after_the_first_words_is_not_handed_over() -> None:
+    second = FakeChatModel(deltas=["From the second."])
+
+    with pytest.raises(ChatModelError, match="connection dropped"):
+        asyncio.run(answer_of(FallbackChatModel(BreaksAfterOneWord(), second, "groq", "claude")))
+
+    assert second.requests == []
