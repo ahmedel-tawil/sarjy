@@ -150,6 +150,15 @@ uv run python gateway/scripts/saytech.py   # the real SayTech API: demo question
 uv run python gateway/scripts/ask.py "How much is the buggy tour?"   # typed turns through the real pipeline and tools (Groq or Claude key)
 ```
 
+Local Postgres 18, the same major version as Cloud SQL (D-64):
+
+```
+docker compose up -d --wait db    # Postgres on 127.0.0.1:5432; data kept in a Docker volume
+SARJY_DATABASE_URL=postgresql://sarjy:sarjy@127.0.0.1:5432/sarjy uv run python -m sarjy_gateway
+curl localhost:8080/ready         # 200 when SELECT 1 works, 503 with the reason otherwise
+docker compose down               # stop it; add -v to delete the data too
+```
+
 Infrastructure (from `infra/`; needs `gcloud auth application-default login` once).
 State lives in the `sarjy-ahmed-2026-tfstate` bucket, created by hand before the first init.
 
