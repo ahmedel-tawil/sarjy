@@ -866,6 +866,13 @@ the page's queue in M3.6.
       and p95 10.7 → 6.5 s over 30 turns on the deployed URL, with TTS 3.5 → 0.8 s; the
       breakdown per question separates streaming TTS from the fillers spoken before a
       tool.
+- [x] Added 10 Oct, from Ahmed's chat: a turn never says its answer twice (D-95). A round
+      that answered in words while only saving or forgetting facts ends the turn; words
+      spoken before any other tool are quoted to the next round, which carries on from
+      them. Checked live with Claude, three passes of the name, colour and safari
+      questions: no reply repeated itself, where "colour and heights" had before. The
+      note is a prompt, so it is not a guarantee: in M3.8's runs one answer that saved
+      facts during a search still thanked twice.
 
 ### M3.7 Experiment 3: TTS cache
 
