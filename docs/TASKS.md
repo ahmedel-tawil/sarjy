@@ -417,6 +417,7 @@ Goal: the four demo scenarios work on the deployed URL.
 | M2.14 | Demo scenarios 1–4 on the deployed URL | 1 h | M2.7, M2.12, M2.13 | no |
 | M2.15 | Groq and Claude, switchable, each the other's fallback | 2 h | M1.8, a Claude key | no |
 | M2.16 | Image clean-up: deploy TTS only when it changes, keep the last images | 0.5 h | M1.10 | no |
+| M2.17 | TTS instance size | 0.5 h | M1.10 | no |
 
 ### M2.1 SayTech API discovery
 
@@ -680,6 +681,18 @@ because every merge rebuilds and pushes a 420 MB TTS image even when TTS hasn't 
 - [ ] An Artifact Registry clean-up policy in Terraform keeps the last five versions of
       each image and deletes older ones, so a recent rollback still finds its image.
 - [ ] `terraform apply` runs only after you approve the plan.
+
+### M2.17 TTS instance size
+
+Added 9 Oct: a 60-word reply took 17.8 s to first audio on the deployed URL, 12.8 s of it
+in TTS on 2 vCPU.
+
+- [x] TTS is timed directly on Cloud Run at 2, 4 and 8 vCPU, threads matched, with the
+      same two texts (warm, about 0.5 s of it network from the Mac): a 13-word sentence
+      took 3.7, 2.7 and 2.1 s; the 60-word reply (22 s of audio) 14.0, 9.0 and 6.3 s.
+- [x] TTS runs on 8 vCPU and 4 GiB with eight threads, still scaling to zero (D-70).
+- [x] Noted for `LATENCY.md` (M3.1 creates it): these numbers, so the baseline keeps the
+      2-vCPU point as its "before".
 
 ---
 

@@ -132,6 +132,13 @@ resource "google_cloud_run_v2_service" "tts" {
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
+  # Google gives new services a limit of 3 instances, and Cloud Run checks that limit
+  # times each instance's vCPUs against the region's quota of 20, which 8 vCPU would
+  # exceed; 2 matches the revision's own limit below.
+  scaling {
+    max_instance_count = 2
+  }
+
   template {
     service_account = google_service_account.tts.email
     # Synthesis is CPU-bound: past a few at once, requests only slow each other down,
@@ -146,12 +153,12 @@ resource "google_cloud_run_v2_service" "tts" {
     containers {
       image = local.placeholder_image
 
-      # The 325 MB model and onnxruntime's working memory fit in 2 GiB; M1.10 measures
-      # synthesis time on 2 vCPU.
+      # Kokoro speeds up with every vCPU: a 60-word reply took 14.0 s on 2, 9.0 s on 4
+      # and 6.3 s on 8 (D-70). Cloud Run needs at least 4 GiB with 8 vCPU.
       resources {
         limits = {
-          cpu    = "2"
-          memory = "2Gi"
+          cpu    = "8"
+          memory = "4Gi"
         }
         startup_cpu_boost = true
       }
@@ -159,7 +166,7 @@ resource "google_cloud_run_v2_service" "tts" {
       # Match onnxruntime's threads to the vCPUs we pay for, not the host's cores.
       env {
         name  = "SARJY_THREADS"
-        value = "2"
+        value = "8"
       }
     }
   }

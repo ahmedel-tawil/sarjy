@@ -919,6 +919,24 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   call after each reply that extracts facts (keeps Qwen's speed, but adds code, a call per
   turn, and departs from the PRD's tool-based memory; a possible later improvement).
 
+### D-70 TTS on 8 vCPU, still scaling to zero
+
+- **Decision:** The TTS service runs on 8 vCPU and 4 GiB with `SARJY_THREADS=8`, at most
+  two instances and none when idle. The service-level instance limit is set to 2 in
+  Terraform as well (settled 9 Oct in M2.17).
+- **Reason:** Timed directly on Cloud Run, synthesis got faster at every step: the
+  60-word reply from the 9 Oct screenshot took 14.0 s on 2 vCPU, 9.0 s on 4 and 6.3 s
+  on 8; a 13-word sentence 3.7, 2.7 and 2.1 s. Scaling to zero means we pay only while
+  synthesising, under a cent per reply at any size. Google gives a new service a limit
+  of 3 instances, and Cloud Run checks it times the vCPUs per instance against the
+  region's 20-vCPU quota, so 8 vCPU was refused until that limit came down to 2.
+- **Trade-off:** TTS can now use 16 of the 20 vCPU in `me-central1` and the gateway 3, so
+  a bigger gateway would need a quota increase. Keeping an 8-vCPU instance warm would
+  cost roughly $17 a day (Tier 2 rates, unconfirmed); M3.10 decides that.
+- **Alternatives considered:** 4 vCPU (half the speed-up); a GPU (M3.12, not on the
+  free trial); keeping 2 vCPU and relying on sentence streaming alone (M3.5 still comes;
+  both shorten the wait).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
