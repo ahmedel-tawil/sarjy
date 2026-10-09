@@ -11,9 +11,11 @@ const ErrorCodeSchema = z.enum([
   'no_speech',
   'rate_limited',
   'stt_failed',
+  'too_many_turns',
   'tts_failed',
   'turn_too_long',
   'unknown_voice',
+  'visit_limit',
 ])
 
 export type ErrorCode = z.infer<typeof ErrorCodeSchema>

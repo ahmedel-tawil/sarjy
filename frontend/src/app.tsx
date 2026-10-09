@@ -27,9 +27,11 @@ const PROBLEM_TEXT: Record<Problem, string> = {
   'playback_failed': 'Couldn’t play the audio back.',
   'rate_limited': 'I’m getting a lot of questions right now. Please try again in a moment.',
   'stt_failed': 'I couldn’t make out what you said. Please try again.',
+  'too_many_turns': 'You’re asking faster than I can keep up. Please wait a few minutes, then try again.',
   'tts_failed': 'I have an answer but couldn’t say it out loud. Please try again.',
   'turn_too_long': 'That turn was too long. Try a shorter one.',
   'unknown_voice': 'That voice isn’t available.',
+  'visit_limit': 'That’s as many questions as one visit allows. Reload the page to start a new one.',
 }
 
 function App() {
