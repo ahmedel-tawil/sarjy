@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from sarjy_gateway.conversation_store import StoredTurn
 from sarjy_gateway.database import DatabaseUnavailableError
 from sarjy_gateway.identity import COOKIE_NAME, user_id_from
+from sarjy_gateway.limits import client_ip
 from sarjy_gateway.memory import ForgetFactTool, RememberFactTool
 from sarjy_gateway.messages import (
     AudioFollows,
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
 
     from sarjy_gateway.conversation_store import ConversationStore, SessionId
     from sarjy_gateway.identity import UserId
+    from sarjy_gateway.limits import TurnLimits
     from sarjy_gateway.memory import FactStore
     from sarjy_gateway.tts import TextToSpeech
     from sarjy_gateway.turn import CompletedTurn, TurnPipeline
@@ -77,16 +79,20 @@ class VoiceRouter:
         tts: TextToSpeech,
         store: ConversationStore,
         facts: FactStore,
+        limits: TurnLimits,
         *,
         max_turn_audio_bytes: int,
         max_history_turns: int,
+        max_turns_per_visit: int,
     ) -> None:
         self._pipeline = pipeline
         self._tts = tts
         self._store = store
         self._facts = facts
+        self._limits = limits
         self._max_turn_audio_bytes = max_turn_audio_bytes
         self._max_history_turns = max_history_turns
+        self._max_turns_per_visit = max_turns_per_visit
 
     def build(self) -> APIRouter:
         router = APIRouter()
@@ -99,8 +105,10 @@ class VoiceRouter:
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                 return
             await websocket.accept()
+            peer = websocket.client.host if websocket.client is not None else None
+            ip = client_ip(websocket.headers.get("x-forwarded-for"), peer)
             try:
-                await self._serve(websocket, user_id)
+                await self._serve(websocket, user_id, ip)
             except WebSocketDisconnect:
                 # The page was closed or reloaded while its turn was running, so the next
                 # send found the socket gone. Nothing is left to answer.
@@ -108,9 +116,9 @@ class VoiceRouter:
 
         return router
 
-    async def _serve(self, websocket: WebSocket, user_id: UserId) -> None:
+    async def _serve(self, websocket: WebSocket, user_id: UserId, ip: str) -> None:
         audio = TurnAudio(self._max_turn_audio_bytes)
-        conversation = Conversation(max_turns=self._max_history_turns, user_id=user_id)
+        conversation = Conversation(max_turns=self._max_history_turns, user_id=user_id, client_ip=ip)
         conversation.session_id = await self._start_session(user_id)
         conversation.facts = await self._load_facts(user_id)
         listener = SocketListener(websocket)
@@ -202,6 +210,14 @@ class VoiceRouter:
         if not clip:
             await listener.error("no_audio")
             return
+        if conversation.turns_taken >= self._max_turns_per_visit:
+            await listener.error("visit_limit")
+            return
+        if not self._limits.allow(conversation.user_id, conversation.client_ip):
+            logger.warning("turn refused: too many turns from this user or ip")
+            await listener.error("too_many_turns")
+            return
+        conversation.turns_taken += 1
         try:
             turn = await self._pipeline.run(clip, conversation, listener)
         except TurnError as error:

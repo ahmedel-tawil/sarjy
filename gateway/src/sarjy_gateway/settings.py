@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     max_turn_audio_bytes: int = Field(default=1_000_000, gt=0)
     # Recent turns sent to the LLM as context; older ones only cost tokens and time (D-15).
     max_history_turns: int = Field(default=6, gt=0)
+    # Public URL protection (D-72). A spoken turn takes at least 20 seconds, so a person
+    # stays well under 30 in ten minutes; an IP gets room for a few people behind one
+    # router. A visit's cap stops a runaway client, not a determined one.
+    turn_window_seconds: float = Field(default=600, gt=0)
+    turns_per_user: int = Field(default=30, gt=0)
+    turns_per_ip: int = Field(default=90, gt=0)
+    max_turns_per_visit: int = Field(default=100, gt=0)
     # The TTS service; unset when working on the frontend alone.
     tts_url: str | None = None
     # "id_token" on Cloud Run, where TTS is private (D-45); "none" for a local TTS.

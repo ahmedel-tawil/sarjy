@@ -7,9 +7,11 @@ import uuid
 
 from fastapi import FastAPI, WebSocketDisconnect
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
 import pytest
 from sarjy_gateway.database import DatabaseUnavailableError
-from sarjy_gateway.identity import COOKIE_NAME, UserId
+from sarjy_gateway.identity import COOKIE_NAME, UserId, new_user_id
+from sarjy_gateway.limits import MAX_KEYS, SlidingWindow, TurnLimits
 from sarjy_gateway.llm import TextDelta, ToolCallDelta
 from sarjy_gateway.messages import (
     AudioFollows,
@@ -32,6 +34,7 @@ from gateway.tests.fakes import (
     FakePrompt,
     FakeSpeechToText,
     FakeTextToSpeech,
+    ManualClock,
     SpeechRequest,
     TickingClock,
 )
@@ -68,6 +71,8 @@ def voice_client(
     facts: FakeFactStore | None = None,
     llm: FakeChatModel | None = None,
     prompt: FakePrompt | None = None,
+    limits: TurnLimits | None = None,
+    max_turns_per_visit: int = 100,
 ) -> TestClient:
     tts = tts or FakeTextToSpeech()
     toolbox = Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS)
@@ -80,11 +85,26 @@ def voice_client(
         tts,
         store or FakeConversationStore(),
         facts or FakeFactStore(),
+        limits or roomy_limits(),
         max_turn_audio_bytes=max_turn_audio_bytes,
         max_history_turns=6,
+        max_turns_per_visit=max_turns_per_visit,
     )
     app.include_router(router.build())
     return TestClient(app, cookies=None if cookie is None else {COOKIE_NAME: cookie})
+
+
+def roomy_limits(*, per_user: int = 1_000, per_ip: int = 1_000) -> TurnLimits:
+    clock = ManualClock()
+    return TurnLimits(
+        per_user=SlidingWindow(per_user, 600, clock, max_keys=MAX_KEYS),
+        per_ip=SlidingWindow(per_ip, 600, clock, max_keys=MAX_KEYS),
+    )
+
+
+# Reads only the type of whatever the gateway sent.
+class AnyMessage(BaseModel):
+    type: str
 
 
 # The parts of the test client's socket these tests use.
@@ -104,6 +124,24 @@ def visit(client: TestClient) -> Generator[Socket]:
     with client.websocket_connect("/ws") as socket:
         Memory.model_validate_json(socket.receive_text())
         yield socket
+
+
+# Sends one clip and reads the whole answer: transcript, reply, audio and marks.
+def answered_turn(socket: Socket) -> Reply:
+    socket.send_bytes(b"clip")
+    socket.send_text(TURN_END)
+    Transcript.model_validate_json(socket.receive_text())
+    reply = Reply.model_validate_json(socket.receive_text())
+    AudioFollows.model_validate_json(socket.receive_text())
+    socket.receive_bytes()
+    TurnMarks.model_validate_json(socket.receive_text())
+    return reply
+
+
+def refused_turn(socket: Socket) -> str:
+    socket.send_bytes(b"clip")
+    socket.send_text(TURN_END)
+    return ServerError.model_validate_json(socket.receive_text()).code
 
 
 def test_a_turn_sends_transcript_reply_audio_and_marks() -> None:
@@ -317,3 +355,37 @@ def test_forget_me_without_the_database_tells_the_page(caplog: pytest.LogCapture
 
     assert error.code == "forget_failed"
     assert "facts not forgotten: database unreachable: PoolTimeout" in caplog.messages
+
+
+def test_a_user_over_their_limit_hears_to_slow_down(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING, logger="sarjy_gateway.voice")
+    with visit(voice_client(limits=roomy_limits(per_user=1))) as socket:
+        reply = answered_turn(socket)
+        refused = refused_turn(socket)
+
+    assert reply.text == "Try the Louvre."
+    assert refused == "too_many_turns"
+    assert caplog.messages == ["turn refused: too many turns from this user or ip"]
+
+
+def test_new_cookies_from_one_address_share_its_limit_however_the_header_is_forged() -> None:
+    limits = roomy_limits(per_ip=1)
+    answers: list[str] = []
+    for forged in ("6.6.6.6", "7.7.7.7"):
+        client = voice_client(limits=limits, cookie=str(new_user_id()))
+        headers = {"x-forwarded-for": f"{forged}, 203.0.113.7"}
+        with client.websocket_connect("/ws", headers=headers) as socket:
+            Memory.model_validate_json(socket.receive_text())
+            socket.send_bytes(b"clip")
+            socket.send_text(TURN_END)
+            answers.append(AnyMessage.model_validate_json(socket.receive_text()).type)
+
+    assert answers == ["transcript", "error"]
+
+
+def test_a_visit_stops_at_its_turn_limit() -> None:
+    with visit(voice_client(max_turns_per_visit=1)) as socket:
+        answered_turn(socket)
+        refused = refused_turn(socket)
+
+    assert refused == "visit_limit"

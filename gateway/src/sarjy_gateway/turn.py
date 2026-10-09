@@ -69,6 +69,9 @@ class Conversation:
     facts: dict[str, str] = field(default_factory=dict[str, str])
     # Tools that belong to this visit, on top of the shared ones: the user's memory tools.
     tools: list[Tool] = field(default_factory=list[Tool])
+    # Where the visit comes from and how many turns it has taken, for the limits (D-72).
+    client_ip: str = "unknown"
+    turns_taken: int = 0
 
     def remember(self, user: str, assistant: str) -> None:
         self.history += [ChatMessage(role="user", content=user), ChatMessage(role="assistant", content=assistant)]
