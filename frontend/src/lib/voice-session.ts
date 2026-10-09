@@ -1,5 +1,5 @@
 import { Player } from './player'
-import type { ErrorCode, RememberedFact, ServerMessage } from './protocol'
+import type { ErrorCode, RememberedFact, ServerMessage, TourLink } from './protocol'
 import { Recorder, type Recording } from './recorder'
 import { stagesOf, type TurnStages } from './stages-of'
 import { VoiceSocket } from './voice-socket'
@@ -15,13 +15,18 @@ export type Status = 'idle' | 'listening' | 'speaking' | 'thinking'
 
 export type Problem = 'connection_lost' | 'mic_unavailable' | 'playback_failed' | ErrorCode
 
+// The socket to the gateway: opening, open, or closed and waiting to reconnect (M4.2).
+export type Connection = 'connecting' | 'offline' | 'online'
+
 export interface VoiceSessionCallbacks {
+  onConnection?: (connection: Connection) => void
   // Everything Sarjy remembers about the user, in full each time it changes.
   onMemory: (facts: RememberedFact[]) => void
   onProblem: (problem: null | Problem) => void
   // The whole reply, for the record: when its first clip plays, or as soon as it arrives
-  // if that clip is already playing; also when its voice never came.
-  onReply: (text: string) => void
+  // if that clip is already playing; also when its voice never came. `links` are the
+  // pages of the tours it names, which Sarjy never reads out (D-90).
+  onReply: (text: string, links: TourLink[]) => void
   // Each clip as it starts playing, with the words it speaks and how long it lasts, so the
   // page can show them as they are spoken: one clip per sentence when streaming (D-77).
   onSpeak?: (text: string, durationMs: number) => void
@@ -45,6 +50,11 @@ export interface Visit {
   forgetMe(): void
 }
 
+// Picks the voice of the next replies; the gateway remembers it for the next visit too.
+export interface VoicePicker {
+  setVoice(voice: string): void
+}
+
 // Live levels for the page to animate, each from 0 to 1 and cheap enough to read every
 // frame: the microphone while the button is held, and Sarjy's voice while it speaks.
 export interface AudioLevels {
@@ -55,6 +65,7 @@ export interface AudioLevels {
 // What the page knows about the turn waiting for its answer, filled in as the gateway's
 // messages arrive.
 interface TurnInFlight {
+  links: TourLink[]
   // The words of the clip whose binary frame comes next.
   nextText: string
   // Held until the first clip plays, so the words and the voice appear together.
@@ -71,7 +82,7 @@ interface TurnInFlight {
   turnId: null | string
 }
 
-export class VoiceSession implements AudioLevels, PushToTalk, Visit {
+export class VoiceSession implements AudioLevels, PushToTalk, Visit, VoicePicker {
   readonly #callbacks: VoiceSessionCallbacks
   readonly #player = new Player()
   readonly #recorder = new Recorder()
@@ -89,6 +100,7 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit {
         this.#play(audio)
       },
       onClose: () => {
+        this.#callbacks.onConnection?.('offline')
         // A phone that sleeps or a deploy closes an idle socket, and the next press opens a
         // new one, so only a turn still waiting for its answer has lost anything; a reply
         // already playing finishes what it has.
@@ -100,8 +112,14 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit {
           })
         }
       },
+      onConnecting: () => {
+        this.#callbacks.onConnection?.('connecting')
+      },
       onMessage: (message) => {
         this.#receive(message)
+      },
+      onOpen: () => {
+        this.#callbacks.onConnection?.('online')
       },
     })
   }
@@ -134,12 +152,18 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit {
     })
   }
 
+  setVoice(voice: string): void {
+    this.#callbacks.onProblem(null)
+    this.#socket.setVoice(voice)
+  }
+
   release(): void {
     this.#releases += 1
     if (!this.#recorder.recording) {
       return
     }
     this.#turn = {
+      links: [],
       nextText: '',
       reply: null,
       serverMarks: null,
@@ -162,7 +186,7 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit {
       const playbackStart = performance.now()
       this.#setStatus('speaking')
       if (turn.reply !== null) {
-        this.#callbacks.onReply(turn.reply)
+        this.#callbacks.onReply(turn.reply, turn.links)
       }
       turn.ttfa = playbackStart - turn.speechEnd
       if (turn.turnId !== null) {
@@ -245,8 +269,9 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit {
         const turn = this.#turn
         if (turn !== null) {
           turn.reply = message.text
+          turn.links = message.links
           if (turn.started) {
-            this.#callbacks.onReply(message.text)
+            this.#callbacks.onReply(message.text, message.links)
           }
         }
         break
@@ -274,7 +299,7 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit {
     // A reply whose voice never came is still worth reading.
     const turn = this.#turn
     if (turn !== null && !turn.started && turn.reply !== null) {
-      this.#callbacks.onReply(turn.reply)
+      this.#callbacks.onReply(turn.reply, turn.links)
     }
     this.#turn = null
     this.#setStatus('idle')

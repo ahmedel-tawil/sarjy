@@ -85,7 +85,7 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit {
     }, HEARD_AFTER_MS)
     window.setTimeout(() => {
       this.#setStatus('speaking')
-      this.#callbacks.onReply(turn.reply)
+      this.#callbacks.onReply(turn.reply, [])
       this.#callbacks.onTtfa(SPEAKS_AFTER_MS)
     }, SPEAKS_AFTER_MS)
     // One clip per sentence, back to back, as the gateway streams them (D-77).
