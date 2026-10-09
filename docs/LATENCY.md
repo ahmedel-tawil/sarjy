@@ -44,7 +44,7 @@ Percentiles use the nearest rank, so every reported number is one that was measu
 ## Runs
 
 A labelled run is a JSON Lines file in `docs/latency/runs/`, one turn per line (`run`,
-`turn_id`, the gateway's marks and the client's), written by the experiment harness
+the script's `clip`, `turn_id`, the gateway's marks and the client's), written by the experiment harness
 (D-74, D-75). To summarise one or more runs:
 
 ```bash
@@ -79,6 +79,73 @@ It stands in for the browser, with these differences:
   `stt` is slightly longer than a browser's.
 - **Network:** the harness runs from the same laptop and connection as a browser would,
   and reports the gateway's own marks unchanged.
+
+## Experiment 1: baseline
+
+The voice loop as it stands on 9 Oct, before any latency work: Groq's
+`whisper-large-v3-turbo`; Claude Haiku 5.5 first with Groq's Qwen as fallback (D-69),
+prompt v1.1; Kokoro on Cloud Run with 8 vCPU (D-70); the gateway on 1 vCPU; all in
+`me-central1`. The whole reply is synthesised as one WAV before any of it is sent. The
+harness played the script three times from the laptop, 11:59 to 12:06 UTC, after one
+request to each service, so the instances were warm. All 30 turns finished and every
+question was transcribed correctly. Run: `docs/latency/runs/baseline.jsonl`.
+
+| Gap | p50 | p95 |
+| --- | --- | --- |
+| `stt` | 731 ms | 897 ms |
+| `llm_first_word` | 2,276 ms | 3,570 ms |
+| `first_sentence` | 375 ms | 534 ms |
+| `tts` | 3,478 ms | 5,879 ms |
+| `server_total` | 7,287 ms | 10,116 ms |
+| `network_and_browser` | 496 ms | 970 ms |
+| **`ttfa`** | **7,894 ms** | **10,674 ms** |
+
+### Where the time goes
+
+Shares of the mean TTFA (7.4 s):
+
+| Gap | Mean | Share |
+| --- | --- | --- |
+| `tts` | 3.6 s | 48% |
+| `llm_first_word` | 2.2 s | 30% |
+| `stt` | 0.75 s | 10% |
+| `network_and_browser` | 0.5 s | 7% |
+| `first_sentence` | 0.36 s | 5% |
+
+Medians per question, over the three passes:
+
+| Question | TTFA | LLM to first word | TTS |
+| --- | --- | --- | --- |
+| 01 kids under 400 in Abu Dhabi | 9.8 s | 2.5 s | 5.2 s |
+| 02 colour and heights (two saves) | 7.9 s | 2.7 s | 3.5 s |
+| 03 what's my colour (no tool) | 3.0 s | 1.0 s | 0.8 s |
+| 04 Dubai this weekend | 8.9 s | 2.3 s | 4.9 s |
+| 05 safari tomorrow (search and forecast) | 10.4 s | 3.5 s | 4.3 s |
+| 06 buggy price | 6.4 s | 1.9 s | 2.8 s |
+| 07 what can I do in Dubai | 8.0 s | 1.8 s | 4.6 s |
+| 08 my name (one save) | 5.5 s | 2.3 s | 1.6 s |
+| 09 Abu Dhabi weather on Saturday | 9.0 s | 3.4 s | 4.1 s |
+| 10 thanks (no tool) | 4.0 s | 1.0 s | 1.5 s |
+
+- **TTS is half the wait, and it grows with the reply.** A one-line answer takes 0.8 s to
+  synthesise and a three-tour answer about 5 s, because the whole reply is synthesised
+  before the first sound. The third pass's "what's my colour" got a longer answer, and
+  its TTS took 6.2 s instead of 0.8 s.
+- **Each tool round costs about a second.** With no tool, Claude's first word arrives in
+  about 1.0 s; with one round, 1.8 to 2.5 s; with a search and a forecast, about 3.5 s.
+- **Speech to text and the network are small and steady,** about 0.75 s and 0.5 s.
+
+### Targets
+
+Set from these numbers, for the experiments that follow:
+
+| Experiment | Target |
+| --- | --- |
+| 2, sentence streaming (M3.6) | `tts` p50 under 1.5 s whatever the reply's length; TTFA p50 under 5 s and p95 under 7 s |
+| 3, TTS cache (M3.7) | a cached sentence's `tts` under 100 ms, with the hit rate on the script reported |
+| 4, model choice (M3.8) | `llm_first_word` p50 down by at least 0.5 s, only with a model that still saves facts (D-69) |
+| 5, tool payload size (M3.9) | `llm_first_word` on tool turns down by at least 10% |
+| 6, warm vs cold (M3.10) | the first turn after an idle period measured with no warm instance and with one, and its cost |
 
 ## Before the deep dive
 
