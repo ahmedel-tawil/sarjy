@@ -17,3 +17,8 @@ dependencies = [
 [build-system]
 requires = ["uv_build>=0.12.1,<0.13"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "websockets>=17.2",
+]

@@ -91,3 +91,10 @@ def summarise(timings: Sequence[TurnTiming]) -> list[GapSummary]:
         values = [turn[gap] for turn in per_turn]
         summaries.append(GapSummary(gap, len(values), percentile(values, 50), percentile(values, 95)))
     return summaries
+
+
+# The p50/p95 table both scripts print, one line per gap.
+def table(timings: Sequence[TurnTiming]) -> list[str]:
+    lines = [f"  {'gap':<20} {'p50 ms':>8} {'p95 ms':>8}"]
+    lines += [f"  {row.gap:<20} {row.p50_ms:>8.0f} {row.p95_ms:>8.0f}" for row in summarise(timings)]
+    return lines

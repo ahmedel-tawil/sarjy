@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 import sys
 
-from sarjy_gateway.latency import TurnTiming, summarise
+from sarjy_gateway.latency import TurnTiming, table
 
 
 logger = logging.getLogger("latency")
@@ -30,9 +30,8 @@ def main() -> None:
             logger.info("%s: no turns", path.name)
             continue
         logger.info("%s (%d turns)", path.stem, len(timings))
-        logger.info("  %-20s %8s %8s", "gap", "p50 ms", "p95 ms")
-        for summary in summarise(timings):
-            logger.info("  %-20s %8.0f %8.0f", summary.gap, summary.p50_ms, summary.p95_ms)
+        for line in table(timings):
+            logger.info(line)
 
 
 if __name__ == "__main__":
