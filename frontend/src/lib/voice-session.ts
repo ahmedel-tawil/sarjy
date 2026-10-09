@@ -1,6 +1,7 @@
 import { Player } from './player'
 import type { ErrorCode, RememberedFact, ServerMessage } from './protocol'
 import { Recorder, type Recording } from './recorder'
+import { stagesOf, type TurnStages } from './stages-of'
 import { VoiceSocket } from './voice-socket'
 
 // A press shorter than this is a tap, not a question.
@@ -24,6 +25,8 @@ export interface VoiceSessionCallbacks {
   // Each clip as it starts playing, with the words it speaks and how long it lasts, so the
   // page can show them as they are spoken: one clip per sentence when streaming (D-77).
   onSpeak?: (text: string, durationMs: number) => void
+  // Where the turn's time went, once both clocks' marks are in (D-79).
+  onStages?: (stages: TurnStages) => void
   onStatus: (status: Status) => void
   onTranscript: (text: string) => void
   // Time to first audio: from the button release to the first sample of the reply.
@@ -56,10 +59,14 @@ interface TurnInFlight {
   nextText: string
   // Held until the first clip plays, so the words and the voice appear together.
   reply: null | string
+  // The gateway's marks, from its last message of the turn.
+  serverMarks: null | Readonly<Record<string, number>>
   // performance.now() at the release that ended the turn.
   speechEnd: number
   // Whether the first clip has started playing.
   started: boolean
+  // Time to first audio, known once the first clip plays.
+  ttfa: null | number
   // The gateway names the turn in a JSON message just before each binary audio frame.
   turnId: null | string
 }
@@ -132,7 +139,15 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit {
     if (!this.#recorder.recording) {
       return
     }
-    this.#turn = { nextText: '', reply: null, speechEnd: performance.now(), started: false, turnId: null }
+    this.#turn = {
+      nextText: '',
+      reply: null,
+      serverMarks: null,
+      speechEnd: performance.now(),
+      started: false,
+      ttfa: null,
+      turnId: null,
+    }
     this.#setStatus('thinking')
     this.#endTurn().catch(() => {
       this.#report('connection_lost')
@@ -149,10 +164,12 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit {
       if (turn.reply !== null) {
         this.#callbacks.onReply(turn.reply)
       }
+      turn.ttfa = playbackStart - turn.speechEnd
       if (turn.turnId !== null) {
         this.#socket.sendMarks(turn.turnId, turn.speechEnd, playbackStart)
-        this.#callbacks.onTtfa(playbackStart - turn.speechEnd)
+        this.#callbacks.onTtfa(turn.ttfa)
       }
+      this.#reportStages(turn)
     }
     this.#callbacks.onSpeak?.(text, durationMs)
   }
@@ -210,8 +227,11 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit {
         break
       }
       case 'marks': {
-        // The last message of a turn: every clip has arrived. The latency waterfall (M3.2)
-        // draws the marks; the gateway already logs them.
+        // The last message of a turn: every clip has arrived.
+        if (this.#turn !== null) {
+          this.#turn.serverMarks = message.marks
+          this.#reportStages(this.#turn)
+        }
         this.#endTurnWhenPlayed().catch(() => {
           this.#report('playback_failed')
         })
@@ -235,6 +255,18 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit {
         this.#callbacks.onTranscript(message.text)
         break
       }
+    }
+  }
+
+  // Runs when the first clip plays and when the marks arrive; whichever comes second has
+  // both clocks' numbers and reports the stages, once.
+  #reportStages(turn: TurnInFlight): void {
+    if (turn.ttfa === null || turn.serverMarks === null) {
+      return
+    }
+    const stages = stagesOf(turn.serverMarks, turn.ttfa)
+    if (stages !== null) {
+      this.#callbacks.onStages?.(stages)
     }
   }
 
