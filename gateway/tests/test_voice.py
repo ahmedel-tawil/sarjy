@@ -25,6 +25,7 @@ from sarjy_gateway.messages import (
 )
 from sarjy_gateway.stt import SpeechToTextError
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
+from sarjy_gateway.tts import TextToSpeechError
 from sarjy_gateway.turn import TurnPipeline
 from sarjy_gateway.voice import VoiceRouter
 
@@ -426,3 +427,25 @@ def test_browser_marks_for_a_turn_of_another_visit_are_not_stored() -> None:
         ServerError.model_validate_json(socket.receive_text())
 
     assert store.stored_marks == {}
+
+
+def test_opening_a_visit_wakes_tts_before_the_first_question() -> None:
+    tts = FakeTextToSpeech()
+    with visit(voice_client(tts=tts)) as socket:
+        # Anything answered proves the visit's start, and its wake-up, has run.
+        socket.send_text(TURN_END)
+        ServerError.model_validate_json(socket.receive_text())
+
+    assert tts.voice_lists == 1
+    assert tts.requests == []
+
+
+def test_a_failed_wake_up_does_not_stop_the_visit(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="sarjy_gateway.voice")
+    tts = FakeTextToSpeech(error=TextToSpeechError("tts unreachable"))
+    with visit(voice_client(tts=tts)) as socket:
+        socket.send_text(TURN_END)
+        refused = ServerError.model_validate_json(socket.receive_text())
+
+    assert refused.code == "no_audio"
+    assert "tts wake-up failed: tts unreachable" in caplog.messages

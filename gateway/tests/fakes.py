@@ -112,8 +112,10 @@ class FakeTextToSpeech:
     def __init__(self, error: Exception | None = None) -> None:
         self.error = error
         self.requests: list[SpeechRequest] = []
+        self.voice_lists = 0
 
     async def voices(self) -> Voices:
+        self.voice_lists += 1
         if self.error is not None:
             raise self.error
         return Voices(voices=["af_heart", "am_adam"], default="af_heart")
