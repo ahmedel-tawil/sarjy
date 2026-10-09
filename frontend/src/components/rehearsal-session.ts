@@ -17,6 +17,8 @@ import type {
 // words below are examples, not Sarjy's answers.
 
 interface ScriptedTurn {
+  // What the tool loop would announce while the answer is being worked out (D-94).
+  activity?: string
   fact?: RememberedFact
   links?: TourLink[]
   question: string
@@ -44,6 +46,7 @@ const PROBLEM_SCRIPT: readonly ScriptedProblem[] = [
 const SCRIPT: readonly ScriptedTurn[] = [
   {
     question: 'I’m in Abu Dhabi next week with two kids. What can we do under 400 dirhams?',
+    activity: 'Looking for tours in Abu Dhabi',
     links: [
       { name: 'Example family tour', url: 'https://example.com/tours/family' },
       { name: 'Example park day', url: 'https://example.com/tours/park' },
@@ -56,6 +59,7 @@ const SCRIPT: readonly ScriptedTurn[] = [
     reply: 'Got it, green it is, and I’ll keep you on the ground.',
   },
   {
+    activity: 'Checking tomorrow’s weather in Dubai',
     question: 'Is tomorrow afternoon good for a desert safari?',
     reply: 'Tomorrow afternoon will be hot, so an evening safari is the cooler choice.',
   },
@@ -88,6 +92,7 @@ function earlierVisits(): EarlierVisit[] {
 }
 
 const HEARD_AFTER_MS = 900
+const ACTIVITY_AFTER_MS = 1300
 const RECONNECTS_AFTER_MS = 2000
 const SPEAKS_AFTER_MS = 2200
 // Roughly Kokoro's pace, so each scripted sentence lasts about as long as a real one.
@@ -186,6 +191,12 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Replayer, Visi
         this.#callbacks.onMemory(this.#facts)
       }
     }, HEARD_AFTER_MS)
+    const { activity } = turn
+    if (activity !== undefined) {
+      window.setTimeout(() => {
+        this.#callbacks.onActivity?.(activity)
+      }, ACTIVITY_AFTER_MS)
+    }
     window.setTimeout(() => {
       this.#setStatus('speaking')
       this.#callbacks.onReply(turn.reply, turn.links ?? [])
