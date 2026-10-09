@@ -3,19 +3,35 @@
 @import "./styles/shadcn.css";
 @import "@fontsource-variable/figtree";
 
+/* Sarjy's tokens live here and nowhere else: colours (three palettes), type scale,
+   spacing, radius and motion. The generated shadcn base in styles/shadcn.css reads them. */
+
 @custom-variant dark (&:is(.dark *));
+
+/* Spacing, type scale and motion. Spelled out so the scale is ours to change in one place. */
+@theme {
+    --spacing: 0.25rem;
+    --text-xs: 0.75rem;
+    --text-xs--line-height: 1rem;
+    --text-sm: 0.875rem;
+    --text-sm--line-height: 1.25rem;
+    --text-base: 1rem;
+    --text-base--line-height: 1.5rem;
+    --text-lg: 1.125rem;
+    --text-lg--line-height: 1.75rem;
+    --text-xl: 1.25rem;
+    --text-xl--line-height: 1.75rem;
+    --text-2xl: 1.5rem;
+    --text-2xl--line-height: 2rem;
+    --text-3xl: 1.875rem;
+    --text-3xl--line-height: 2.25rem;
+    --default-transition-duration: 150ms;
+    --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+}
 
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Figtree Variable', sans-serif;
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
     --color-chart-5: var(--chart-5);
     --color-chart-4: var(--chart-4);
     --color-chart-3: var(--chart-3);
@@ -48,73 +64,94 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Three palettes, switched by data-palette on <html> (D-80). Each one sets shadcn's colour
+   names, so every shadcn component takes it unchanged, plus the orb's two colours and five
+   chart colours for the latency waterfall. Pearl is the default. */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --radius: 0.75rem;
+    --background: oklch(0.975 0.005 230);
+    --foreground: oklch(0.24 0.03 255);
+    --card: oklch(0.995 0.002 230);
+    --card-foreground: oklch(0.24 0.03 255);
+    --popover: oklch(0.995 0.002 230);
+    --popover-foreground: oklch(0.24 0.03 255);
+    --primary: oklch(0.47 0.085 200);
+    --primary-foreground: oklch(0.98 0.005 230);
+    --secondary: oklch(0.94 0.008 230);
+    --secondary-foreground: oklch(0.24 0.03 255);
+    --muted: oklch(0.94 0.008 230);
+    --muted-foreground: oklch(0.5 0.02 250);
+    --accent: oklch(0.94 0.008 230);
+    --accent-foreground: oklch(0.24 0.03 255);
+    --destructive: oklch(0.55 0.2 27);
+    --border: oklch(0.9 0.01 240);
+    --input: oklch(0.9 0.01 240);
+    --ring: oklch(0.65 0.08 200);
+    --orb-dot: oklch(0.3 0.04 255);
+    --orb-lit: oklch(0.68 0.12 195);
+    --chart-1: oklch(0.85 0.06 200);
+    --chart-2: oklch(0.72 0.09 200);
+    --chart-3: oklch(0.6 0.1 205);
+    --chart-4: oklch(0.47 0.085 210);
+    --chart-5: oklch(0.35 0.06 220);
 }
 
-.dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
+/* Night: a Gulf evening, deep blue with warm gold. */
+:root[data-palette='night'] {
+    --background: oklch(0.18 0.025 262);
+    --foreground: oklch(0.95 0.01 85);
+    --card: oklch(0.22 0.028 262);
+    --card-foreground: oklch(0.95 0.01 85);
+    --popover: oklch(0.22 0.028 262);
+    --popover-foreground: oklch(0.95 0.01 85);
+    --primary: oklch(0.82 0.12 82);
+    --primary-foreground: oklch(0.2 0.03 262);
+    --secondary: oklch(0.27 0.03 262);
+    --secondary-foreground: oklch(0.95 0.01 85);
+    --muted: oklch(0.27 0.03 262);
+    --muted-foreground: oklch(0.72 0.02 260);
+    --accent: oklch(0.27 0.03 262);
+    --accent-foreground: oklch(0.95 0.01 85);
+    --destructive: oklch(0.7 0.17 25);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --ring: oklch(0.7 0.1 82);
+    --orb-dot: oklch(0.92 0.02 85);
+    --orb-lit: oklch(0.84 0.13 82);
+    --chart-1: oklch(0.9 0.08 85);
+    --chart-2: oklch(0.82 0.12 82);
+    --chart-3: oklch(0.72 0.13 75);
+    --chart-4: oklch(0.6 0.12 65);
+    --chart-5: oklch(0.48 0.1 55);
+}
+
+/* Coral: warm paper and ink with one bright accent; errors use a deeper crimson. */
+:root[data-palette='coral'] {
+    --background: oklch(0.98 0.006 75);
+    --foreground: oklch(0.21 0.01 50);
+    --card: oklch(0.995 0.003 75);
+    --card-foreground: oklch(0.21 0.01 50);
+    --popover: oklch(0.995 0.003 75);
+    --popover-foreground: oklch(0.21 0.01 50);
+    --primary: oklch(0.56 0.16 33);
+    --primary-foreground: oklch(0.99 0.005 75);
+    --secondary: oklch(0.945 0.012 70);
+    --secondary-foreground: oklch(0.21 0.01 50);
+    --muted: oklch(0.945 0.012 70);
+    --muted-foreground: oklch(0.5 0.015 55);
+    --accent: oklch(0.945 0.012 70);
+    --accent-foreground: oklch(0.21 0.01 50);
+    --destructive: oklch(0.48 0.17 20);
+    --border: oklch(0.9 0.012 70);
+    --input: oklch(0.9 0.012 70);
+    --ring: oklch(0.7 0.12 35);
+    --orb-dot: oklch(0.25 0.01 50);
+    --orb-lit: oklch(0.66 0.17 35);
+    --chart-1: oklch(0.85 0.07 40);
+    --chart-2: oklch(0.74 0.12 37);
+    --chart-3: oklch(0.64 0.15 34);
+    --chart-4: oklch(0.54 0.15 30);
+    --chart-5: oklch(0.42 0.12 28);
 }
 
 @layer base {
@@ -129,3 +166,82 @@
     }
 }
 
+/* The orb is the talk button; a hairline ring shows where to press. */
+@utility talk-orb {
+    display: block;
+    width: --spacing(28);
+    height: --spacing(28);
+    border-radius: calc(infinity * 1px);
+    box-shadow: inset 0 0 0 1px var(--border);
+    cursor: pointer;
+
+    &:focus-visible {
+        outline: 3px solid var(--ring);
+        outline-offset: 2px;
+    }
+
+    &:disabled {
+        cursor: default;
+    }
+}
+
+/* Keeps the orb above an iPhone's home indicator. */
+@utility pb-safe {
+    padding-bottom: max(--spacing(4), env(safe-area-inset-bottom));
+}
+
+/* Its length, --share, is set per turn from the time to first audio. */
+@utility latency-bar {
+    display: block;
+    inline-size: var(--share, 0%);
+    height: --spacing(1.5);
+    border-radius: calc(infinity * 1px);
+    background-color: var(--primary);
+}
+
+@keyframes spoken-word {
+    from {
+        opacity: 0;
+        filter: blur(3px);
+    }
+}
+
+@utility spoken-word {
+    animation: spoken-word 240ms ease-out both;
+}
+
+/* A new exchange rises from the orb's side of the screen into the conversation. */
+@keyframes turn-in {
+    from {
+        opacity: 0;
+        translate: 0 0.75rem;
+    }
+}
+
+@utility turn-in {
+    animation: turn-in 300ms var(--ease-settle) both;
+}
+
+@keyframes label-in {
+    from {
+        opacity: 0;
+        translate: 0 0.375rem;
+    }
+}
+
+@utility label-in {
+    animation: label-in 200ms ease-out both;
+}
+
+/* Transitions take at most 300 ms; the orb's continuous motion shows a real voice or state
+   (D-80). Under reduced motion nothing animates and the orb holds a still pose. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-delay: 0ms !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0ms !important;
+    }
+}
