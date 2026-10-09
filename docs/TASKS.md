@@ -1056,8 +1056,11 @@ Sarjy's answers again. Not in the PRD; "Forget me" stays facts only for now (D-9
 - [x] A `replay` message speaks a stored reply again in the current voice, sentence by
       sentence, then `replay_done`; only the user's own turns, and it counts against the
       turn limits. The page gets `onHistory(visits)` and `session.replay(turnId)`.
-- [ ] The page shows the earlier visits above the current conversation, with a replay
-      button on each of Sarjy's answers (UI session).
+- [x] The page shows the earlier visits above the current conversation, with a replay
+      button on each of Sarjy's answers (UI session). Oldest at the top, the most recent
+      open and older ones folded, and a replay's words lighting up as it plays (D-84).
+      Checked on 9 Oct with `?rehearse` at 375 px: two example visits, a replay of an
+      earlier answer, and a new question after it landing in today's conversation.
 
 Checked on 9 Oct against a local gateway with Claude: a second visit opened with the first
 visit's question and answer, and its replay came back as four sentence clips.
