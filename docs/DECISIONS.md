@@ -1139,6 +1139,29 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   written from scratch, so only its ideas were reused: the pill becoming a ball, the
   dotted sphere, the blurred word reveal).
 
+### D-78 Cold starts: TTS woken when a visit opens; warm instances a setting
+
+- **Decision:** when a visit's socket opens, the gateway asks TTS for its voices in the
+  background, which starts a TTS instance while the page loads and the traveller speaks;
+  a failure is only logged. The minimum instance counts of the gateway and TTS are
+  Terraform variables (`gateway_min_instances`, `tts_min_instances`), 0 by default and 1
+  for the review week (settled 9 Oct in M3.10).
+- **Reason:** both services scale to zero. Measured on 9 Oct: a turn that met a cold TTS
+  waited 11.8 s for its first audio against 4.7 s warm for the same question, because the
+  TTS instance took about 6 s to start (2.4 s for the container, 3.3 s to load and warm
+  the model) before synthesising; and the gateway takes 7 to 10 s from instance start to
+  serving (about 9.5 s typically, 8.8 s of it before the server process starts), so a
+  cold visitor waits that long for the page itself. The page opens its socket as it loads
+  (D-68), and a traveller takes several seconds to read and ask, which hides most of
+  TTS's start. A warm instance removes a cold start entirely: idle, a minimum instance is
+  billed at the idle rate, in Tier 2 about $0.0000035 per vCPU-second and per GiB-second,
+  so about $0.45 a day for the gateway and $3.60 a day for TTS (D-70's $17 used the
+  active rate). Variables make the review-week setting one value to set and to undo.
+- **Alternatives considered:** a scheduled ping every few minutes (another service, and
+  Cloud Run may still retire an idle instance); warm instances all the time (about $120 a
+  month, mostly TTS); a faster gateway start (smaller image, lazier imports; worth doing,
+  but warm instances solve the review week now).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
