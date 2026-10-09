@@ -5,6 +5,7 @@ from sarjy_gateway.latency import ClientMarks, ServerMarks, TurnGaps, TurnTiming
 def timing(*, tts_first_byte: float = 6000.0, ttfa: float = 6800.0) -> TurnTiming:
     return TurnTiming(
         run="baseline",
+        clip="01-kids-under-400.wav",
         turn_id="0199c3a4b5d67e8f9a0b1c2d3e4f5a6b",
         server=ServerMarks(
             audio_received=0.0,

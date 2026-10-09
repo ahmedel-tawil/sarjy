@@ -79,7 +79,7 @@ async def speak(socket: ClientConnection, audio: bytes) -> float:
 
 # Reads the gateway's messages until the turn's marks; the first audio byte stands in for
 # the browser starting playback (docs/LATENCY.md says how they differ).
-async def listen(socket: ClientConnection, run: str, speech_end: float) -> PlayedTurn:
+async def listen(socket: ClientConnection, run: str, clip: str, speech_end: float) -> PlayedTurn:
     heard = ""
     playback_start: float | None = None
     while True:
@@ -100,6 +100,7 @@ async def listen(socket: ClientConnection, run: str, speech_end: float) -> Playe
                 marks = TurnMarks.model_validate_json(message)
                 timing = TurnTiming(
                     run=run,
+                    clip=clip,
                     turn_id=marks.turn_id,
                     server=ServerMarks.model_validate(marks.marks),
                     client=ClientMarks(speech_end=speech_end, playback_start=playback_start),
@@ -145,7 +146,7 @@ async def play_visit(visit: Visit, script: list[Line], repetition: int) -> list[
         for number, line in enumerate(script, start=1):
             speech_end = await speak(socket, (SCRIPT_FOLDER / line.clip).read_bytes())
             try:
-                played = await listen(socket, visit.run, speech_end)
+                played = await listen(socket, visit.run, line.clip, speech_end)
             except TurnFailedError as error:
                 logger.warning("%d.%d %s failed: %s", repetition, number, line.clip, error)
                 continue

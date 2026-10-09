@@ -28,6 +28,8 @@ class ClientMarks(BaseModel):
 # line of `docs/latency/runs/<label>.jsonl` (D-74).
 class TurnTiming(BaseModel):
     run: str
+    # Which question of the script this turn played, so a run can be broken down by it.
+    clip: str
     turn_id: str
     server: ServerMarks
     client: ClientMarks
