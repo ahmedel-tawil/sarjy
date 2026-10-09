@@ -1,5 +1,5 @@
 import pytest
-from sarjy_gateway.latency import ClientMarks, ServerMarks, TurnGaps, TurnTiming, gaps, percentile, summarise
+from sarjy_gateway.latency import ClientMarks, ServerMarks, TurnGaps, TurnTiming, gaps, percentile, summarise, table
 
 
 def timing(*, tts_first_byte: float = 6000.0, ttfa: float = 6800.0) -> TurnTiming:
@@ -65,3 +65,11 @@ def test_a_run_file_line_is_one_turn() -> None:
     line = timing().model_dump_json()
 
     assert TurnTiming.model_validate_json(line) == timing()
+
+
+def test_the_table_has_a_header_and_one_line_per_gap() -> None:
+    lines = table([timing(), timing(ttfa=5200.0)])
+
+    assert lines[0].split() == ["gap", "p50", "ms", "p95", "ms"]
+    assert lines[-1].split() == ["ttfa", "5200", "6800"]
+    assert len(lines) == 8

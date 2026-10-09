@@ -665,6 +665,11 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "websockets" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=1.12.1" },
@@ -676,6 +681,9 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.15.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.54.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "websockets", specifier = ">=17.2" }]
 
 [[package]]
 name = "sarjy-tts"
