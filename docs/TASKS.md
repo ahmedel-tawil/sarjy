@@ -1013,9 +1013,21 @@ Do this on 9 Oct (PRD: "Test Safari on day 2, not day 4").
 
 ### M4.8 Accessibility and motion pass
 
-- [ ] The talk control works from the keyboard (hold Space) and has an accessible name.
-- [ ] Focus is visible; the token palette passes WCAG AA contrast.
-- [ ] Nothing moves under `prefers-reduced-motion`.
+- [x] The talk control works from the keyboard (hold Space) and has an accessible name.
+      Also a tap-to-talk mode in a new settings popover, with Space working the same way;
+      the orb is described by the line under it, so screen readers hear its state (D-83).
+- [x] Focus is visible; the token palette passes WCAG AA contrast. Every text pair passes
+      AA in all three palettes; the focus ring was darkened in Pearl and Coral to pass
+      3:1 (D-83). Tabbing reaches the swatches, Settings, "Remembers" and the orb, each
+      with a visible ring.
+- [ ] Nothing moves under `prefers-reduced-motion`. In the code: the welcome is skipped,
+      the orb holds a still pose, words appear at once, and every CSS animation and
+      transition is off. The in-app browser cannot simulate the setting, so this needs
+      one look with macOS Reduce motion on.
+
+Checked on 9 Oct in the in-app browser at 375 px and 1024 px with `?rehearse`: the
+settings popover, both talk modes with a tap on the orb and with Space, the page staying
+inert while the welcome plays and a key skipping it, and a full keyboard walk.
 
 ### M4.9 Voice picker
 

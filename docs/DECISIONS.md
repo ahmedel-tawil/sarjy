@@ -1284,6 +1284,30 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   user and opens with the page); deleting history with "Forget me" (Ahmed chose facts only
   for now).
 
+### D-83 Settings with a tap-to-talk mode; the orb and the welcome for keyboards and readers
+
+- **Decision:** a gear beside the colour swatches opens a settings popover (shadcn
+  Popover and Radio Group) with Sarjy's voice, moved there from under the orb, and how you
+  talk: hold the orb or Space while speaking, or tap once to start and again to send. The
+  choice is kept in the browser; the orb's label ("Tap to talk to Sarjy", then "Tap to
+  send"), the line under it and the first-visit text follow it. The orb is described by
+  that line (`aria-describedby`), so a screen reader hears "Listening…" or "Thinking…",
+  and declares Space as its shortcut. While the welcome plays, the page under it is
+  `inert`, and any key skips it, as a tap does. The focus ring is darker in Pearl and
+  Coral: measured against the page background it was 2.91:1 and 2.64:1, under the 3:1 a
+  focus indicator needs, and is now 4.17:1 and 3.96:1; Night was 6.99:1. Every text pair
+  the page uses passes AA in all three palettes, the tightest being Coral's accent label
+  at 4.74:1 (settled 9 Oct in M4.8, with Ahmed).
+- **Reason:** holding a button is hard for some people with motor impairments, and the
+  hold also had to be learned; a second way to talk, chosen once, removes that without
+  changing the default. The line under the orb already says what Sarjy is doing, so
+  pointing the orb at it gives screen readers the state for free; the M3 session will
+  make that line say what Sarjy is really doing ("Checking the weather in Dubai"), sent
+  from the tool loop.
+- **Alternatives considered:** a settings page or a dialog (heavier than two choices
+  need); a separate visible state label on the orb (says the same thing twice); a
+  toggle on the orb itself, such as double-tap to lock (hard to discover).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
