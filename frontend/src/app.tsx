@@ -1,19 +1,22 @@
-import { Alert02Icon, MicOff01Icon, WifiDisconnected01Icon } from '@hugeicons/core-free-icons'
+import { WifiDisconnected01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
+import { type VoiceCatalogue, type VoiceList, VoicesClient } from '@/clients/voices-client'
 import { ConversationThread, type Turn } from '@/components/conversation-thread'
 import { FirstLoad, wantsWelcome } from '@/components/first-load'
 import { LatencyPanel } from '@/components/latency-panel'
 import { MemoryPanel } from '@/components/memory-panel'
 import type { OrbPhase } from '@/components/orb-renderer'
 import { applyPalette, initialPalette, type Palette, PaletteSwitcher } from '@/components/palette-switcher'
-import { PROBLEMS } from '@/components/problems'
+import { ProblemCards } from '@/components/problem-cards'
+import { PROBLEMS, statusLine } from '@/components/problems'
 import { RehearsalSession } from '@/components/rehearsal-session'
 import { SarjyMark } from '@/components/sarjy-mark'
 import { TalkOrb } from '@/components/talk-orb'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { useVoices } from '@/components/use-voices'
+import { VoicePicker } from '@/components/voice-picker'
 import type { RememberedFact } from '@/lib/protocol'
 import {
   type AudioLevels,
@@ -22,6 +25,7 @@ import {
   type PushToTalk,
   type Status,
   type Visit,
+  type VoicePicker as VoiceSetter,
   VoiceSession,
   type VoiceSessionCallbacks,
 } from '@/lib/voice-session'
@@ -40,6 +44,9 @@ const PHASE_FOR: Record<Status, OrbPhase> = {
 
 // In development, ?rehearse plays scripted turns, to review the motion without a gateway or
 // a microphone. Production builds never rehearse.
+// The fact the gateway keeps the chosen voice under (D-90).
+const VOICE_FACT = 'voice'
+
 // How long "Back online" shows after a dropped connection recovers.
 const BACK_ONLINE_MS = 2500
 
@@ -61,9 +68,14 @@ function App() {
   // A connection that was up and dropped; the socket reconnects by itself (D-90).
   const [reconnecting, setReconnecting] = useState(false)
   const [backOnline, setBackOnline] = useState(false)
+  // A voice just chosen, shown at once while the gateway saves it as the `voice` fact.
+  const [picked, setPicked] = useState<null | string>(null)
   const orbRef = useRef<HTMLButtonElement>(null)
 
-  const [session] = useState<AudioLevels & PushToTalk & Visit>(() => {
+  const [{ catalogue, session }] = useState<{
+    catalogue: VoiceCatalogue
+    session: AudioLevels & PushToTalk & Visit & VoiceSetter
+  }>(() => {
     // Each change lands on the newest turn, the one being answered.
     const updateLast = (change: (turn: Turn) => Partial<Turn>): void => {
       setTurns((all) => all.map((turn, index) => (index === all.length - 1 ? { ...turn, ...change(turn) } : turn)))
@@ -96,6 +108,9 @@ function App() {
           return
         }
         setWaitingForWords(false)
+        if (next === 'unknown_voice') {
+          setPicked(null)
+        }
         if (next === 'visit_limit') {
           setVisitOver(true)
         }
@@ -135,8 +150,14 @@ function App() {
         updateLast(() => ({ ttfaMs }))
       },
     }
-    return REHEARSE_AS === null ? new VoiceSession(SOCKET_URL, callbacks) : new RehearsalSession(callbacks, REHEARSE_AS === 'problems')
+    if (REHEARSE_AS !== null) {
+      const rehearsal = new RehearsalSession(callbacks, REHEARSE_AS === 'problems')
+      return { catalogue: rehearsal, session: rehearsal }
+    }
+    return { catalogue: new VoicesClient(), session: new VoiceSession(SOCKET_URL, callbacks) }
   })
+
+  const voices = useVoices(catalogue)
 
   useLayoutEffect(() => {
     applyPalette(palette)
@@ -145,6 +166,7 @@ function App() {
   useEffect(() => {
     session.connect()
   }, [session])
+
 
   // Hold Space to talk, as well as the orb.
   useEffect(() => {
@@ -183,15 +205,18 @@ function App() {
   const endWelcome = useCallback(() => {
     setWelcoming(false)
   }, [])
+  // The voice is kept as a fact but chosen with the picker, so the memory panel leaves it out.
+  const savedVoice = facts?.find((fact) => fact.key === VOICE_FACT)?.value
+  const shownFacts = facts?.filter((fact) => fact.key !== VOICE_FACT) ?? null
+  const voice = voices === null ? null : chosenVoice(picked ?? savedVoice, voices)
+  const chooseVoice = (next: string) => {
+    setPicked(next)
+    session.setVoice(next)
+  }
   const timed = turns.flatMap((turn) =>
     turn.ttfaMs === null ? [] : [{ id: turn.id, stages: turn.stages, ttfaMs: turn.ttfaMs }],
   )
-  const shown = problem === null ? null : PROBLEMS[problem]
-  // Cards show the microphone and the full visit; everything else is said under the orb,
-  // including a turn problem that came before any question was heard.
-  const inLine = shown !== null && shown.kind !== 'microphone' && shown.kind !== 'visit' ? shown : null
-  const idleText = visitOver ? 'Start a new visit to ask more' : reconnecting ? 'Waiting for the connection…' : describe(status, waitingForWords)
-  const statusText = inLine === null ? idleText : inLine.text
+  const line = statusLine(problem, restingText(status, waitingForWords, visitOver, reconnecting))
 
   return (
     <div className="flex h-svh flex-col bg-background text-foreground">
@@ -214,7 +239,7 @@ function App() {
             ) : null}
             {backOnline && !reconnecting ? 'Back online' : null}
           </p>
-          {facts !== null && (
+          {shownFacts !== null && (
             <div className="md:hidden">
               <Button
                 onClick={() => {
@@ -223,7 +248,7 @@ function App() {
                 size="sm"
                 variant="secondary"
               >
-                Remembers {facts.length}
+                Remembers {shownFacts.length}
               </Button>
             </div>
           )}
@@ -232,9 +257,9 @@ function App() {
 
       <div className="flex min-h-0 flex-1 gap-8 px-4 md:px-8">
         <main className="flex min-h-0 flex-1 flex-col">
-          {memoryOpen && facts !== null ? (
+          {memoryOpen && shownFacts !== null ? (
             <div className="pt-4 md:hidden">
-              <MemoryPanel busy={status !== 'idle'} facts={facts} onForgetMe={forgetMe} orbRef={orbRef} />
+              <MemoryPanel busy={status !== 'idle'} facts={shownFacts} onForgetMe={forgetMe} orbRef={orbRef} />
             </div>
           ) : null}
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-6">
@@ -243,34 +268,7 @@ function App() {
             </div>
           </div>
           <div className="pb-safe flex flex-col items-center gap-1 pt-2">
-            {shown?.kind === 'microphone' ? (
-              <div className="w-full max-w-md pb-3">
-                <Alert>
-                  <HugeiconsIcon icon={MicOff01Icon} />
-                  <AlertTitle>Sarjy can’t hear you yet</AlertTitle>
-                  <AlertDescription>{shown.text}</AlertDescription>
-                </Alert>
-              </div>
-            ) : null}
-            {visitOver ? (
-              <div className="w-full max-w-md pb-3">
-                <Alert>
-                  <HugeiconsIcon icon={Alert02Icon} />
-                  <AlertTitle>This visit is full</AlertTitle>
-                  <AlertDescription>{PROBLEMS['visit_limit'].text}</AlertDescription>
-                  <div className="col-start-2 pt-2">
-                    <Button
-                      onClick={() => {
-                        window.location.reload()
-                      }}
-                      size="sm"
-                    >
-                      Start a new visit
-                    </Button>
-                  </div>
-                </Alert>
-              </div>
-            ) : null}
+            <ProblemCards microphone={problem === 'mic_unavailable'} visitOver={visitOver} />
             <TalkOrb
               animateIn={welcomed}
               disabled={visitOver || reconnecting || status === 'thinking' || status === 'speaking'}
@@ -284,22 +282,38 @@ function App() {
               phase={PHASE_FOR[status]}
               revealed={orbRevealed}
             />
-            <p aria-live="polite" className={inLine === null || inLine.kind === 'hint' ? 'text-sm text-muted-foreground' : 'text-sm text-destructive'}>
-              <span className="label-in inline-block" key={statusText}>
-                {statusText}
+            <p aria-live="polite" className={line.trouble ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'}>
+              <span className="label-in inline-block" key={line.text}>
+                {line.text}
               </span>
             </p>
+            {voices !== null && voice !== null ? (
+              <VoicePicker disabled={status !== 'idle'} onChoose={chooseVoice} voice={voice} voices={voices.voices} />
+            ) : null}
           </div>
         </main>
 
         <aside className="hidden w-80 shrink-0 flex-col gap-4 overflow-y-auto pb-6 md:flex">
-          {facts !== null && <MemoryPanel busy={status !== 'idle'} facts={facts} onForgetMe={forgetMe} orbRef={orbRef} />}
+          {shownFacts !== null && <MemoryPanel busy={status !== 'idle'} facts={shownFacts} onForgetMe={forgetMe} orbRef={orbRef} />}
           <LatencyPanel turns={timed} />
         </aside>
       </div>
       {welcoming ? <FirstLoad onDocked={revealOrb} onDone={endWelcome} orbRef={orbRef} /> : null}
     </div>
   )
+}
+
+// The voice to show as chosen: the one picked or saved if TTS still offers it, else its default.
+function chosenVoice(wanted: string | undefined, list: VoiceList): string {
+  return wanted !== undefined && list.voices.includes(wanted) ? wanted : list.default
+}
+
+// What the line under the orb says when there is no problem to report.
+function restingText(status: Status, waitingForWords: boolean, visitOver: boolean, reconnecting: boolean): string {
+  if (visitOver) {
+    return 'Start a new visit to ask more'
+  }
+  return reconnecting ? 'Waiting for the connection…' : describe(status, waitingForWords)
 }
 
 function describe(status: Status, waitingForWords: boolean): string {

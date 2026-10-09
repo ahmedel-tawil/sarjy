@@ -1,5 +1,6 @@
+import type { VoiceCatalogue, VoiceList } from '@/clients/voices-client'
 import type { RememberedFact, TourLink } from '@/lib/protocol'
-import type { AudioLevels, Problem, PushToTalk, Status, Visit, VoiceSessionCallbacks } from '@/lib/voice-session'
+import type { AudioLevels, Problem, PushToTalk, Status, Visit, VoicePicker, VoiceSessionCallbacks } from '@/lib/voice-session'
 
 // A stand-in for VoiceSession that plays scripted turns, so the screen's motion and its
 // problem states can be reviewed without a gateway or a microphone. Development only:
@@ -55,13 +56,16 @@ const SCRIPT: readonly ScriptedTurn[] = [
   },
 ]
 
+// Kokoro's voices that the deployed TTS carries (D-49).
+const VOICES: VoiceList = { default: 'af_heart', voices: ['af_heart', 'af_bella', 'af_sarah', 'am_michael', 'am_adam'] }
+
 const HEARD_AFTER_MS = 900
 const RECONNECTS_AFTER_MS = 2000
 const SPEAKS_AFTER_MS = 2200
 // Roughly Kokoro's pace, so each scripted sentence lasts about as long as a real one.
 const MS_PER_WORD = 380
 
-export class RehearsalSession implements AudioLevels, PushToTalk, Visit {
+export class RehearsalSession implements AudioLevels, PushToTalk, Visit, VoiceCatalogue, VoicePicker {
   readonly #callbacks: VoiceSessionCallbacks
   #facts: RememberedFact[] = []
   #status: Status = 'idle'
@@ -81,6 +85,16 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit {
 
   forgetMe(): void {
     this.#facts = []
+    this.#callbacks.onMemory(this.#facts)
+  }
+
+  list(): Promise<VoiceList> {
+    return Promise.resolve(VOICES)
+  }
+
+  // Kept as the `voice` fact, as the gateway does (D-90).
+  setVoice(voice: string): void {
+    this.#facts = [...this.#facts.filter((fact) => fact.key !== 'voice'), { key: 'voice', value: voice }]
     this.#callbacks.onMemory(this.#facts)
   }
 
