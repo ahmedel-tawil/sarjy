@@ -1162,6 +1162,24 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   month, mostly TTS); a faster gateway start (smaller image, lazier imports; worth doing,
   but warm instances solve the review week now).
 
+### D-79 The waterfall: each turn's stages from both clocks, in the latency card
+
+- **Decision:** the page computes a turn's stages once it has both the gateway's marks
+  and its own time to first audio, with the same gaps as `LATENCY.md` (speech to text,
+  first word, first sentence, voice, and the network as what is left), and reports them
+  through an optional `onStages`. The "How fast Sarjy answered" card draws the last five
+  turns as bars on one scale, each split into its stages in the palette's chart colours,
+  with the last turn's values in a legend and each bar labelled for screen readers
+  (settled 9 Oct in M3.2).
+- **Reason:** the demo should show where a turn's time went, live, as `LATENCY.md` does
+  for a run. The two clocks only agree on durations, so the page combines the gateway's
+  gaps with its own TTFA rather than comparing timestamps. One scale makes turns compare
+  at a glance; the chart tokens keep the stages distinct in every palette.
+- **Alternatives considered:** a waterfall that offsets each stage on a timeline (the
+  stages already follow one another, so a stacked bar shows the same thing in less
+  space); the gateway sending stages itself (it can't know the browser's playback start);
+  a chart library (a new dependency for five coloured spans).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
