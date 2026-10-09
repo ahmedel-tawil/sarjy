@@ -1047,6 +1047,32 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   microphone and a browser automation dependency); sending each clip at once (would
   count the whole upload after `speech_end`).
 
+### D-76 Sentence streaming: every written sentence spoken in order, tools first
+
+- **Decision:** in `sentence` mode (`SARJY_PIPELINE_MODE`), the model's text is split
+  into sentences as it streams; each complete sentence passes the per-sentence step and
+  goes to TTS at once, one at a time, and each clip is sent with an `audio` message
+  carrying the words it speaks. Text written before a tool call is spoken too, while the
+  tool runs. The reply is everything spoken, sent after the last clip, and is what the
+  history keeps. The prompt now asks the model to call any tool before writing anything.
+  `baseline` stays the default until the page queues clips (settled 9 Oct in M3.5).
+- **Reason:** first audio should wait for one sentence, not the whole reply; TTS was 48%
+  of the baseline's TTFA and grew with the reply. A sentence can't be taken back once it
+  is spoken, and a round is only known to end in a tool call when it ends, so text before
+  a tool can't be held without losing the gain. In a local trial without the new rule,
+  Claude named tours before searching ("Ferrari World and Warner Bros. World are good
+  choices") and the next turn misread its own "I'll remember that" as an unkept promise;
+  with the rule, only short fillers such as "I'll check tomorrow's weather" remained.
+  Sentences go to TTS one at a time because Kokoro on 8 vCPU synthesises faster than it
+  speaks, and order then needs no bookkeeping.
+- **Trade-off:** a filler before a tool counts as first audio, which is what the user
+  hears, so TTFA improves more than the answer itself does; `LATENCY.md` notes it. If the
+  model ignores the rule, words written before a tool are spoken unchecked.
+- **Alternatives considered:** holding each round's sentences until it is known not to
+  call a tool (no gain on the rounds that matter); speaking only the last round and
+  dropping the rest (needs the model to say which round is last); synthesising sentences
+  in parallel (faster on long replies, but order and CPU sharing to manage).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
