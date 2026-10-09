@@ -1370,6 +1370,30 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   search); a `tool_start` mark (marks are one per turn, D-04, and each tool's time is
   already logged).
 
+### D-95 A turn never says its answer twice
+
+- **Decision:** two rules in the tool loop. First, a round that wrote words and whose
+  only tool calls are `remember_fact` or `forget_fact`, all successful, is the whole
+  answer: the facts are saved and the model isn't asked again. A failed save still goes
+  back to the model. Second, with sentence streaming, when a round wrote words before
+  other tool calls, the next round gets a system note quoting what the traveller already
+  heard and asking it to carry on without repeating, greeting or thanking again.
+- **Reason:** on 10 Oct a greeting came out twice ("Hello Ahmed, lovely to meet you…
+  Hello Ahmed, it's good to have you here"). Claude answered and saved the name in one
+  round, then answered again when given the save's result. Since sentence streaming
+  speaks every round's words (D-76), both reached the traveller. Before it, the baseline
+  kept only the last round, so the first answer was silently thrown away. A saved fact
+  gives the model nothing it needs, and skipping the round also saves about a second and
+  a model call. Other tools' results are needed, so there the note is the fix: in three
+  live passes no reply repeated itself, but in the model runs of M3.8 one of Haiku's two
+  answers to "colour and heights" (facts saved together with a search) still thanked
+  twice. The note makes repeats rarer, not impossible.
+- **Alternatives considered:** holding a round's words until it is known whether it calls
+  tools (gives back sentence streaming's gain, D-76); a standing rule in the system
+  prompt (the tools-first rule shows such rules are not always kept, and a note quoting
+  the exact words is more direct); removing duplicate sentences (repeats are rephrased,
+  not identical).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
