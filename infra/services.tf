@@ -28,8 +28,9 @@ resource "google_cloud_run_v2_service" "gateway" {
       }
     }
 
+    # Warm instances for the review week, cold otherwise (D-78).
     scaling {
-      min_instance_count = 0
+      min_instance_count = var.gateway_min_instances
       max_instance_count = 2
     }
 
@@ -158,7 +159,7 @@ resource "google_cloud_run_v2_service" "tts" {
     max_instance_request_concurrency = 4
 
     scaling {
-      min_instance_count = 0
+      min_instance_count = var.tts_min_instances
       max_instance_count = 1
     }
 
