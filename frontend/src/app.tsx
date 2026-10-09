@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 
 import { type VoiceCatalogue, type VoiceList, VoicesClient } from '@/clients/voices-client'
 import { ConversationThread, type Turn } from '@/components/conversation-thread'
+import { EarlierVisits, type Replay } from '@/components/earlier-visits'
 import { FirstLoad, wantsWelcome } from '@/components/first-load'
 import { LatencyPanel } from '@/components/latency-panel'
 import { MemoryPanel } from '@/components/memory-panel'
@@ -19,12 +20,13 @@ import { TalkOrb } from '@/components/talk-orb'
 import { Button } from '@/components/ui/button'
 import { useTalkControls } from '@/components/use-talk-controls'
 import { useVoices } from '@/components/use-voices'
-import type { RememberedFact } from '@/lib/protocol'
+import type { EarlierVisit, RememberedFact } from '@/lib/protocol'
 import {
   type AudioLevels,
   type Connection,
   type Problem,
   type PushToTalk,
+  type Replayer,
   type Status,
   type Visit,
   type VoicePicker as VoiceSetter,
@@ -75,12 +77,16 @@ function App() {
   const [backOnline, setBackOnline] = useState(false)
   // A voice just chosen, shown at once while the gateway saves it as the `voice` fact.
   const [picked, setPicked] = useState<null | string>(null)
+  // The visitor's earlier visits, newest first, and the earlier answer being replayed (D-84).
+  const [history, setHistory] = useState<EarlierVisit[]>([])
+  const [replay, setReplay] = useState<null | Replay>(null)
   const [talkMode, setTalkMode] = useState<TalkMode>(initialTalkMode)
   const orbRef = useRef<HTMLButtonElement>(null)
 
-  const [{ catalogue, session }] = useState<{
+  const [{ catalogue, session, startReplay }] = useState<{
     catalogue: VoiceCatalogue
-    session: AudioLevels & PushToTalk & Visit & VoiceSetter
+    session: AudioLevels & PushToTalk & Replayer & Visit & VoiceSetter
+    startReplay: (turnId: string) => void
   }>(() => {
     // Each change lands on the newest turn, the one being answered.
     const updateLast = (change: (turn: Turn) => Partial<Turn>): void => {
@@ -88,6 +94,8 @@ function App() {
     }
     let wasOnline = false
     let nextId = 0
+    // A replay's clips belong to the earlier answer being replayed, not to today's last turn.
+    let replayingId: null | string = null
     // The turn whose question was heard but whose answer has not started yet: a problem
     // until then belongs to it, and is noted on it in the conversation.
     let answering: null | number = null
@@ -107,6 +115,7 @@ function App() {
           setReconnecting(true)
         }
       },
+      onHistory: setHistory,
       onMemory: setFacts,
       onProblem: (next) => {
         if (next === null) {
@@ -133,12 +142,21 @@ function App() {
         updateLast(() => ({ links, reply }))
       },
       onSpeak: (text, durationMs) => {
+        const replayed = replayingId
+        if (replayed !== null) {
+          setReplay((current) => (current?.turnId === replayed ? { ...current, clips: [...current.clips, { durationMs, text }] } : current))
+          return
+        }
         answering = null
         updateLast((turn) => ({ clips: [...turn.clips, { durationMs, text }] }))
       },
       onStatus: (next) => {
         if (next === 'thinking') {
           setWaitingForWords(true)
+        }
+        if (next === 'idle') {
+          replayingId = null
+          setReplay(null)
         }
         setStatus(next)
       },
@@ -156,11 +174,14 @@ function App() {
         updateLast(() => ({ ttfaMs }))
       },
     }
-    if (REHEARSE_AS !== null) {
-      const rehearsal = new RehearsalSession(callbacks, REHEARSE_AS === 'problems')
-      return { catalogue: rehearsal, session: rehearsal }
+    const rehearsal = REHEARSE_AS === null ? null : new RehearsalSession(callbacks, REHEARSE_AS === 'problems')
+    const visit = rehearsal ?? new VoiceSession(SOCKET_URL, callbacks)
+    const replayAnswer = (turnId: string): void => {
+      replayingId = turnId
+      setReplay({ clips: [], turnId })
+      visit.replay(turnId)
     }
-    return { catalogue: new VoicesClient(), session: new VoiceSession(SOCKET_URL, callbacks) }
+    return { catalogue: rehearsal ?? new VoicesClient(), session: visit, startReplay: replayAnswer }
   })
 
   const voices = useVoices(catalogue)
@@ -195,7 +216,7 @@ function App() {
   const timed = turns.flatMap((turn) =>
     turn.ttfaMs === null ? [] : [{ id: turn.id, stages: turn.stages, ttfaMs: turn.ttfaMs }],
   )
-  const line = statusLine(problem, restingText(status, waitingForWords, visitOver, reconnecting, talkMode))
+  const line = statusLine(problem, restingText({ reconnecting, replaying: replay !== null, status, talkMode, visitOver, waitingForWords }))
   const chooseTalkMode = (mode: TalkMode) => {
     setTalkMode(mode)
     saveTalkMode(mode)
@@ -259,7 +280,10 @@ function App() {
           ) : null}
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-6">
             <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-end">
-              <ConversationThread talkMode={talkMode} turns={turns} />
+              {history.length > 0 ? (
+                <EarlierVisits busy={status !== 'idle' || visitOver} onReplay={startReplay} replay={replay} visits={history} />
+              ) : null}
+              <ConversationThread returning={history.length > 0} talkMode={talkMode} turns={turns} />
             </div>
           </div>
           <div className="pb-safe flex flex-col items-center gap-1 pt-2">
@@ -301,12 +325,28 @@ function chosenVoice(wanted: string | undefined, list: VoiceList): string {
   return wanted !== undefined && list.voices.includes(wanted) ? wanted : list.default
 }
 
+interface Moment {
+  reconnecting: boolean
+  // An earlier answer is being spoken again, rather than a new one (D-84).
+  replaying: boolean
+  status: Status
+  talkMode: TalkMode
+  visitOver: boolean
+  waitingForWords: boolean
+}
+
 // What the line under the orb says when there is no problem to report.
-function restingText(status: Status, waitingForWords: boolean, visitOver: boolean, reconnecting: boolean, talkMode: TalkMode): string {
-  if (visitOver) {
+function restingText(moment: Moment): string {
+  if (moment.visitOver) {
     return 'Start a new visit to ask more'
   }
-  return reconnecting ? 'Waiting for the connection…' : describe(status, waitingForWords, talkMode)
+  if (moment.reconnecting) {
+    return 'Waiting for the connection…'
+  }
+  if (moment.replaying) {
+    return moment.status === 'speaking' ? 'Sarjy is replaying an earlier answer' : 'Getting that answer ready…'
+  }
+  return describe(moment.status, moment.waitingForWords, moment.talkMode)
 }
 
 // The orb's name for screen readers, which changes in tap mode once it is listening.

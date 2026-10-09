@@ -19,9 +19,10 @@ interface TimedWord {
 // Sarjy's reply, word by word as it is spoken. Each clip's words arrive as its audio starts
 // and are spread across the clip's length, longer words taking longer; a CSS delay reveals
 // each one at its moment, in the accent colour, before it settles into ink.
-export function SpokenWords({ clips }: { clips: SpokenClip[] }) {
+// An earlier visit's answer is set smaller than the current visit's (D-84).
+export function SpokenWords({ clips, earlier = false }: { clips: SpokenClip[]; earlier?: boolean }) {
   return (
-    <p className="text-lg/relaxed text-pretty md:text-xl/relaxed">
+    <p className={earlier ? 'text-pretty' : 'text-lg/relaxed text-pretty md:text-xl/relaxed'}>
       {clips.map((clip, clipIndex) =>
         timeWords(clip).map((word, index) => (
           // Clips and their words only append, so their positions are stable keys.

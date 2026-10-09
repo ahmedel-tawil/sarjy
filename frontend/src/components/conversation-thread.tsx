@@ -39,14 +39,31 @@ const HOW_TO_ASK: Record<TalkMode, string> = {
   tap: 'Tap the orb, or press Space, and ask Sarjy. Tap again when you’re done.',
 }
 
-export function ConversationThread({ talkMode, turns }: { talkMode: TalkMode; turns: Turn[] }) {
+interface ConversationThreadProps {
+  // A visitor with earlier visits is welcomed back rather than shown example questions.
+  returning: boolean
+  talkMode: TalkMode
+  turns: Turn[]
+}
+
+export function ConversationThread({ returning, talkMode, turns }: ConversationThreadProps) {
   const endRef = useRef<HTMLDivElement>(null)
   const last = turns.at(-1)
 
   // Keep the newest words in view as they appear.
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
-  }, [turns.length, last?.clips.length, last?.reply])
+  }, [turns.length, last?.clips.length, last?.reply, returning])
+
+  if (turns.length === 0 && returning) {
+    return (
+      <div className="flex flex-col gap-2 pb-6">
+        <p className="text-2xl/snug font-medium text-balance md:text-3xl/snug">Welcome back.</p>
+        <p className="text-muted-foreground">{HOW_TO_ASK[talkMode]} Or hear an earlier answer again with its play button.</p>
+        <div ref={endRef} />
+      </div>
+    )
+  }
 
   if (turns.length === 0) {
     return (
