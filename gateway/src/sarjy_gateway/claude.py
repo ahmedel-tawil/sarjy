@@ -9,6 +9,7 @@ from anthropic.types import (
     RawContentBlockDeltaEvent,
     RawContentBlockStartEvent,
     RawMessageDeltaEvent,
+    RawMessageStartEvent,
     TextBlockParam,
     TextDelta as ClaudeTextDelta,
     ToolParam,
@@ -18,7 +19,7 @@ from anthropic.types import (
 )
 from pydantic import RootModel, ValidationError
 
-from sarjy_gateway.llm import ChatModelError, ChatRateLimitedError, Finished, TextDelta, ToolCallDelta
+from sarjy_gateway.llm import ChatModelError, ChatRateLimitedError, Finished, TextDelta, ToolCallDelta, Usage
 
 
 if TYPE_CHECKING:
@@ -83,16 +84,22 @@ class ClaudeChatModel:
 # Claude's stream mapped to the gateway's events. A tool call's first block carries its
 # id and name, and its JSON input follows in pieces, as with OpenAI-style streams.
 async def chat_events(stream: AsyncMessageStream) -> AsyncIterator[ChatEvent]:
+    input_tokens = 0
     async for event in stream:
-        if isinstance(event, RawContentBlockStartEvent) and isinstance(event.content_block, ToolUseBlock):
+        if isinstance(event, RawMessageStartEvent):
+            input_tokens = event.message.usage.input_tokens
+        elif isinstance(event, RawContentBlockStartEvent) and isinstance(event.content_block, ToolUseBlock):
             yield ToolCallDelta(event.index, event.content_block.id, event.content_block.name, "")
         elif isinstance(event, RawContentBlockDeltaEvent):
             if isinstance(event.delta, ClaudeTextDelta):
                 yield TextDelta(event.delta.text)
             elif isinstance(event.delta, InputJSONDelta):
                 yield ToolCallDelta(event.index, None, None, event.delta.partial_json)
-        elif isinstance(event, RawMessageDeltaEvent) and event.delta.stop_reason is not None:
-            yield Finished(event.delta.stop_reason)
+        elif isinstance(event, RawMessageDeltaEvent):
+            # Its output count is the message's total so far; the last one is the whole.
+            yield Usage(input_tokens, event.usage.output_tokens)
+            if event.delta.stop_reason is not None:
+                yield Finished(event.delta.stop_reason)
 
 
 def claude_request(messages: Sequence[ChatMessage]) -> ClaudeRequest:

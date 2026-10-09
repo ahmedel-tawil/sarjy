@@ -59,7 +59,15 @@ class Finished:
     reason: str
 
 
-type ChatEvent = TextDelta | ToolCallDelta | Finished
+# What one request cost, by the provider's own count: experiment 5 compares input tokens
+# (M3.9).
+@dataclass(frozen=True)
+class Usage:
+    input_tokens: int
+    output_tokens: int
+
+
+type ChatEvent = TextDelta | ToolCallDelta | Finished | Usage
 
 
 class ChatModelError(RuntimeError):
@@ -101,8 +109,20 @@ class Choice(BaseModel):
     finish_reason: str | None = None
 
 
+class ChunkUsage(BaseModel):
+    prompt_tokens: int
+    completion_tokens: int
+
+
+# Groq reports usage on the last chunk under its own key; others under `usage`.
+class GroqExtras(BaseModel):
+    usage: ChunkUsage | None = None
+
+
 class StreamChunk(BaseModel):
     choices: list[Choice]
+    usage: ChunkUsage | None = None
+    x_groq: GroqExtras | None = None
 
 
 # Some failures arrive inside the stream instead of as an HTTP error, such as Groq
@@ -308,6 +328,9 @@ def events_in(chunk: StreamChunk) -> list[ChatEvent]:
             events.append(ToolCallDelta(call.index, call.id, function.name, function.arguments or ""))
         if choice.finish_reason is not None:
             events.append(Finished(choice.finish_reason))
+    usage = chunk.usage or (chunk.x_groq.usage if chunk.x_groq is not None else None)
+    if usage is not None:
+        events.append(Usage(usage.prompt_tokens, usage.completion_tokens))
     return events
 
 
