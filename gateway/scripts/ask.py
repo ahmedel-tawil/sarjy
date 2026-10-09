@@ -1,7 +1,8 @@
 # Sends typed questions through the real turn pipeline (the configured LLM and SayTech,
 # no speech in or out) and shows each tool call, the reply Sarjy would speak, and the
 # marks. The questions share one conversation, so later ones can refer to earlier ones.
-# Run from the repository root, with SARJY_LLM_API_KEY in .env or the environment:
+# Run from the repository root, with SARJY_LLM_API_KEY (Groq) or SARJY_ANTHROPIC_API_KEY
+# (Claude) in .env or the environment; SARJY_LLM_PRIMARY picks which answers first:
 #     uv run python gateway/scripts/ask.py "How much is the buggy dune bashing tour?"
 
 import asyncio
@@ -80,8 +81,8 @@ class ShownTool:
 
 async def ask(questions: list[str]) -> None:
     settings = Settings()
-    if settings.llm_api_key is None:
-        message = "set SARJY_LLM_API_KEY in .env or the environment"
+    if settings.llm_api_key is None and settings.anthropic_api_key is None:
+        message = "set SARJY_LLM_API_KEY or SARJY_ANTHROPIC_API_KEY in .env or the environment"
         raise SystemExit(message)
     services = build_services(settings)
     tools: list[Tool] = [
@@ -105,6 +106,8 @@ async def ask(questions: list[str]) -> None:
     finally:
         if services.http_client is not None:
             await services.http_client.aclose()
+        if services.anthropic_client is not None:
+            await services.anthropic_client.close()
 
 
 def main() -> None:

@@ -1,5 +1,6 @@
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
+import logging
 from typing import TYPE_CHECKING, Literal, NotRequired, Protocol, TypedDict
 
 import httpx2
@@ -160,6 +161,40 @@ class OpenAiCompatibleChatModel:
         if self._options.reasoning_effort is not None:
             body["reasoning_effort"] = self._options.reasoning_effort
         return body
+
+
+logger = logging.getLogger(__name__)
+
+
+# Asks the first model and, if it fails before saying anything (a rate limit, a refused or
+# deactivated key, a server or network error, no key at all), sends the same request to
+# the second. Once words have arrived the answer can't be swapped, so later failures are
+# the turn's (D-63).
+class FallbackChatModel:
+    def __init__(self, first: ChatModel, second: ChatModel, first_name: str, second_name: str) -> None:
+        self._first = first
+        self._second = second
+        self._first_name = first_name
+        self._second_name = second_name
+
+    @asynccontextmanager
+    async def stream(
+        self, messages: Sequence[ChatMessage], tools: Sequence[ToolSpec]
+    ) -> AsyncGenerator[AsyncIterator[ChatEvent]]:
+        # The stack closes whichever stream opened, once the caller's block ends.
+        async with AsyncExitStack() as stack:
+            try:
+                events = await stack.enter_async_context(self._first.stream(messages, tools))
+                answered_by = self._first_name
+            except ChatModelError as error:
+                logger.warning(
+                    "%(first)s failed before answering, asking %(second)s",
+                    {"first": self._first_name, "second": self._second_name, "error": str(error)},
+                )
+                events = await stack.enter_async_context(self._second.stream(messages, tools))
+                answered_by = self._second_name
+            logger.info("chat answered by %(model)s", {"model": answered_by})
+            yield events
 
 
 class MissingChatModel:

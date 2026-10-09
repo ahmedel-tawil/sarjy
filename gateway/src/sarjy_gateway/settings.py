@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     llm_temperature: float = Field(default=0.5, ge=0.0, le=2.0)
     # Spoken replies are short; this caps cost and runaway answers.
     llm_max_tokens: int = Field(default=300, gt=0)
+    # Which chat provider answers first: "groq" is the OpenAI-compatible provider above,
+    # "claude" is Anthropic's. With both keys set, the other one is the fallback (D-63).
+    llm_primary: Literal["groq", "claude"] = "groq"
+    anthropic_api_key: SecretStr | None = None
+    # The fastest Claude to a first word, which is what a voice turn waits for.
+    claude_model: str = "claude-haiku-5-5"
+    # Thinking is off for Claude, which it allows up to "high"; "low" keeps replies short.
+    claude_effort: Literal["low", "medium", "high"] = "low"
     # SayTech's assistant API for Magic Experience; the subdomain picks the operator (D-56).
     saytech_base_url: str = "https://magicexperience.api.saytech.ae/api/v1/public/assistant"
     # SayTech answers in well under a second; a slower answer means a voice turn stalls.

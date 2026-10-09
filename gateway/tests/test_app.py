@@ -24,6 +24,7 @@ def services_with(tts: TextToSpeech) -> Services:
         catalogue=FakeCatalogue(),
         weather=FakeWeather(),
         http_client=None,
+        anthropic_client=None,
     )
 
 
