@@ -1015,11 +1015,19 @@ Do this on 9 Oct (PRD: "Test Safari on day 2, not day 4").
 
 ### M4.9 Voice picker
 
-- [ ] A small shadcn `Select` beside the talk control lists the voices from TTS with
-      friendly names; `af_heart` is preselected (D-49).
-- [ ] Changing it sends `set_voice`; the next reply uses the new voice.
-- [ ] The choice is saved as one of the user's facts, so a returning visitor hears the
-      voice they picked (needs M2.6).
+- [x] A small shadcn `Select` beside the talk control lists the voices from TTS with
+      friendly names; `af_heart` is preselected (D-49). Under the orb: Heart, Bella,
+      Sarah, Michael and Adam (D-82).
+- [x] Changing it sends `set_voice`; the next reply uses the new voice (the gateway sets
+      the visit's voice at once, D-90).
+- [x] The choice is saved as one of the user's facts, so a returning visitor hears the
+      voice they picked (needs M2.6). It is preselected from that fact and left out of
+      "What Sarjy remembers".
+
+Checked on 9 Oct in the in-app browser at 375 px with `?rehearse`: the list opened with
+Heart ticked, Bella stayed chosen across a turn, the picker waited while the turn ran, the
+saved fact did not appear in the memory count, and with no gateway the picker stayed
+hidden. A real reply in the new voice needs the gateway and TTS, so it was not heard here.
 
 ---
 
