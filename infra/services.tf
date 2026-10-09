@@ -52,8 +52,7 @@ resource "google_cloud_run_v2_service" "gateway" {
         }
       }
 
-      # The LLM has its own variable so experiment 4 can point it at another provider;
-      # for now it is the same Groq secret.
+      # The OpenAI-compatible chat provider, Groq; the same secret as speech to text.
       env {
         name = "SARJY_LLM_API_KEY"
         value_source {
@@ -63,11 +62,30 @@ resource "google_cloud_run_v2_service" "gateway" {
           }
         }
       }
+
+      # Claude, the second chat provider. var.llm_primary says which of the two answers
+      # first; the other steps in when it fails before answering (D-63).
+      env {
+        name = "SARJY_ANTHROPIC_API_KEY"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.anthropic_api_key.secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name  = "SARJY_LLM_PRIMARY"
+        value = var.llm_primary
+      }
     }
   }
 
-  # The gateway's identity must be able to read the secret before a revision uses it.
-  depends_on = [google_secret_manager_secret_iam_member.gateway_reads_groq_api_key]
+  # The gateway's identity must be able to read the secrets before a revision uses them.
+  depends_on = [
+    google_secret_manager_secret_iam_member.gateway_reads_groq_api_key,
+    google_secret_manager_secret_iam_member.gateway_reads_anthropic_api_key,
+  ]
 
   lifecycle {
     # CI deploys new images; Terraform owns everything else about the service.
