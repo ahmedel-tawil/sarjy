@@ -876,6 +876,27 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   on every turn for data the visit already has); free-text memory without keys (no
   clean way to update one fact).
 
+### D-68 Memory panel: the whole list over the socket, opened with the page
+
+- **Decision:** The page opens its WebSocket as soon as it loads. The gateway sends a
+  `memory` message with all of the user's facts when the visit starts and after every
+  save or forget, always the full list sorted by key. "Forget me" is a `forget_me`
+  message on the same socket, sent after a confirmation dialog: the gateway deletes the
+  user's facts, empties the visit's copy and sends an empty list, or `forget_failed` if
+  the database is down. As the PRD says, it deletes facts only; sessions and turns stay.
+  The button waits while a turn runs (settled 9 Oct in M2.7).
+- **Reason:** The visit owns the copy of the facts its prompts use (D-67), so forgetting
+  has to go through it: deleted over HTTP, the open visit would keep using them. The full
+  list keeps the page free of merging logic, and it is a handful of rows. Opening the
+  socket with the page fills the panel before the first question, and takes the
+  WebSocket handshake out of the first turn's latency.
+- **Trade-off:** another tab of the same browser sees a change only when it reconnects,
+  and an idle tab holds its socket until Cloud Run's 60-minute request timeout.
+- **Alternatives considered:** HTTP endpoints to read and delete facts (the open visit
+  would not hear about it); sending only the changed fact (merging in the page for a
+  tiny list); opening the socket on the first press, as before (an empty panel until
+  then).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -888,6 +909,7 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | O-24 | Audio for the test script | recorded by me; synthesised (Kokoro or macOS `say`) | Synthesised for repeatability, plus a few real recordings as a sanity check. | M3.3 |
 | O-25 | Frontend unit tests | Vitest for pure logic (timing maths, message parsing); none | Add Vitest only if the client grows real logic. | M3.2 |
 | O-29 | Cloud Run or a VM for the deployed services | stay on Cloud Run (D-22: scale to zero, managed HTTPS and WebSockets, keyless deploys, private TTS); a VM or a mix, for a faster always-warm CPU or a GPU for Kokoro | To discuss in detail with Ahmed (asked on 9 Oct): cold starts, CPU speed, the cost of keeping instances warm, GPU options, and what experiments 6 and 8 show. | a session before the review |
+| O-30 | Which model answers first, now that saving facts is visible | Claude first (`llm_primary = "claude"`): saved both facts in 3 of 3 tries, first word about 2.7 to 3.5 s; Groq's Qwen as now: said "noted" without saving in 7 of 7 tries on 9 Oct, two firmer prompt wordings saved in only 1 of 6, and thinking on in 1 of 3, yet "Please remember that…" saved both in 3 of 3, so it fails at deciding a casual remark is worth saving, not at calling the tool; first word about 1.5 s; Groq's gpt-oss-120b: saved the colour in 3 of 3 but never the heights | Ask Ahmed. Measured with `My favourite colour is green, and I don't like heights.` through the real pipeline. | before M2.14 |
 | O-26 | Voice activity detection approach | a browser VAD library (new dependency); a simple energy threshold; server-side VAD | Decide in M4.5, once push-to-talk is solid. | M4.5 |
 
 ## Approved code-standards exceptions

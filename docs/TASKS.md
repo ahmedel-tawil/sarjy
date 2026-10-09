@@ -521,10 +521,23 @@ New dependencies: psycopg (binary), psycopg-pool (approved).
 
 ### M2.7 Memory panel and "Forget me"
 
-- [ ] A "What Sarjy remembers" panel lists the user's facts and updates as soon as one is
-      saved; the server pushes the change over the WebSocket.
-- [ ] "Forget me" asks for confirmation, deletes the user's facts and empties the panel.
-- [ ] Tests cover the delete path.
+- [x] A "What Sarjy remembers" panel lists the user's facts and updates as soon as one is
+      saved; the server pushes the change over the WebSocket: the whole list when the
+      visit starts and after every save or forget, so a fact appears before Sarjy's reply
+      (D-68).
+- [x] "Forget me" asks for confirmation, deletes the user's facts and empties the panel.
+- [x] Tests cover the delete path: in Postgres it deletes only that user's facts; over the
+      socket it empties the panel and the next turn's prompt; with the database down the
+      page hears `forget_failed`.
+
+Checked on 9 Oct with a local gateway, Postgres and Kokoro. In the browser, two facts
+showed after a reload, and Forget me asked first, emptied the panel and left no rows.
+Over the socket with Claude answering, "My favourite colour is green, and I don't like
+heights" pushed each fact before the reply. Groq's Qwen, though, said "I've noted that"
+without calling `remember_fact` in all 7 tries with the current prompt (two firmer
+wordings saved in 1 of 6), which the panel makes visible: see O-30.
+
+No new dependencies: the shadcn alert dialog and card use radix-ui, already installed.
 
 ### M2.8 SayTech adapter: client and data cleaning
 
