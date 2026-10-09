@@ -805,10 +805,18 @@ already installed through uvicorn).
 
 ### M3.4 Experiment 1: baseline
 
-- [ ] Baseline p50/p95 for TTFA and each stage are in `LATENCY.md`, measured on the
-      deployed URL.
-- [ ] A short "where the time goes" breakdown.
-- [ ] Targets for the later experiments are set from these numbers (PRD: set on day 2).
+- [x] Baseline p50/p95 for TTFA and each stage are in `LATENCY.md`, measured on the
+      deployed URL: TTFA p50 7.9 s and p95 10.7 s over 30 turns, warm instances
+      (`docs/latency/runs/baseline.jsonl`).
+- [x] A short "where the time goes" breakdown: TTS 48% of the mean TTFA and growing with
+      the reply, the LLM's first word 30% (about a second per tool round), STT 10%, the
+      network 7%; and medians per question.
+- [x] Targets for the later experiments are set from these numbers (PRD: set on day 2):
+      sentence streaming to bring TTS under 1.5 s and TTFA p50 under 5 s, p95 under 7 s.
+
+Each run now records which question of the script a turn played (`clip`). A first full
+run made at 11:56 UTC by another process, without that field and with unknown warm-up,
+was deleted on Ahmed's word and recorded again.
 
 ### M3.5 Sentence chunker and per-sentence pipeline
 
