@@ -10,6 +10,12 @@ export type Palette = (typeof PALETTES)[number]
 
 const NAMES: Record<Palette, string> = { coral: 'Coral', night: 'Night', pearl: 'Pearl' }
 
+const SWATCHES: Record<Palette, string> = {
+  coral: 'size-4 rounded-full bg-swatch-coral',
+  night: 'size-4 rounded-full bg-swatch-night ring-1 ring-foreground/20',
+  pearl: 'size-4 rounded-full bg-swatch-pearl',
+}
+
 const STORAGE_KEY = 'sarjy.palette'
 
 export function applyPalette(palette: Palette): void {
@@ -47,15 +53,17 @@ export function PaletteSwitcher({ onChange, palette }: PaletteSwitcherProps) {
     <div aria-label="Colours" className="flex gap-1" role="group">
       {PALETTES.map((option) => (
         <Button
+          aria-label={`${NAMES[option]} colours`}
           aria-pressed={option === palette}
           key={option}
           onClick={() => {
             onChange(option)
           }}
-          size="xs"
+          size="icon-sm"
+          title={NAMES[option]}
           variant={option === palette ? 'secondary' : 'ghost'}
         >
-          {NAMES[option]}
+          <span className={SWATCHES[option]} />
         </Button>
       ))}
     </div>

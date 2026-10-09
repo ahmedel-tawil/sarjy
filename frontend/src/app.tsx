@@ -1,11 +1,13 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { ConversationThread, type Turn } from '@/components/conversation-thread'
+import { FirstLoad, wantsWelcome } from '@/components/first-load'
 import { LatencyPanel } from '@/components/latency-panel'
 import { MemoryPanel } from '@/components/memory-panel'
 import type { OrbPhase } from '@/components/orb-renderer'
 import { applyPalette, initialPalette, type Palette, PaletteSwitcher } from '@/components/palette-switcher'
-import { RehearsalSession,rehearsedMicLevel } from '@/components/rehearsal-session'
+import { RehearsalSession, rehearsedMicLevel } from '@/components/rehearsal-session'
+import { SarjyMark } from '@/components/sarjy-mark'
 import { TalkOrb } from '@/components/talk-orb'
 import { Button } from '@/components/ui/button'
 import { useMicLevel } from '@/components/use-mic-level'
@@ -61,6 +63,9 @@ function App() {
   const [facts, setFacts] = useState<null | RememberedFact[]>(null)
   const [memoryOpen, setMemoryOpen] = useState(false)
   const [palette, setPalette] = useState<Palette>(initialPalette)
+  const [welcomed] = useState(wantsWelcome)
+  const [welcoming, setWelcoming] = useState(welcomed)
+  const [orbRevealed, setOrbRevealed] = useState(!welcomed)
   const orbRef = useRef<HTMLButtonElement>(null)
   const liveMicLevel = useMicLevel(status === 'listening' && !REHEARSE)
   const micLevel = REHEARSE ? rehearsedMicLevel : liveMicLevel
@@ -137,15 +142,24 @@ function App() {
   const forgetMe = () => {
     session.forgetMe()
   }
+  const revealOrb = useCallback(() => {
+    setOrbRevealed(true)
+  }, [])
+  const endWelcome = useCallback(() => {
+    setWelcoming(false)
+  }, [])
   const timed = turns.flatMap((turn) => (turn.ttfaMs === null ? [] : [{ id: turn.id, ttfaMs: turn.ttfaMs }]))
   const statusText = problem === null ? describe(status, waitingForWords) : PROBLEM_TEXT[problem]
 
   return (
     <div className="flex h-svh flex-col bg-background text-foreground">
       <header className="flex items-start justify-between gap-4 px-4 pt-4 md:px-8 md:pt-6">
-        <div>
-          <h1 className="font-heading text-2xl font-medium">Sarjy</h1>
-          <p className="text-sm text-muted-foreground">Your Magic Experience concierge</p>
+        <div className="flex items-center gap-3">
+          <SarjyMark className="size-10" />
+          <div>
+            <h1 className="font-heading text-2xl/none font-semibold tracking-tight">sarjy</h1>
+            <p className="text-sm text-muted-foreground">Your Magic Experience concierge</p>
+          </div>
         </div>
         <div className="flex flex-col items-end gap-2">
           <PaletteSwitcher onChange={setPalette} palette={palette} />
@@ -179,6 +193,7 @@ function App() {
           </div>
           <div className="pb-safe flex flex-col items-center gap-1 pt-2">
             <TalkOrb
+              animateIn={welcomed}
               disabled={status === 'thinking' || status === 'speaking'}
               micLevel={micLevel}
               onPress={() => {
@@ -188,6 +203,7 @@ function App() {
               orbRef={orbRef}
               palette={palette}
               phase={PHASE_FOR[status]}
+              revealed={orbRevealed}
             />
             <p aria-live="polite" className={problem === null ? 'text-sm text-muted-foreground' : 'text-sm text-destructive'}>
               <span className="label-in inline-block" key={statusText}>
@@ -202,6 +218,7 @@ function App() {
           <LatencyPanel turns={timed} />
         </aside>
       </div>
+      {welcoming ? <FirstLoad onDocked={revealOrb} onDone={endWelcome} orbRef={orbRef} /> : null}
     </div>
   )
 }

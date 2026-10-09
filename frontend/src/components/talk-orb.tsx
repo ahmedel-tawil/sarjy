@@ -3,6 +3,8 @@ import { type RefObject, useEffect, useRef } from 'react'
 import { type OrbPhase, OrbRenderer } from '@/components/orb-renderer'
 
 interface TalkOrbProps {
+  // The orb grows in when revealed, rather than simply being there.
+  animateIn: boolean
   disabled: boolean
   micLevel: () => number
   onPress: () => void
@@ -11,10 +13,11 @@ interface TalkOrbProps {
   // Changing it re-reads the orb's colours from the stylesheet.
   palette: string
   phase: OrbPhase
+  revealed: boolean
 }
 
 // The talk control is Sarjy itself: hold the orb to speak to it.
-export function TalkOrb({ disabled, micLevel, onPress, onRelease, orbRef, palette, phase }: TalkOrbProps) {
+export function TalkOrb({ animateIn, disabled, micLevel, onPress, onRelease, orbRef, palette, phase, revealed }: TalkOrbProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rendererRef = useRef<null | OrbRenderer>(null)
 
@@ -23,14 +26,20 @@ export function TalkOrb({ disabled, micLevel, onPress, onRelease, orbRef, palett
     if (canvas === null) {
       return
     }
-    const renderer = new OrbRenderer(canvas, micLevel)
+    const renderer = new OrbRenderer(canvas, micLevel, animateIn)
     rendererRef.current = renderer
     renderer.start()
     return () => {
       renderer.stop()
       rendererRef.current = null
     }
-  }, [micLevel])
+  }, [animateIn, micLevel])
+
+  useEffect(() => {
+    if (animateIn && revealed) {
+      rendererRef.current?.assemble()
+    }
+  }, [animateIn, revealed])
 
   useEffect(() => {
     rendererRef.current?.setPhase(phase)

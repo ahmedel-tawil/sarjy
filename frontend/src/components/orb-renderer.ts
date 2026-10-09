@@ -12,6 +12,7 @@ interface Dot {
 
 // What the talk control needs from the drawing.
 export interface Orb {
+  assemble(): void
   refreshColours(): void
   setPhase(phase: OrbPhase): void
   start(): void
@@ -28,11 +29,15 @@ const DOTS = sphereDots(320)
 const TILT = 0.35
 // The sphere's share of the canvas, leaving room to grow while listening.
 const RADIUS_SHARE = 0.36
+// How long the orb takes to grow in, top dots first.
+const FORM_MS = 600
 
 export class OrbRenderer implements Orb {
   readonly #canvas: HTMLCanvasElement
   #colours: OrbColours
   readonly #context: CanvasRenderingContext2D
+  // When the orb started growing in; null when it is simply there, Infinity while it waits.
+  #formStart: null | number
   #frame = 0
   #last = 0
   #level = 0
@@ -43,7 +48,8 @@ export class OrbRenderer implements Orb {
   // Each phase's share of the drawing, eased so changes blend instead of jumping.
   #weights: Record<OrbPhase, number> = { listening: 0, rest: 1, speaking: 0, thinking: 0 }
 
-  constructor(canvas: HTMLCanvasElement, micLevel: () => number) {
+  // startHidden keeps the orb empty until assemble(), for the first-load welcome.
+  constructor(canvas: HTMLCanvasElement, micLevel: () => number, startHidden = false) {
     const context = canvas.getContext('2d')
     if (context === null) {
       throw new Error('This browser cannot draw on a canvas')
@@ -53,6 +59,11 @@ export class OrbRenderer implements Orb {
     this.#micLevel = micLevel
     this.#colours = readColours(canvas)
     this.#reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    this.#formStart = startHidden ? Infinity : null
+  }
+
+  assemble(): void {
+    this.#formStart = performance.now()
   }
 
   // The palette can change while the page is open.
@@ -83,7 +94,8 @@ export class OrbRenderer implements Orb {
     }
     this.#level = ease(this.#level, this.#targetLevel(time, still), dt, 0.06, still)
     this.#spin += dt * (0.2 + this.#weights.thinking * 0.9)
-    this.#render(time)
+    const formed = still || this.#formStart === null ? 1 : Math.min(1, Math.max(0, (now - this.#formStart) / FORM_MS))
+    this.#render(time, formed)
     this.#frame = requestAnimationFrame(this.#draw)
   }
 
@@ -100,13 +112,13 @@ export class OrbRenderer implements Orb {
     return size
   }
 
-  #render(time: number): void {
+  #render(time: number, formed: number): void {
     const size = this.#fit()
     const context = this.#context
     const { listening, rest, speaking, thinking } = this.#weights
     context.clearRect(0, 0, size, size)
     const center = size / 2
-    const radius = size * RADIUS_SHARE * (1 + listening * (0.06 + this.#level * 0.12) + speaking * this.#level * 0.05)
+    const radius = size * RADIUS_SHARE * (0.6 + 0.4 * easeOut(formed)) * (1 + listening * (0.06 + this.#level * 0.12) + speaking * this.#level * 0.05)
     const brightness = 0.55 * rest + listening + thinking + speaking
     // While thinking, a band of light sweeps around the sphere, the way a lighthouse turns.
     const sweep = time * 1.6
@@ -125,19 +137,24 @@ export class OrbRenderer implements Orb {
         if (z >= 0 !== front) {
           continue
         }
+        // Growing in, the top dots arrive first.
+        const arrival = easeOut(Math.min(1, Math.max(0, formed * 1.6 - ((1 - dot.y) / 2) * 0.6)))
+        if (arrival === 0) {
+          continue
+        }
         const depth = (z + 1) / 2
         const voice = listening * this.#level * Math.max(0, Math.sin(dot.y * 6 + time * 10))
         const light = thinking * Math.max(0, (dot.x * band.x + dot.y * band.y + dot.z * band.z - 0.55) / 0.45) ** 2
         const speech = speaking * this.#level * Math.max(0, Math.sin(depth * 7 - time * 9))
         const lit = Math.min(1, Math.max(voice, light, speech))
         const perspective = 3 / (3 - z)
-        context.globalAlpha = Math.min(1, (0.18 + 0.82 * depth) * brightness + lit * 0.5)
+        context.globalAlpha = Math.min(1, (0.18 + 0.82 * depth) * brightness + lit * 0.5) * arrival
         context.fillStyle = lit > 0.3 ? this.#colours.lit : this.#colours.dot
         context.beginPath()
         context.arc(
           center + x * radius * perspective,
           center - y * radius * perspective,
-          (0.6 + 1.1 * depth) * (1 + lit * 0.8) * (size / 112),
+          (0.6 + 1.1 * depth) * (1 + lit * 0.8) * (size / 112) * (0.4 + 0.6 * arrival),
           0,
           Math.PI * 2,
         )
@@ -164,6 +181,10 @@ export function speechRhythm(time: number): number {
   const syllables = Math.max(0, Math.sin(time * 8.5)) ** 0.6
   const phrase = Math.sin(time * 0.8) > -0.7 ? 1 : 0.1
   return Math.min(1, syllables * (0.6 + 0.4 * Math.sin(time * 2.1 + 1.3)) * phrase)
+}
+
+function easeOut(progress: number): number {
+  return 1 - (1 - progress) ** 3
 }
 
 // Moves current toward target, covering most of the way in about three time constants.
