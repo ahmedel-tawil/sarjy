@@ -1,6 +1,7 @@
 import {
   browserMarksMessage,
   FORGET_ME_MESSAGE,
+  replayMessage,
   type ServerMessage,
   ServerMessageSchema,
   setVoiceMessage,
@@ -16,6 +17,7 @@ export interface VoiceChannel {
   connect(): void
   endTurn(): void
   forgetMe(): void
+  replay(turnId: string): void
   sendAudio(chunk: Blob): void
   sendMarks(turnId: string, speechEnd: number, playbackStart: number): void
   setVoice(voice: string): void
@@ -68,6 +70,10 @@ export class VoiceSocket implements VoiceChannel {
 
   forgetMe(): void {
     this.#send(FORGET_ME_MESSAGE)
+  }
+
+  replay(turnId: string): void {
+    this.#send(replayMessage(turnId))
   }
 
   sendAudio(chunk: Blob): void {

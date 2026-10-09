@@ -1,5 +1,5 @@
 import { Player } from './player'
-import type { ErrorCode, RememberedFact, ServerMessage, TourLink } from './protocol'
+import type { EarlierVisit, ErrorCode, RememberedFact, ServerMessage, TourLink } from './protocol'
 import { Recorder, type Recording } from './recorder'
 import { stagesOf, type TurnStages } from './stages-of'
 import { VoiceSocket } from './voice-socket'
@@ -20,6 +20,8 @@ export type Connection = 'connecting' | 'offline' | 'online'
 
 export interface VoiceSessionCallbacks {
   onConnection?: (connection: Connection) => void
+  // The user's last few visits with a question, newest first, when a visit starts (D-92).
+  onHistory?: (visits: EarlierVisit[]) => void
   // Everything Sarjy remembers about the user, in full each time it changes.
   onMemory: (facts: RememberedFact[]) => void
   onProblem: (problem: null | Problem) => void
@@ -50,6 +52,12 @@ export interface Visit {
   forgetMe(): void
 }
 
+// Speaks an earlier reply again, sentence by sentence, in the current voice (D-92). Its
+// clips arrive through onSpeak like any reply's; a replay sends no latency marks.
+export interface Replayer {
+  replay(turnId: string): void
+}
+
 // Picks the voice of the next replies; the gateway remembers it for the next visit too.
 export interface VoicePicker {
   setVoice(voice: string): void
@@ -68,6 +76,8 @@ interface TurnInFlight {
   links: TourLink[]
   // The words of the clip whose binary frame comes next.
   nextText: string
+  // A replay of an earlier reply rather than a question being answered.
+  replay: boolean
   // Held until the first clip plays, so the words and the voice appear together.
   reply: null | string
   // The gateway's marks, from its last message of the turn.
@@ -82,7 +92,7 @@ interface TurnInFlight {
   turnId: null | string
 }
 
-export class VoiceSession implements AudioLevels, PushToTalk, Visit, VoicePicker {
+export class VoiceSession implements AudioLevels, PushToTalk, Replayer, Visit, VoicePicker {
   readonly #callbacks: VoiceSessionCallbacks
   readonly #player = new Player()
   readonly #recorder = new Recorder()
@@ -152,6 +162,17 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit, VoicePicker
     })
   }
 
+  replay(turnId: string): void {
+    // One thing at a time, as with turns: a replay's clips must not mix with an answer's.
+    if (this.#status !== 'idle') {
+      return
+    }
+    this.#callbacks.onProblem(null)
+    this.#turn = { ...this.#newTurn(), replay: true, turnId }
+    this.#setStatus('thinking')
+    this.#socket.replay(turnId)
+  }
+
   setVoice(voice: string): void {
     this.#callbacks.onProblem(null)
     this.#socket.setVoice(voice)
@@ -162,16 +183,7 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit, VoicePicker
     if (!this.#recorder.recording) {
       return
     }
-    this.#turn = {
-      links: [],
-      nextText: '',
-      reply: null,
-      serverMarks: null,
-      speechEnd: performance.now(),
-      started: false,
-      ttfa: null,
-      turnId: null,
-    }
+    this.#turn = this.#newTurn()
     this.#setStatus('thinking')
     this.#endTurn().catch(() => {
       this.#report('connection_lost')
@@ -179,8 +191,12 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit, VoicePicker
   }
 
   // The first clip starts the reply: its moment is `playback_start`, and the held reply
-  // appears with it. Every clip then hands its words to the page.
+  // appears with it. Every clip then hands its words to the page. A replay only plays.
   #clipStarted(turn: TurnInFlight, text: string, durationMs: number): void {
+    if (!turn.started && turn.replay) {
+      turn.started = true
+      this.#setStatus('speaking')
+    }
     if (!turn.started) {
       turn.started = true
       const playbackStart = performance.now()
@@ -208,6 +224,20 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit, VoicePicker
     if (this.#turn === turn) {
       this.#turn = null
       this.#setStatus('idle')
+    }
+  }
+
+  #newTurn(): TurnInFlight {
+    return {
+      links: [],
+      nextText: '',
+      replay: false,
+      reply: null,
+      serverMarks: null,
+      speechEnd: performance.now(),
+      started: false,
+      ttfa: null,
+      turnId: null,
     }
   }
 
@@ -261,8 +291,18 @@ export class VoiceSession implements AudioLevels, PushToTalk, Visit, VoicePicker
         })
         break
       }
+      case 'history': {
+        this.#callbacks.onHistory?.(message.visits)
+        break
+      }
       case 'memory': {
         this.#callbacks.onMemory(message.facts)
+        break
+      }
+      case 'replay_done': {
+        this.#endTurnWhenPlayed().catch(() => {
+          this.#report('playback_failed')
+        })
         break
       }
       case 'reply': {
