@@ -31,10 +31,14 @@ logger = logging.getLogger(__name__)
 def create_app(settings: Settings, services: Services) -> FastAPI:
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
+        if services.database_pool is not None:
+            await services.database_pool.open()
         logger.info("gateway started")
         try:
             yield
         finally:
+            if services.database_pool is not None:
+                await services.database_pool.close()
             if services.http_client is not None:
                 await services.http_client.aclose()
             if services.anthropic_client is not None:
@@ -58,7 +62,7 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
         clock=time.monotonic,
     )
     app = FastAPI(title="Sarjy gateway", lifespan=lifespan)
-    app.include_router(HealthRouter().build())
+    app.include_router(HealthRouter(services.database).build())
     app.include_router(VoicesRouter(services.tts).build())
     app.include_router(
         VoiceRouter(pipeline, services.tts, settings.max_turn_audio_bytes, settings.max_history_turns).build()

@@ -247,3 +247,13 @@ FIXED_PROMPT = "You are Sarjy. Today is Friday 9 October 2026."
 class FakePrompt:
     async def build(self) -> str:
         return FIXED_PROMPT
+
+
+# Answers a ping, or raises `error` as an unreachable database would.
+class FakeDatabase:
+    def __init__(self, error: Exception | None = None) -> None:
+        self.error = error
+
+    async def ping(self) -> None:
+        if self.error is not None:
+            raise self.error
