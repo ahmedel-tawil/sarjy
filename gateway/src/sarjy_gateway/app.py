@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
 import logging
@@ -15,6 +16,7 @@ from sarjy_gateway.migrate import MIGRATIONS_FOLDER, MigrationError, MigrationRu
 from sarjy_gateway.prompts import SystemPrompt
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
 from sarjy_gateway.tour_tools import GetTourTool, RawGetTourTool, RawSearchToursTool, SearchToursTool
+from sarjy_gateway.tts_cache import WARM_PHRASES
 from sarjy_gateway.turn import TurnPipeline
 from sarjy_gateway.voice import VoiceRouter
 from sarjy_gateway.voices import VoicesRouter
@@ -45,9 +47,13 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
             except MigrationError:
                 logger.exception("starting without an up-to-date database")
         logger.info("gateway started")
+        # Common phrases are made while nobody is waiting, so their first use is a hit (D-97).
+        warming = None if services.tts_cache is None else asyncio.create_task(services.tts_cache.warm(WARM_PHRASES))
         try:
             yield
         finally:
+            if warming is not None:
+                warming.cancel()
             if services.database_pool is not None:
                 await services.database_pool.close()
             if services.http_client is not None:

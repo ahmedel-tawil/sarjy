@@ -30,6 +30,7 @@ def services_with(tts: TextToSpeech, database: FakeDatabase | None = None) -> Se
         stt=MissingSpeechToText(),
         llm=MissingChatModel(),
         tts=tts,
+        tts_cache=None,
         catalogue=FakeCatalogue(),
         weather=FakeWeather(),
         database=database or FakeDatabase(),
