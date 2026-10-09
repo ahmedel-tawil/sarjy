@@ -765,14 +765,18 @@ configuration (environment variables), not code branches.
 
 ### M3.1 Store timings and summarise p50/p95
 
-- [ ] All seven marks of every turn are stored in `turn_timings`; the browser's marks
-      arrive with their `turn_id`.
-- [ ] Gaps are computed per clock: TTFA = `playback_start − speech_end` on the browser
+- [x] All seven marks of every turn are stored in `turn_timings`; the browser's marks
+      arrive with their `turn_id`. The gateway's five are saved with the turn, the
+      browser's two when they arrive, and only for a turn of the same visit (D-74).
+- [x] Gaps are computed per clock: TTFA = `playback_start − speech_end` on the browser
       clock; stage gaps from `audio_received` to `tts_first_byte` on the server clock;
       "network and browser" is what remains.
-- [ ] A command prints p50 and p95 per gap for a labelled run.
-- [ ] Tests cover the gap and percentile maths (the PRD's "latency timeline" tests).
-- [ ] `docs/LATENCY.md` exists with the mark definitions and how each gap is computed,
+- [x] A command prints p50 and p95 per gap for a labelled run:
+      `gateway/scripts/latency.py`, reading the run's JSON Lines file, which the harness
+      (M3.3) writes.
+- [x] Tests cover the gap and percentile maths (the PRD's "latency timeline" tests), and
+      the storage on Postgres and over the socket.
+- [x] `docs/LATENCY.md` exists with the mark definitions and how each gap is computed,
       including what `llm_first_token` means when tools run first (D-57).
 
 ### M3.2 Live latency waterfall panel
