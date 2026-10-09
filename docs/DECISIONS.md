@@ -897,6 +897,28 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   tiny list); opening the socket on the first press, as before (an empty panel until
   then).
 
+### D-69 Claude answers first for now
+
+- **Decision:** On Cloud Run, Claude Haiku 5.5 answers first and Groq's Qwen is the
+  fallback: the Terraform variable `llm_primary` defaults to `claude`. Locally the
+  setting still defaults to `groq`; set `SARJY_LLM_PRIMARY=claude` in `.env` to match.
+  Experiment 4 (M3.8) revisits the choice (settled 9 Oct, was O-30).
+- **Reason:** Scenario 2 needs the model to save a fact the traveller mentions in
+  passing. With "My favourite colour is green, and I don't like heights." through the
+  real pipeline, Claude saved both facts in 3 of 3 tries. Qwen said "I've noted that"
+  without calling `remember_fact` in 7 of 7; two firmer prompt wordings saved in 1 of 6,
+  and thinking on in 1 of 3. Asked "Please remember that…", Qwen saved both in 3 of 3, so
+  it can call the tool but doesn't decide on its own that a remark is worth keeping.
+  gpt-oss-120b on Groq saved the colour every time and the heights never.
+- **Consequences:** the first word comes after about 2.7 to 3.5 s on tool turns instead
+  of about 1.5 s, which the latency deep dive reports. Claude spends the $100 Anthropic
+  credits (valid to 8 Nov 2026), and its key expires in 30 days; once it does, Groq takes
+  over through the fallback, with Qwen's weakness at saving.
+- **Alternatives considered:** keeping Qwen first and asking demo users to say "Please
+  remember" (fragile); gpt-oss-120b (saves only some facts); a second, background model
+  call after each reply that extracts facts (keeps Qwen's speed, but adds code, a call per
+  turn, and departs from the PRD's tool-based memory; a possible later improvement).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -909,7 +931,6 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | O-24 | Audio for the test script | recorded by me; synthesised (Kokoro or macOS `say`) | Synthesised for repeatability, plus a few real recordings as a sanity check. | M3.3 |
 | O-25 | Frontend unit tests | Vitest for pure logic (timing maths, message parsing); none | Add Vitest only if the client grows real logic. | M3.2 |
 | O-29 | Cloud Run or a VM for the deployed services | stay on Cloud Run (D-22: scale to zero, managed HTTPS and WebSockets, keyless deploys, private TTS); a VM or a mix, for a faster always-warm CPU or a GPU for Kokoro | To discuss in detail with Ahmed (asked on 9 Oct): cold starts, CPU speed, the cost of keeping instances warm, GPU options, and what experiments 6 and 8 show. | a session before the review |
-| O-30 | Which model answers first, now that saving facts is visible | Claude first (`llm_primary = "claude"`): saved both facts in 3 of 3 tries, first word about 2.7 to 3.5 s; Groq's Qwen as now: said "noted" without saving in 7 of 7 tries on 9 Oct, two firmer prompt wordings saved in only 1 of 6, and thinking on in 1 of 3, yet "Please remember that…" saved both in 3 of 3, so it fails at deciding a casual remark is worth saving, not at calling the tool; first word about 1.5 s; Groq's gpt-oss-120b: saved the colour in 3 of 3 but never the heights | Ask Ahmed. Measured with `My favourite colour is green, and I don't like heights.` through the real pipeline. | before M2.14 |
 | O-26 | Voice activity detection approach | a browser VAD library (new dependency); a simple energy threshold; server-side VAD | Decide in M4.5, once push-to-talk is solid. | M4.5 |
 
 ## Approved code-standards exceptions

@@ -18,8 +18,8 @@ variable "region" {
 
 variable "llm_primary" {
   type        = string
-  description = "Which chat provider answers first, groq or claude; the other is the fallback (D-63)."
-  default     = "groq"
+  description = "Which chat provider answers first, groq or claude; the other is the fallback (D-63, D-69)."
+  default     = "claude"
 
   validation {
     condition     = contains(["groq", "claude"], var.llm_primary)
