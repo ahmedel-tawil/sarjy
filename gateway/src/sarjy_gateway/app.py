@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from sarjy_gateway.health import HealthRouter
+from sarjy_gateway.migrate import MIGRATIONS_FOLDER, MigrationError, MigrationRunner, Migrations
 from sarjy_gateway.prompts import SystemPrompt
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
 from sarjy_gateway.tour_tools import GetTourTool, SearchToursTool
@@ -33,6 +34,12 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
     async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         if services.database_pool is not None:
             await services.database_pool.open()
+            # A failure leaves memory unavailable, not the whole gateway: voice still works.
+            migrations: Migrations = MigrationRunner(services.database_pool, MIGRATIONS_FOLDER)
+            try:
+                await migrations.apply_pending()
+            except MigrationError:
+                logger.exception("starting without an up-to-date database")
         logger.info("gateway started")
         try:
             yield
