@@ -6,7 +6,7 @@ import uuid
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from pydantic import ValidationError
 
-from sarjy_gateway.conversation_store import StoredTurn, TurnId
+from sarjy_gateway.conversation_store import PastVisit, StoredTurn, TurnId
 from sarjy_gateway.database import DatabaseUnavailableError
 from sarjy_gateway.identity import COOKIE_NAME, user_id_from
 from sarjy_gateway.limits import client_ip
@@ -15,10 +15,15 @@ from sarjy_gateway.messages import (
     AudioFollows,
     BrowserMarks,
     ClientMessage,
+    EarlierTurn,
+    EarlierVisit,
     ErrorCode,
     ForgetMe,
+    History,
     Memory,
     RememberedFact,
+    Replay,
+    ReplayDone,
     Reply,
     ServerError,
     SetVoice,
@@ -27,6 +32,7 @@ from sarjy_gateway.messages import (
     TurnEnd,
     TurnMarks,
 )
+from sarjy_gateway.sentences import sentences_of
 from sarjy_gateway.tts import TextToSpeechError
 from sarjy_gateway.turn import Conversation, TurnError
 from sarjy_gateway.turn_audio import TurnAudio
@@ -48,6 +54,9 @@ logger = logging.getLogger(__name__)
 
 # The fact that keeps the voice a user picked, so their next visit speaks with it (M4.9).
 VOICE_FACT = "voice"
+
+# How many earlier visits the page shows above the current one (D-92).
+EARLIER_VISITS = 3
 
 
 # Sends each part of a turn to the browser as soon as the pipeline has it.
@@ -72,6 +81,22 @@ class SocketListener:
     async def memory(self, facts: Mapping[str, str]) -> None:
         remembered = [RememberedFact(key=key, value=value) for key, value in sorted(facts.items())]
         await self._websocket.send_text(Memory(facts=remembered).model_dump_json())
+
+    async def history(self, visits: list[PastVisit]) -> None:
+        earlier = [
+            EarlierVisit(
+                started_at=visit.started_at,
+                turns=[
+                    EarlierTurn(turn_id=turn.id.hex, transcript=turn.transcript, reply=turn.reply)
+                    for turn in visit.turns
+                ],
+            )
+            for visit in visits
+        ]
+        await self._websocket.send_text(History(visits=earlier).model_dump_json())
+
+    async def replay_done(self, turn_id: str) -> None:
+        await self._websocket.send_text(ReplayDone(turn_id=turn_id).model_dump_json())
 
     async def error(self, code: ErrorCode, turn_id: str | None = None) -> None:
         await self._websocket.send_text(ServerError(code=code, turn_id=turn_id).model_dump_json())
@@ -135,8 +160,10 @@ class VoiceRouter:
             RememberFactTool(self._facts, conversation, listener),
             ForgetFactTool(self._facts, conversation, listener),
         ]
-        # Fills the page's memory panel as soon as the visit starts (D-68).
+        # Fills the page's memory panel as soon as the visit starts (D-68), then its earlier
+        # visits (D-92).
         await listener.memory(conversation.facts)
+        await listener.history(await self._earlier_visits(conversation))
         while True:
             message = await websocket.receive()
             if message["type"] == "websocket.disconnect":
@@ -165,6 +192,8 @@ class VoiceRouter:
                 await self._end_turn(audio, conversation, listener)
             case TurnCancel():
                 audio.take()
+            case Replay(turn_id=turn_id):
+                await self._replay(turn_id, conversation, listener)
             case ForgetMe():
                 await self._forget_me(conversation, listener)
             case BrowserMarks():
@@ -202,6 +231,41 @@ class VoiceRouter:
         except DatabaseUnavailableError as error:
             logger.warning("facts not loaded: %(reason)s", {"reason": str(error)})
             return {}
+
+    # Without the database the page shows no earlier visits.
+    async def _earlier_visits(self, conversation: Conversation) -> list[PastVisit]:
+        try:
+            return await self._store.earlier_visits(conversation.user_id, conversation.session_id, visits=EARLIER_VISITS)
+        except DatabaseUnavailableError as error:
+            logger.warning("earlier visits not loaded: %(reason)s", {"reason": str(error)})
+            return []
+
+    # Speaks an earlier reply again in the visit's voice, sentence by sentence (D-92). A
+    # replay costs TTS like a turn, so it counts against the same limits.
+    async def _replay(self, turn_id: str, conversation: Conversation, listener: SocketListener) -> None:
+        if not self._limits.allow(conversation.user_id, conversation.client_ip):
+            await listener.error("too_many_turns", turn_id)
+            return
+        reply = await self._stored_reply(turn_id, conversation)
+        if reply is None:
+            await listener.error("replay_failed", turn_id)
+            return
+        try:
+            for sentence in sentences_of(reply):
+                wav = await self._tts.synthesize(sentence, conversation.voice)
+                await listener.audio(turn_id, sentence, wav)
+        except TextToSpeechError:
+            await listener.error("tts_failed", turn_id)
+            return
+        await listener.replay_done(turn_id)
+
+    # Only a reply of this user's own earlier turns, so a page can't replay another's.
+    async def _stored_reply(self, turn_id: str, conversation: Conversation) -> str | None:
+        try:
+            return await self._store.reply_of(conversation.user_id, TurnId(uuid.UUID(hex=turn_id)))
+        except DatabaseUnavailableError as error:
+            logger.warning("replay unavailable: %(reason)s", {"reason": str(error)})
+            return None
 
     # Forgets the facts of this visit's user; their sessions and turns stay (D-68).
     async def _forget_me(self, conversation: Conversation, listener: SocketListener) -> None:

@@ -49,6 +49,35 @@ class StoredMark:
     at_ms: float
 
 
+# One exchange of an earlier visit, as the history query returns it.
+@dataclass(frozen=True)
+class PastTurnRow:
+    session_id: SessionId
+    started_at: datetime
+    id: TurnId
+    transcript: str
+    reply: str
+
+
+@dataclass(frozen=True)
+class PastTurn:
+    id: TurnId
+    transcript: str
+    reply: str
+
+
+# An earlier visit of the same user, with its exchanges in order (D-92).
+@dataclass(frozen=True)
+class PastVisit:
+    started_at: datetime
+    turns: list[PastTurn]
+
+
+@dataclass(frozen=True)
+class StoredReply:
+    reply: str
+
+
 # Who is talking and what was said (D-66): one row per user (browser), one per page visit,
 # one per exchange, and each exchange's latency marks (M3.1).
 class ConversationStore(Protocol):
@@ -63,6 +92,10 @@ class ConversationStore(Protocol):
     async def save_marks(self, session_id: SessionId, turn_id: TurnId, marks: Mapping[str, float]) -> None: ...
 
     async def marks(self, turn_id: TurnId) -> dict[str, float]: ...
+
+    async def earlier_visits(self, user_id: UserId, current: SessionId | None, *, visits: int) -> list[PastVisit]: ...
+
+    async def reply_of(self, user_id: UserId, turn_id: TurnId) -> str | None: ...
 
 
 class PostgresConversationStore(ConversationStore):
@@ -144,6 +177,43 @@ class PostgresConversationStore(ConversationStore):
         except (psycopg.Error, PoolTimeout) as error:
             raise unavailable(error) from error
 
+    # The user's last few visits that had a question, newest first, never the current one.
+    # Every page load is a visit, so visits without turns are skipped.
+    async def earlier_visits(self, user_id: UserId, current: SessionId | None, *, visits: int) -> list[PastVisit]:
+        try:
+            async with self._pool.connection() as connection:
+                cursor = connection.cursor(row_factory=class_row(PastTurnRow))
+                await cursor.execute(
+                    "SELECT s.id AS session_id, s.started_at, t.id, t.transcript, t.reply "
+                    "FROM sessions s JOIN turns t ON t.session_id = s.id "
+                    "WHERE s.id IN ("
+                    "SELECT recent.id FROM sessions recent WHERE recent.user_id = %s "
+                    "AND recent.id IS DISTINCT FROM %s "
+                    "AND EXISTS (SELECT 1 FROM turns asked WHERE asked.session_id = recent.id) "
+                    "ORDER BY recent.started_at DESC, recent.id DESC LIMIT %s) "
+                    "ORDER BY s.started_at DESC, t.id",
+                    (user_id, current, visits),
+                )
+                rows = await cursor.fetchall()
+        except (psycopg.Error, PoolTimeout) as error:
+            raise unavailable(error) from error
+        return group_visits(rows)
+
+    # Only a turn of this user's own visits has a reply to give.
+    async def reply_of(self, user_id: UserId, turn_id: TurnId) -> str | None:
+        try:
+            async with self._pool.connection() as connection:
+                cursor = connection.cursor(row_factory=class_row(StoredReply))
+                await cursor.execute(
+                    "SELECT t.reply FROM turns t JOIN sessions s ON s.id = t.session_id "
+                    "WHERE t.id = %s AND s.user_id = %s",
+                    (turn_id, user_id),
+                )
+                found = await cursor.fetchone()
+        except (psycopg.Error, PoolTimeout) as error:
+            raise unavailable(error) from error
+        return None if found is None else found.reply
+
 
 # Without SARJY_DATABASE_URL nothing is stored; the voice loop carries on without it.
 class MissingConversationStore(ConversationStore):
@@ -171,6 +241,28 @@ class MissingConversationStore(ConversationStore):
         message = f"SARJY_DATABASE_URL is not set: marks of turn {turn_id} can't be read"
         raise DatabaseUnavailableError(message)
 
+    async def earlier_visits(self, user_id: UserId, current: SessionId | None, *, visits: int) -> list[PastVisit]:
+        message = f"SARJY_DATABASE_URL is not set: no {visits} earlier visits of user {user_id} before {current}"
+        raise DatabaseUnavailableError(message)
+
+    async def reply_of(self, user_id: UserId, turn_id: TurnId) -> str | None:
+        message = f"SARJY_DATABASE_URL is not set: turn {turn_id} of user {user_id} can't be read"
+        raise DatabaseUnavailableError(message)
+
 
 def unavailable(error: Exception) -> DatabaseUnavailableError:
     return DatabaseUnavailableError(f"database unreachable: {type(error).__name__}")
+
+
+# How many of a visit's exchanges the page is sent: its last ten.
+TURNS_PER_VISIT = 10
+
+
+# Rows come newest visit first, each visit's turns in order; the page gets each visit's
+# last few exchanges.
+def group_visits(rows: list[PastTurnRow]) -> list[PastVisit]:
+    grouped: dict[SessionId, PastVisit] = {}
+    for row in rows:
+        visit = grouped.setdefault(row.session_id, PastVisit(started_at=row.started_at, turns=[]))
+        visit.turns.append(PastTurn(id=row.id, transcript=row.transcript, reply=row.reply))
+    return [PastVisit(started_at=visit.started_at, turns=visit.turns[-TURNS_PER_VISIT:]) for visit in grouped.values()]

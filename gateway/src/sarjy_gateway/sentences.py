@@ -75,6 +75,13 @@ def is_abbreviation(text: str) -> bool:
     return word in ABBREVIATIONS or bool(re.fullmatch(r"(?:[a-z]\.)*[a-z]", word))
 
 
+# A whole text split the same way, for speaking a stored reply again (D-92).
+def sentences_of(text: str) -> list[str]:
+    chunker = SentenceChunker()
+    sentences = chunker.add(text) + chunker.flush()
+    return [spoken for spoken in (speakable(sentence) for sentence in sentences) if spoken]
+
+
 # The per-sentence step between the model and TTS, where a check of spoken facts would
 # also go (M6.1). Today it removes markdown the model sometimes writes despite the prompt,
 # which TTS would otherwise read out.
