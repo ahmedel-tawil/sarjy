@@ -937,6 +937,27 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   free trial); keeping 2 vCPU and relying on sentence streaming alone (M3.5 still comes;
   both shorten the wait).
 
+### D-71 Prompt v1.1: names, weather only from the tool, under fifty words
+
+- **Decision:** Prompt v1 gains three rules. Memory: save lasting facts "even in
+  passing", with the traveller's name among the examples, and call them by name.
+  Weather: never describe the weather, temperature or season unless `get_weather`
+  returned it in that turn. Style: every reply under fifty words, three tours at most,
+  and the "can't book, see the website" line only when the traveller asks (settled 9 Oct
+  in M2.18).
+- **Reason:** On the deployed URL Claude skipped "my name is Ahmed", said a helicopter
+  flight was "a great choice for cool, clear skies" in October without a forecast, and
+  spoke 60 words, which TTS then took 12.8 s to synthesise. With the same three
+  questions through the real pipeline, before and after: the name was saved in 5 of 5
+  runs after, against 0 of 2 before; replies fell from 56 to 89 words to 36 to 55; and
+  the booking line stopped closing every answer. Scenario 2 still saved both facts in 3
+  of 3.
+- **Trade-off:** "I like winter more", said inside a question, was saved in none of 5
+  runs; the model treats it as part of the question. One reply still called winter "a
+  lovely time for outdoor fun", a general remark rather than a claim about today.
+- **Alternatives considered:** checking spoken weather against tool results in code (the
+  optional guardrail milestone, M6); a tighter token limit (cuts replies off mid-sentence).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.

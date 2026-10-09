@@ -418,6 +418,7 @@ Goal: the four demo scenarios work on the deployed URL.
 | M2.15 | Groq and Claude, switchable, each the other's fallback | 2 h | M1.8, a Claude key | no |
 | M2.16 | Image clean-up: deploy TTS only when it changes, keep the last images | 0.5 h | M1.10 | no |
 | M2.17 | TTS instance size | 0.5 h | M1.10 | no |
+| M2.18 | Prompt v1.1: names, no unsourced weather, shorter replies | 0.5 h | M2.6, M2.12 | no |
 
 ### M2.1 SayTech API discovery
 
@@ -693,6 +694,20 @@ in TTS on 2 vCPU.
 - [x] TTS runs on 8 vCPU and 4 GiB with eight threads, still scaling to zero (D-70).
 - [x] Noted for `LATENCY.md` (M3.1 creates it): these numbers, so the baseline keeps the
       2-vCPU point as its "before".
+
+### M2.18 Prompt v1.1: names, no unsourced weather, shorter replies
+
+Added 9 Oct: on the deployed URL, Sarjy didn't save "my name is Ahmed", promised "cool,
+clear skies" without calling `get_weather`, and spoke 60 words.
+
+- [x] The memory rule names the traveller's name among the facts to save, even when it is
+      mentioned in passing, and asks Sarjy to call them by name.
+- [x] Sarjy never describes the weather, temperature or season unless `get_weather`
+      returned it in that turn.
+- [x] Replies stay under fifty words, and the booking line is said only when asked.
+- [x] Checked with Claude through the real pipeline (D-71): the name was saved in 5 of 5
+      runs (0 of 2 before); scenario 2 still saved both facts in 3 of 3; replies were 36
+      to 55 words (56 to 89 before).
 
 ---
 
