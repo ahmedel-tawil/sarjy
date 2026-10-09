@@ -25,6 +25,7 @@ export const PROBLEMS: Record<Problem, ProblemShown> = {
   'no_speech': { kind: 'hint', text: 'Hold the orb while you speak, then let go.' },
   'playback_failed': { kind: 'turn', text: 'Sarjy’s voice didn’t come through, so here is the answer in writing.' },
   'rate_limited': { kind: 'trouble', text: 'Lots of questions right now. Try again in a minute.' },
+  'replay_failed': { kind: 'trouble', text: 'That earlier answer can’t be played right now.' },
   'stt_failed': { kind: 'trouble', text: 'Sarjy couldn’t make out what you said. Try again.' },
   'too_many_turns': { kind: 'trouble', text: 'You’re asking faster than Sarjy can keep up. Try again in a few minutes.' },
   'tts_failed': { kind: 'turn', text: 'Sarjy’s voice didn’t come through, so here is the answer in writing.' },
