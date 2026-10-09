@@ -94,7 +94,7 @@
     --destructive: oklch(0.55 0.2 27);
     --border: oklch(0.9 0.01 240);
     --input: oklch(0.9 0.01 240);
-    --ring: oklch(0.65 0.08 200);
+    --ring: oklch(0.56 0.085 200);
     --overlay: oklch(0.24 0.03 255 / 45%);
     --orb-dot: oklch(0.3 0.04 255);
     --orb-lit: oklch(0.68 0.12 195);
@@ -154,7 +154,7 @@
     --destructive: oklch(0.48 0.17 20);
     --border: oklch(0.9 0.012 70);
     --input: oklch(0.9 0.012 70);
-    --ring: oklch(0.7 0.12 35);
+    --ring: oklch(0.6 0.14 35);
     --overlay: oklch(0.21 0.01 50 / 45%);
     --orb-dot: oklch(0.25 0.01 50);
     --orb-lit: oklch(0.66 0.17 35);
