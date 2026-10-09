@@ -856,6 +856,26 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   is already unguessable); setting the cookie in the socket handshake (scripts without a
   page could then talk freely); accounts and login (outside the PRD).
 
+### D-67 Memory: facts per user, tools per visit, the prompt kept current in memory
+
+- **Decision:** a fact is a key and a value per user, one row per key, so saying it again
+  replaces it. `remember_fact` and `forget_fact` are created for each visit, bound to
+  its user and conversation; every turn's toolbox is the shared tools plus these. The
+  visit loads the user's facts once when it starts, the tools update that copy after
+  each save or forget, and every turn's prompt lists the facts with their keys from it,
+  so no turn reads the database for them. Keys are normalised to lower case with
+  underscores. User, session and turn ids are distinct types (`UserId`, `SessionId`), so
+  they can't be passed in each other's place (settled 9 Oct in M2.6).
+- **Reason:** scenario 2 needs facts across visits and the PRD wants explicit memory,
+  where the model decides what is worth keeping. Showing the keys lets "actually, it's
+  blue" reuse `favourite_colour` without fuzzy matching. Binding the tools to the visit
+  keeps one user's tool from touching another's facts by construction. A fact saved
+  this turn is in the next turn's prompt without a query.
+- **Alternatives considered:** passing a context argument to every tool (all tools would
+  carry an argument only two use); reading facts from the database every turn (a query
+  on every turn for data the visit already has); free-text memory without keys (no
+  clean way to update one fact).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
