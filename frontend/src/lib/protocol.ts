@@ -28,8 +28,9 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
   z.object({ code: ErrorCodeSchema, 'turn_id': z.string().nullable(), type: z.literal('error') }),
   z.object({ text: z.string(), 'turn_id': z.string(), type: z.literal('transcript') }),
   z.object({ text: z.string(), 'turn_id': z.string(), type: z.literal('reply') }),
-  // Announces the binary WAV frame that comes next, which cannot carry the turn id itself.
-  z.object({ 'turn_id': z.string(), type: z.literal('audio') }),
+  // Announces the binary WAV frame that comes next, which cannot carry the turn id itself,
+  // with the words it speaks: the whole reply, or one sentence when streaming.
+  z.object({ text: z.string(), 'turn_id': z.string(), type: z.literal('audio') }),
   // The gateway's marks, in milliseconds since `audio_received` on its own clock.
   z.object({ marks: z.record(z.string(), z.number()), 'turn_id': z.string(), type: z.literal('marks') }),
   // Everything Sarjy remembers, sent in full when the visit starts and after every change.

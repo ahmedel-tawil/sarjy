@@ -100,10 +100,13 @@ class Memory(BaseModel):
     facts: list[RememberedFact]
 
 
-# Sent just before the binary WAV frame of the same turn.
+# Sent just before each binary WAV frame of the turn, with the words that frame speaks:
+# the whole reply, or one sentence when streaming (D-76), so the page can show them as
+# they are spoken.
 class AudioFollows(BaseModel):
     type: Literal["audio"] = "audio"
     turn_id: str
+    text: str
 
 
 # Server timings for one turn, in milliseconds since `audio_received` on the gateway's

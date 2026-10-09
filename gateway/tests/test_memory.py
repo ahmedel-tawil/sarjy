@@ -130,6 +130,7 @@ def test_a_fact_saved_in_one_turn_is_in_the_next_turns_prompt() -> None:
         Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS),
         system_prompt=prompt.build,
         clock=TickingClock(),
+        sentence_streaming=False,
     )
 
     for _ in range(2):

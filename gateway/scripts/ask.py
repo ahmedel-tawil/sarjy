@@ -56,7 +56,7 @@ class NoListener:
     async def reply(self, turn_id: str, text: str) -> None:
         pass
 
-    async def audio(self, turn_id: str, wav: bytes) -> None:
+    async def audio(self, turn_id: str, text: str, wav: bytes) -> None:
         pass
 
 
@@ -93,7 +93,9 @@ async def ask(questions: list[str]) -> None:
     stt = TypedQuestion()
     toolbox = Toolbox(tools, time.monotonic, TOOL_TIMEOUT_SECONDS)
     prompt = SystemPrompt(services.catalogue, lambda: datetime.now(UAE_TIME))
-    pipeline = TurnPipeline(stt, services.llm, NoSpeech(), toolbox, system_prompt=prompt.build, clock=time.monotonic)
+    pipeline = TurnPipeline(
+        stt, services.llm, NoSpeech(), toolbox, system_prompt=prompt.build, clock=time.monotonic, sentence_streaming=False
+    )
     conversation = Conversation(max_turns=settings.max_history_turns)
     try:
         for question in questions:
