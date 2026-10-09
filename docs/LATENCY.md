@@ -200,6 +200,46 @@ Medians per question, before and after:
   `tts` 27%, `stt` 20%, `network_and_browser` 8%, `first_sentence` 8%. The model and its
   tool rounds are now the largest part; experiments 4 and 5 address them.
 
+## Experiment 5: tool payload size
+
+One change: `SARJY_TOOL_PAYLOAD=raw` hands the model SayTech's responses exactly as they
+came, instead of Sarjy's lean results, through the same tool specs (M3.9). Measured on
+the laptop against a local gateway and TTS, since only what the model reads changes;
+Claude, SayTech and the forecast are reached over the internet as in production. The
+script twice per setting, 20 turns each, all transcribed correctly. The provider's own
+token counts come from the gateway's log, one line per model round (D-91). Runs:
+`payload-lean-local.jsonl`, `payload-raw-local.jsonl`.
+
+Input tokens of the round after the tools, median per question:
+
+| Question | Lean | Raw |
+| --- | --- | --- |
+| 01 kids under 400 in Abu Dhabi | 3,849 | 4,144 (+8%) |
+| 04 Dubai this weekend | 4,802 | 4,994 (+4%) |
+| 05 safari tomorrow | 4,245 | 4,305 (+1%) |
+| 07 what can I do in Dubai | 4,621 | 5,094 (+10%) |
+| 09 Abu Dhabi weather on Saturday | 4,152 | 4,134 (0%, no tour tool) |
+
+| Gap | Lean p50 | Raw p50 | Lean p95 | Raw p95 |
+| --- | --- | --- | --- | --- |
+| `llm_first_word` | 1,140 ms | 1,029 ms | 3,965 ms | 2,948 ms |
+| `ttfa` | 3,156 ms | 2,744 ms | 6,065 ms | 5,765 ms |
+
+- **The lean results save little.** SayTech's assistant endpoints, built for Sarjy (D-56),
+  already return compact answers, so the raw response adds 0 to 10% to the round that
+  reads it. Over both runs raw even used 4% fewer tokens, because in it the model twice
+  answered the buggy question without searching, and some fillers and tool rounds fell
+  differently.
+- **No latency effect shows.** The first-word gaps differ within the noise between runs,
+  and in raw's favour; a few hundred extra tokens are nothing to the model's prefill.
+- **The prompt is what the model reads.** A turn with no tool reads about 3,550 input
+  tokens, nearly all of it the system prompt with SayTech's catalogue context, and a tool
+  turn reads it twice, about 7,000 to 9,000 in all. That is the next lever: caching the
+  prompt's stable part with Claude's prompt caching.
+
+Lean stays the default: it never adds fields the model doesn't use, and a future change
+to SayTech's responses can't swell it.
+
 ## Experiment 6: warm vs cold
 
 Both services scale to zero unless told otherwise (D-78). The first turn after a quiet

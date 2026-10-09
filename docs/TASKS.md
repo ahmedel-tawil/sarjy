@@ -885,9 +885,12 @@ Needs API keys for each provider.
 
 ### M3.9 Experiment 5: tool payload size
 
-- [ ] A switch sends the model either the lean SayTech result or the raw API response.
-- [ ] Prompt tokens (from the provider's usage data) and time to first token are compared
-      in `LATENCY.md`.
+- [x] A switch sends the model either the lean SayTech result or the raw API response:
+      `SARJY_TOOL_PAYLOAD=lean|raw`, the same tool specs either way.
+- [x] Prompt tokens (from the provider's usage data) and time to first token are compared
+      in `LATENCY.md`: the round after a tour tool reads 0 to 10% more with raw payloads,
+      and the first word shows no difference beyond noise. The system prompt, about 3,550
+      tokens sent on every round, is what the model mostly reads (D-91).
 
 ### M3.10 Experiment 6: warm vs cold
 

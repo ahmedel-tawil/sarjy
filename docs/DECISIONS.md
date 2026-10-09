@@ -1248,6 +1248,23 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   twice); names with accents and genders ("Heart, American, female"), more than five
   voices need.
 
+### D-91 Token counts logged per round; lean tool payloads stay
+
+- **Decision:** both model adapters report the provider's own token counts (Claude from
+  its stream's start and end events, Groq from the usage on its last chunk), and the
+  pipeline logs input and output tokens for every round with the turn's id.
+  `SARJY_TOOL_PAYLOAD` switches the tour tools between Sarjy's lean results (the default)
+  and SayTech's raw responses (settled 9 Oct in M3.9).
+- **Reason:** experiment 5 needed what the model actually read, not an estimate, and the
+  same lines show where a turn's tokens go from now on. Raw payloads added 0 to 10% to
+  the round after a tour tool and no measurable latency, because SayTech's assistant
+  endpoints are already compact; the system prompt, about 3,550 tokens, dominates every
+  request. Lean results stay: they drop empty and unused fields, and a change on
+  SayTech's side can't swell them.
+- **Alternatives considered:** estimating tokens with a tokenizer (another dependency, and
+  not the provider's count); asking Groq for usage with `stream_options` (it already
+  sends it under `x_groq`, and another provider might reject the option).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
