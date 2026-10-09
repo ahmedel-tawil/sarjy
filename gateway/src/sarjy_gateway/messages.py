@@ -65,6 +65,8 @@ type ErrorCode = Literal[
     "llm_failed",
     "tts_failed",
     "forget_failed",
+    "too_many_turns",
+    "visit_limit",
 ]
 
 

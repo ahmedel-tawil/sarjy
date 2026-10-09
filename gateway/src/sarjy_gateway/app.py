@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from sarjy_gateway.health import HealthRouter
 from sarjy_gateway.identity import identity_cookie
+from sarjy_gateway.limits import MAX_KEYS, SlidingWindow, TurnLimits
 from sarjy_gateway.migrate import MIGRATIONS_FOLDER, MigrationError, MigrationRunner, Migrations
 from sarjy_gateway.prompts import SystemPrompt
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
@@ -79,8 +80,17 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
             services.tts,
             services.conversations,
             services.facts,
+            TurnLimits(
+                per_user=SlidingWindow(
+                    settings.turns_per_user, settings.turn_window_seconds, time.monotonic, max_keys=MAX_KEYS
+                ),
+                per_ip=SlidingWindow(
+                    settings.turns_per_ip, settings.turn_window_seconds, time.monotonic, max_keys=MAX_KEYS
+                ),
+            ),
             max_turn_audio_bytes=settings.max_turn_audio_bytes,
             max_history_turns=settings.max_history_turns,
+            max_turns_per_visit=settings.max_turns_per_visit,
         ).build()
     )
     # Mounted last so the API routes above take precedence over static files.
