@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     tts_url: str | None = None
     # "id_token" on Cloud Run, where TTS is private (D-45); "none" for a local TTS.
     tts_auth: Literal["none", "id_token"] = "none"
+    # Clips kept in the gateway's memory for reuse, by text and voice (D-97); about 11
+    # minutes of speech at 48 KB a second. 0 turns the cache off, to measure it.
+    tts_cache_bytes: int = Field(default=32_000_000, ge=0)
     # From Secret Manager on Cloud Run, from the git-ignored .env locally. SecretStr keeps
     # it out of logs, reprs and error messages.
     groq_api_key: SecretStr | None = None

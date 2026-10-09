@@ -38,6 +38,7 @@ from sarjy_gateway.tts import (
     NoToken,
     TextToSpeech,
 )
+from sarjy_gateway.tts_cache import CachedTextToSpeech
 from sarjy_gateway.weather import OpenMeteoWeather, Weather
 
 
@@ -53,6 +54,8 @@ class Services:
     stt: SpeechToText
     llm: ChatModel
     tts: TextToSpeech
+    # The same object as `tts` when the cache is on, kept apart so the app can warm it.
+    tts_cache: CachedTextToSpeech | None
     catalogue: Catalogue
     weather: Weather
     database: Database
@@ -72,10 +75,13 @@ def build_services(settings: Settings) -> Services:
         if settings.database_url is None
         else database_pool(settings.database_url, settings.database_pool_max, CONNECTION_WAIT_SECONDS)
     )
+    tts = build_text_to_speech(settings, client)
+    tts_cache = None if settings.tts_cache_bytes == 0 else CachedTextToSpeech(tts, settings.tts_cache_bytes)
     return Services(
         stt=build_speech_to_text(settings, client),
         llm=build_chat_model(settings, client, claude_client),
-        tts=build_text_to_speech(settings, client),
+        tts=tts if tts_cache is None else tts_cache,
+        tts_cache=tts_cache,
         catalogue=build_catalogue(settings, client),
         weather=OpenMeteoWeather(client, settings.weather_url, settings.weather_timeout_seconds),
         database=MissingDatabase() if pool is None else PostgresDatabase(pool),
