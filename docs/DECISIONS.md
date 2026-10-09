@@ -1394,6 +1394,25 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   the exact words is more direct); removing duplicate sentences (repeats are rephrased,
   not identical).
 
+### D-96 Claude Haiku 5.5 first, gpt-oss-120b as the fallback
+
+- **Decision:** Claude Haiku 5.5 stays the first model (D-69). Groq's fallback model
+  changes from Qwen 3.8 27B to `openai/gpt-oss-120b`, at reasoning effort `low` (gpt-oss
+  can't turn reasoning off). Both are settings defaults, so the change ships with the
+  gateway.
+- **Reason:** experiment 4 ran the script's ten questions twice per model, checking each
+  turn's tool calls. Haiku passed 18 of 20 and was the only model to save the facts said
+  in passing, with a first word at 970 ms p50. Qwen passed 11: it saved no fact while
+  saying it had, invented a price and a forecast, and is fast only because it skipped its
+  tools. gpt-oss-120b passed 17, never answered a tour or weather question without its
+  tool, and is the safer fallback despite a first word at 1.7 s. Sonnet 5.5 was 0.7 s
+  slower to its first word than Haiku and costs more.
+- **Alternatives considered:** keeping Qwen for speed (a fallback that invents prices is
+  worse than a slower one); gpt-oss-20b (faster on tool turns, but it saved a fact on
+  "thanks" and lost the buggy tour); Cerebras and Gemini (not measured, no keys); Sonnet
+  5.5 through the gateway (needs its thinking blocks passed back between tool rounds, for
+  a slower model).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.

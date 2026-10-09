@@ -200,6 +200,50 @@ Medians per question, before and after:
   `tts` 27%, `stt` 20%, `network_and_browser` 8%, `first_sentence` 8%. The model and its
   tool rounds are now the largest part; experiments 4 and 5 address them.
 
+## Experiment 4: model choice
+
+The same ten questions as typed text, so STT and TTS drop out, through the real pipeline
+and tools in sentence mode, two passes per model, each pass a fresh visit with its own
+memory and no fallback. Each turn is checked against what its question needs: a search
+in Abu Dhabi under 400 dirhams, both facts of "colour and heights" saved, green answered
+from memory, a Dubai search, tomorrow's forecast, "price on request" for the buggy tour,
+the name Sam saved, Saturday's forecast for Abu Dhabi, and no tool for "thanks". Run on
+10 Oct with `gateway/scripts/models.py`; the turns are in `docs/latency/models/`.
+Cerebras and Gemini were not run: they need keys of their own (Ahmed's call, 10 Oct).
+
+| Model | Checks passed | Facts saved (of 4) | First word p50 | p95 | Tool turns p50 |
+| --- | --- | --- | --- | --- | --- |
+| Claude Haiku 5.5 | 18 of 20 | 4 | 970 ms | 2,621 ms | 1,536 ms |
+| Groq gpt-oss-120b | 17 of 20 | 2 | 1,702 ms | 3,267 ms | 1,841 ms |
+| Groq gpt-oss-20b | 14 of 20 | 2 | 1,624 ms | 2,146 ms | 1,624 ms |
+| Groq Qwen 3.8 27B | 11 of 20 | 0 | 684 ms | 1,821 ms | 1,706 ms |
+
+Claude Sonnet 5.5 could not run through the gateway: its lowest thinking setting,
+`between_tools`, returns thinking blocks that must go back with every tool round, which
+the adapter doesn't do. Timed directly on two questions with no tool (the real prompt and
+tools, ten each, interleaved with Haiku), its first word took 1,662 and 1,612 ms at p50
+against Haiku's 924 and 914 ms.
+
+- **Only Claude saves what the traveller says in passing.** Haiku saved green, the
+  dislike of heights and the name in both passes. Qwen saved nothing, while saying
+  "I've noted that" and "I've saved your name"; both gpt-oss models saved the colour and
+  the name but never the heights.
+- **Qwen answers without its tools.** It used one on only 7 of 20 turns, which is why its
+  first word looks fast. It gave the buggy tour a price of 299 dirhams (SayTech has it on
+  request) and a Saturday forecast without asking for one. On turns that did use a tool,
+  Haiku was faster.
+- **gpt-oss reads dates badly.** Both sizes asked for the weather on a Tuesday or a
+  Wednesday and called it Saturday's; the 20b also saved the name again on "thanks" and
+  looked for the buggy tour in Abu Dhabi.
+- **Haiku's misses were one question.** "What can I do in Dubai?", after the Dubai search
+  of question 4, it answered once from that earlier answer and once with a question back,
+  neither with a fresh search.
+- **Groq's free tier limits it to a fallback.** 8,000 tokens a minute per model is about
+  one tool turn a minute, for every visitor together.
+
+Claude Haiku 5.5 stays first (D-69). The fallback moves from Qwen to gpt-oss-120b: slower,
+but it never answered a tour or forecast question without its tool (D-96).
+
 ## Experiment 5: tool payload size
 
 One change: `SARJY_TOOL_PAYLOAD=raw` hands the model SayTech's responses exactly as they
