@@ -80,6 +80,9 @@ function App() {
   // The visitor's earlier visits, newest first, and the earlier answer being replayed (D-84).
   const [history, setHistory] = useState<EarlierVisit[]>([])
   const [replay, setReplay] = useState<null | Replay>(null)
+  // What Sarjy is doing right now, from the tool loop: "Checking tomorrow's weather in
+  // Dubai" (D-94). Cleared when it starts speaking again and when the turn ends.
+  const [activity, setActivity] = useState<null | string>(null)
   const [talkMode, setTalkMode] = useState<TalkMode>(initialTalkMode)
   const orbRef = useRef<HTMLButtonElement>(null)
 
@@ -100,6 +103,7 @@ function App() {
     // until then belongs to it, and is noted on it in the conversation.
     let answering: null | number = null
     const callbacks: VoiceSessionCallbacks = {
+      onActivity: setActivity,
       // The first connection as the page opens says nothing; only a drop and its recovery do.
       onConnection: (connection: Connection) => {
         if (connection === 'online') {
@@ -142,6 +146,7 @@ function App() {
         updateLast(() => ({ links, reply }))
       },
       onSpeak: (text, durationMs) => {
+        setActivity(null)
         const replayed = replayingId
         if (replayed !== null) {
           setReplay((current) => (current?.turnId === replayed ? { ...current, clips: [...current.clips, { durationMs, text }] } : current))
@@ -157,6 +162,7 @@ function App() {
         if (next === 'idle') {
           replayingId = null
           setReplay(null)
+          setActivity(null)
         }
         setStatus(next)
       },
@@ -216,7 +222,7 @@ function App() {
   const timed = turns.flatMap((turn) =>
     turn.ttfaMs === null ? [] : [{ id: turn.id, stages: turn.stages, ttfaMs: turn.ttfaMs }],
   )
-  const line = statusLine(problem, restingText({ reconnecting, replaying: replay !== null, status, talkMode, visitOver, waitingForWords }))
+  const line = statusLine(problem, restingText({ activity, reconnecting, replaying: replay !== null, status, talkMode, visitOver, waitingForWords }))
   const chooseTalkMode = (mode: TalkMode) => {
     setTalkMode(mode)
     saveTalkMode(mode)
@@ -326,6 +332,8 @@ function chosenVoice(wanted: string | undefined, list: VoiceList): string {
 }
 
 interface Moment {
+  // The tool Sarjy is running, said in words; it can follow a short spoken filler (D-94).
+  activity: null | string
   reconnecting: boolean
   // An earlier answer is being spoken again, rather than a new one (D-84).
   replaying: boolean
@@ -342,6 +350,9 @@ function restingText(moment: Moment): string {
   }
   if (moment.reconnecting) {
     return 'Waiting for the connection…'
+  }
+  if (moment.activity !== null) {
+    return moment.activity
   }
   if (moment.replaying) {
     return moment.status === 'speaking' ? 'Sarjy is replaying an earlier answer' : 'Getting that answer ready…'
