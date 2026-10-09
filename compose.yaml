@@ -1,0 +1,22 @@
+# Local Postgres for development, the same major version as Cloud SQL (M2.2, D-64).
+#     docker compose up db
+# The password only guards this local container, bound to 127.0.0.1; it is no secret.
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: sarjy
+      POSTGRES_PASSWORD: sarjy
+      POSTGRES_DB: sarjy
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # Postgres 18's image keeps its data under /var/lib/postgresql/18.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "sarjy", "-d", "sarjy"]
+      interval: 2s
+      retries: 15
+
+volumes:
+  db-data:
