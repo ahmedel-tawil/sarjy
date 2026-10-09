@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import { type SpokenClip, SpokenWords } from '@/components/spoken-words'
+import type { TurnStages } from '@/lib/stages-of'
 
 export interface Turn {
   // Sarjy's voice, clip by clip, as each one started playing.
@@ -9,6 +10,8 @@ export interface Turn {
   id: number
   // The whole reply, shown as text only if its voice never played.
   reply: null | string
+  // Where the turn's time went, once both clocks' marks are in (M3.2).
+  stages: null | TurnStages
   ttfaMs: null | number
 }
 

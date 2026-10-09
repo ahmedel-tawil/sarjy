@@ -203,11 +203,19 @@
 
 /* Its length, --share, is set per turn from the time to first audio. */
 @utility latency-bar {
-    display: block;
+    display: flex;
+    overflow: hidden;
     inline-size: var(--share, 0%);
     height: --spacing(1.5);
     border-radius: calc(infinity * 1px);
     background-color: var(--primary);
+}
+
+/* One stage of a turn, as a share (--share) of its bar; the stage gives its colour. */
+@utility latency-segment {
+    display: block;
+    inline-size: var(--share, 0%);
+    height: 100%;
 }
 
 /* A word of Sarjy's reply waits for its moment in the audio (--word-at), appears in the
