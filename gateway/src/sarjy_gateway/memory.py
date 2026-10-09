@@ -13,6 +13,8 @@ from sarjy_gateway.tools import ToolError
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from sarjy_gateway.database import Pool
     from sarjy_gateway.identity import UserId
     from sarjy_gateway.turn import Conversation
@@ -35,6 +37,8 @@ class FactStore(Protocol):
     async def remember(self, user_id: UserId, fact: Fact) -> None: ...
 
     async def forget(self, user_id: UserId, key: str) -> bool: ...
+
+    async def forget_all(self, user_id: UserId) -> None: ...
 
 
 class PostgresFactStore(FactStore):
@@ -72,6 +76,13 @@ class PostgresFactStore(FactStore):
         except (psycopg.Error, PoolTimeout) as error:
             raise unavailable(error) from error
 
+    async def forget_all(self, user_id: UserId) -> None:
+        try:
+            async with self._pool.connection() as connection, connection.transaction():
+                await connection.execute("DELETE FROM facts WHERE user_id = %s", (user_id,))
+        except (psycopg.Error, PoolTimeout) as error:
+            raise unavailable(error) from error
+
 
 # Without SARJY_DATABASE_URL Sarjy remembers nothing between visits.
 class MissingFactStore(FactStore):
@@ -86,6 +97,15 @@ class MissingFactStore(FactStore):
     async def forget(self, user_id: UserId, key: str) -> bool:
         message = f"SARJY_DATABASE_URL is not set: {key} not forgotten for user {user_id}"
         raise DatabaseUnavailableError(message)
+
+    async def forget_all(self, user_id: UserId) -> None:
+        message = f"SARJY_DATABASE_URL is not set: facts not forgotten for user {user_id}"
+        raise DatabaseUnavailableError(message)
+
+
+# Hears every change to the visit's facts, so the page's memory panel can show it at once.
+class MemoryListener(Protocol):
+    async def memory(self, facts: Mapping[str, str]) -> None: ...
 
 
 def unavailable(error: Exception) -> DatabaseUnavailableError:
@@ -124,7 +144,8 @@ class ForgottenFact(BaseModel):
 
 
 # Memory tools belong to one visit: they save for its user, and keep the conversation's
-# copy of the facts current, so the next turn's prompt already knows (D-67).
+# copy of the facts current, so the next turn's prompt already knows (D-67) and the page's
+# panel shows the change (D-68).
 class RememberFactTool:
     spec = ToolSpec(
         "remember_fact",
@@ -133,9 +154,10 @@ class RememberFactTool:
         RememberFactArguments.model_json_schema(),
     )
 
-    def __init__(self, store: FactStore, conversation: Conversation) -> None:
+    def __init__(self, store: FactStore, conversation: Conversation, listener: MemoryListener) -> None:
         self._store = store
         self._conversation = conversation
+        self._listener = listener
 
     async def run(self, arguments: str) -> str:
         request = RememberFactArguments.model_validate_json(arguments)
@@ -148,6 +170,7 @@ class RememberFactTool:
         except DatabaseUnavailableError as error:
             raise ToolError(UNAVAILABLE) from error
         self._conversation.facts[fact.key] = fact.value
+        await self._listener.memory(self._conversation.facts)
         return SavedFact(saved=fact.key, value=fact.value).model_dump_json()
 
 
@@ -158,9 +181,10 @@ class ForgetFactTool:
         ForgetFactArguments.model_json_schema(),
     )
 
-    def __init__(self, store: FactStore, conversation: Conversation) -> None:
+    def __init__(self, store: FactStore, conversation: Conversation, listener: MemoryListener) -> None:
         self._store = store
         self._conversation = conversation
+        self._listener = listener
 
     async def run(self, arguments: str) -> str:
         key = normalise_key(ForgetFactArguments.model_validate_json(arguments).key)
@@ -168,7 +192,8 @@ class ForgetFactTool:
             forgotten = await self._store.forget(self._conversation.user_id, key)
         except DatabaseUnavailableError as error:
             raise ToolError(UNAVAILABLE) from error
-        self._conversation.facts.pop(key, None)
+        if self._conversation.facts.pop(key, None) is not None:
+            await self._listener.memory(self._conversation.facts)
         if not forgotten:
             message = f"Nothing was saved under {key}."
             raise ToolError(message)

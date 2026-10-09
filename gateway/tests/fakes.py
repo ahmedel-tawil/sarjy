@@ -326,3 +326,17 @@ class FakeFactStore:
         if self.error is not None:
             raise self.error
         return self.saved.get(user_id, {}).pop(key, None) is not None
+
+    async def forget_all(self, user_id: UserId) -> None:
+        if self.error is not None:
+            raise self.error
+        self.saved.pop(user_id, None)
+
+
+# Keeps every list of facts the memory tools pushed to the page.
+@dataclass
+class RecordingMemoryListener:
+    pushes: list[dict[str, str]] = field(default_factory=list[dict[str, str]])
+
+    async def memory(self, facts: Mapping[str, str]) -> None:
+        self.pushes.append(dict(facts))

@@ -14,6 +14,9 @@ from sarjy_gateway.messages import (
     BrowserMarks,
     ClientMessage,
     ErrorCode,
+    ForgetMe,
+    Memory,
+    RememberedFact,
     Reply,
     ServerError,
     SetVoice,
@@ -28,6 +31,8 @@ from sarjy_gateway.turn_audio import TurnAudio
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from sarjy_gateway.conversation_store import ConversationStore, SessionId
     from sarjy_gateway.identity import UserId
     from sarjy_gateway.memory import FactStore
@@ -56,6 +61,10 @@ class SocketListener:
 
     async def marks(self, turn_id: str, marks: dict[str, float]) -> None:
         await self._websocket.send_text(TurnMarks(turn_id=turn_id, marks=marks).model_dump_json())
+
+    async def memory(self, facts: Mapping[str, str]) -> None:
+        remembered = [RememberedFact(key=key, value=value) for key, value in sorted(facts.items())]
+        await self._websocket.send_text(Memory(facts=remembered).model_dump_json())
 
     async def error(self, code: ErrorCode, turn_id: str | None = None) -> None:
         await self._websocket.send_text(ServerError(code=code, turn_id=turn_id).model_dump_json())
@@ -104,11 +113,13 @@ class VoiceRouter:
         conversation = Conversation(max_turns=self._max_history_turns, user_id=user_id)
         conversation.session_id = await self._start_session(user_id)
         conversation.facts = await self._load_facts(user_id)
-        conversation.tools = [
-            RememberFactTool(self._facts, conversation),
-            ForgetFactTool(self._facts, conversation),
-        ]
         listener = SocketListener(websocket)
+        conversation.tools = [
+            RememberFactTool(self._facts, conversation, listener),
+            ForgetFactTool(self._facts, conversation, listener),
+        ]
+        # Fills the page's memory panel as soon as the visit starts (D-68).
+        await listener.memory(conversation.facts)
         while True:
             message = await websocket.receive()
             if message["type"] == "websocket.disconnect":
@@ -137,6 +148,8 @@ class VoiceRouter:
                 await self._end_turn(audio, conversation, listener)
             case TurnCancel():
                 audio.take()
+            case ForgetMe():
+                await self._forget_me(conversation, listener)
             case BrowserMarks():
                 # Joined to the server's "completed" line by turn_id; M3.1 stores both.
                 logger.info("turn %(turn_id)s played", {"turn_id": control.turn_id, "ttfa_ms": control.ttfa_ms})
@@ -157,6 +170,17 @@ class VoiceRouter:
         except DatabaseUnavailableError as error:
             logger.warning("facts not loaded: %(reason)s", {"reason": str(error)})
             return {}
+
+    # Forgets the facts of this visit's user; their sessions and turns stay (D-68).
+    async def _forget_me(self, conversation: Conversation, listener: SocketListener) -> None:
+        try:
+            await self._facts.forget_all(conversation.user_id)
+        except DatabaseUnavailableError as error:
+            logger.warning("facts not forgotten: %(reason)s", {"reason": str(error)})
+            await listener.error("forget_failed")
+            return
+        conversation.facts.clear()
+        await listener.memory(conversation.facts)
 
     async def _set_voice(self, voice: str, conversation: Conversation, listener: SocketListener) -> None:
         try:
