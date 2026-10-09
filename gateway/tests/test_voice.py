@@ -1,10 +1,13 @@
 from collections.abc import Mapping
 import json
 import logging
+import uuid
 
 from fastapi import FastAPI, WebSocketDisconnect
 from fastapi.testclient import TestClient
 import pytest
+from sarjy_gateway.database import DatabaseUnavailableError
+from sarjy_gateway.identity import COOKIE_NAME
 from sarjy_gateway.messages import AudioFollows, Reply, ServerError, Transcript, TurnMarks
 from sarjy_gateway.stt import SpeechToTextError
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
@@ -13,6 +16,7 @@ from sarjy_gateway.voice import VoiceRouter
 
 from gateway.tests.fakes import (
     FakeChatModel,
+    FakeConversationStore,
     FakePrompt,
     FakeSpeechToText,
     FakeTextToSpeech,
@@ -23,6 +27,7 @@ from gateway.tests.fakes import (
 
 TURN_END = '{"type": "turn_end"}'
 TURN_ID = "0199c3a4b5d67e8f9a0b1c2d3e4f5a6b"
+USER_ID = uuid.UUID("0199c3a4-0000-7000-8000-00000000abcd")
 
 
 def browser_marks(speech_end: float, playback_start: float, turn_id: str = TURN_ID) -> str:
@@ -37,7 +42,11 @@ def browser_marks(speech_end: float, playback_start: float, turn_id: str = TURN_
 
 
 def voice_client(
-    stt: FakeSpeechToText | None = None, tts: FakeTextToSpeech | None = None, max_turn_audio_bytes: int = 1_000
+    stt: FakeSpeechToText | None = None,
+    tts: FakeTextToSpeech | None = None,
+    max_turn_audio_bytes: int = 1_000,
+    store: FakeConversationStore | None = None,
+    cookie: str | None = str(USER_ID),
 ) -> TestClient:
     tts = tts or FakeTextToSpeech()
     toolbox = Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS)
@@ -45,8 +54,15 @@ def voice_client(
         stt or FakeSpeechToText(), FakeChatModel(), tts, toolbox, system_prompt=FakePrompt().build, clock=TickingClock()
     )
     app = FastAPI()
-    app.include_router(VoiceRouter(pipeline, tts, max_turn_audio_bytes, max_history_turns=6).build())
-    return TestClient(app)
+    router = VoiceRouter(
+        pipeline,
+        tts,
+        store or FakeConversationStore(),
+        max_turn_audio_bytes=max_turn_audio_bytes,
+        max_history_turns=6,
+    )
+    app.include_router(router.build())
+    return TestClient(app, cookies=None if cookie is None else {COOKIE_NAME: cookie})
 
 
 def test_a_turn_sends_transcript_reply_audio_and_marks() -> None:
@@ -155,3 +171,42 @@ def test_a_browser_that_leaves_mid_turn_ends_the_session_quietly(caplog: pytest.
         socket.send_text(TURN_END)
 
     assert "browser left mid-turn" in caplog.messages
+
+
+@pytest.mark.parametrize("cookie", [None, "not-a-user-id"], ids=["no cookie", "garbled cookie"])
+def test_a_socket_without_a_valid_identity_cookie_is_refused(cookie: str | None) -> None:
+    client = voice_client(cookie=cookie)
+
+    with pytest.raises(WebSocketDisconnect) as refused, client.websocket_connect("/ws") as socket:
+        socket.receive_text()
+
+    assert refused.value.code == 1008
+
+
+def test_a_visit_starts_a_session_and_each_turn_is_saved_to_it() -> None:
+    store = FakeConversationStore()
+    with voice_client(store=store).websocket_connect("/ws") as socket:
+        socket.send_bytes(b"clip")
+        socket.send_text(TURN_END)
+        for _ in range(3):
+            socket.receive_text()
+        socket.receive_bytes()
+        marks = TurnMarks.model_validate_json(socket.receive_text())
+
+    ((user_id, session_id),) = store.sessions
+    (turn,) = store.saved[session_id]
+    assert user_id == USER_ID
+    assert turn.id == uuid.UUID(hex=marks.turn_id)
+    assert (turn.transcript, turn.reply) == ("What can we do in Abu Dhabi?", "Try the Louvre.")
+
+
+def test_without_the_database_the_turn_is_still_answered(caplog: pytest.LogCaptureFixture) -> None:
+    store = FakeConversationStore(error=DatabaseUnavailableError("database unreachable: PoolTimeout"))
+    caplog.set_level(logging.WARNING, logger="sarjy_gateway.voice")
+    with voice_client(store=store).websocket_connect("/ws") as socket:
+        socket.send_bytes(b"clip")
+        socket.send_text(TURN_END)
+        reply = [Transcript.model_validate_json(socket.receive_text()), Reply.model_validate_json(socket.receive_text())]
+
+    assert reply[1].text == "Try the Louvre."
+    assert caplog.messages == ["session not stored: database unreachable: PoolTimeout"]

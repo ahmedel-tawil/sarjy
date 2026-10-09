@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from sarjy_gateway.health import HealthRouter
+from sarjy_gateway.identity import identity_cookie
 from sarjy_gateway.migrate import MIGRATIONS_FOLDER, MigrationError, MigrationRunner, Migrations
 from sarjy_gateway.prompts import SystemPrompt
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
@@ -71,8 +72,15 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
     app = FastAPI(title="Sarjy gateway", lifespan=lifespan)
     app.include_router(HealthRouter(services.database).build())
     app.include_router(VoicesRouter(services.tts).build())
+    app.middleware("http")(identity_cookie(secure=settings.cookie_secure))
     app.include_router(
-        VoiceRouter(pipeline, services.tts, settings.max_turn_audio_bytes, settings.max_history_turns).build()
+        VoiceRouter(
+            pipeline,
+            services.tts,
+            services.conversations,
+            max_turn_audio_bytes=settings.max_turn_audio_bytes,
+            max_history_turns=settings.max_history_turns,
+        ).build()
     )
     # Mounted last so the API routes above take precedence over static files.
     if settings.frontend_dist is not None:

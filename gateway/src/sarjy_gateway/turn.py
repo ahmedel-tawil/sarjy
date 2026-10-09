@@ -56,6 +56,9 @@ class Conversation:
     max_turns: int
     voice: str | None = None
     history: list[ChatMessage] = field(default_factory=list[ChatMessage])
+    # Set once the visit is stored; None when the database is unavailable, and then turns
+    # are spoken but not saved.
+    session_id: uuid.UUID | None = None
 
     def remember(self, user: str, assistant: str) -> None:
         self.history += [ChatMessage(role="user", content=user), ChatMessage(role="assistant", content=assistant)]

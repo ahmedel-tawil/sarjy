@@ -1,9 +1,13 @@
 import logging
 from typing import TYPE_CHECKING
+import uuid
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from pydantic import ValidationError
 
+from sarjy_gateway.conversation_store import StoredTurn
+from sarjy_gateway.database import DatabaseUnavailableError
+from sarjy_gateway.identity import COOKIE_NAME, user_id_from
 from sarjy_gateway.messages import (
     AudioFollows,
     BrowserMarks,
@@ -23,8 +27,9 @@ from sarjy_gateway.turn_audio import TurnAudio
 
 
 if TYPE_CHECKING:
+    from sarjy_gateway.conversation_store import ConversationStore
     from sarjy_gateway.tts import TextToSpeech
-    from sarjy_gateway.turn import TurnPipeline
+    from sarjy_gateway.turn import CompletedTurn, TurnPipeline
 
 
 logger = logging.getLogger(__name__)
@@ -55,10 +60,17 @@ class SocketListener:
 
 class VoiceRouter:
     def __init__(
-        self, pipeline: TurnPipeline, tts: TextToSpeech, max_turn_audio_bytes: int, max_history_turns: int
+        self,
+        pipeline: TurnPipeline,
+        tts: TextToSpeech,
+        store: ConversationStore,
+        *,
+        max_turn_audio_bytes: int,
+        max_history_turns: int,
     ) -> None:
         self._pipeline = pipeline
         self._tts = tts
+        self._store = store
         self._max_turn_audio_bytes = max_turn_audio_bytes
         self._max_history_turns = max_history_turns
 
@@ -67,9 +79,14 @@ class VoiceRouter:
 
         @router.websocket("/ws")
         async def voice(websocket: WebSocket) -> None:
+            # Only a browser that loaded the page, and so has its identity cookie, may talk.
+            user_id = user_id_from(websocket.cookies.get(COOKIE_NAME))
+            if user_id is None:
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
             await websocket.accept()
             try:
-                await self._serve(websocket)
+                await self._serve(websocket, user_id)
             except WebSocketDisconnect:
                 # The page was closed or reloaded while its turn was running, so the next
                 # send found the socket gone. Nothing is left to answer.
@@ -77,9 +94,10 @@ class VoiceRouter:
 
         return router
 
-    async def _serve(self, websocket: WebSocket) -> None:
+    async def _serve(self, websocket: WebSocket, user_id: uuid.UUID) -> None:
         audio = TurnAudio(self._max_turn_audio_bytes)
         conversation = Conversation(max_turns=self._max_history_turns)
+        conversation.session_id = await self._start_session(user_id)
         listener = SocketListener(websocket)
         while True:
             message = await websocket.receive()
@@ -113,6 +131,14 @@ class VoiceRouter:
                 # Joined to the server's "completed" line by turn_id; M3.1 stores both.
                 logger.info("turn %(turn_id)s played", {"turn_id": control.turn_id, "ttfa_ms": control.ttfa_ms})
 
+    # Without the database the visit goes ahead unrecorded: voice matters more than history.
+    async def _start_session(self, user_id: uuid.UUID) -> uuid.UUID | None:
+        try:
+            return await self._store.start_session(user_id)
+        except DatabaseUnavailableError as error:
+            logger.warning("session not stored: %(reason)s", {"reason": str(error)})
+            return None
+
     async def _set_voice(self, voice: str, conversation: Conversation, listener: SocketListener) -> None:
         try:
             available = await self._tts.voices()
@@ -142,3 +168,15 @@ class VoiceRouter:
             await listener.error(error.code, error.turn_id)
             return
         await listener.marks(turn.turn_id, turn.marks)
+        # Saved after the reply has been spoken and its marks sent, so it never delays them.
+        if conversation.session_id is not None:
+            await self._save(turn, conversation.session_id)
+
+    async def _save(self, turn: CompletedTurn, session_id: uuid.UUID) -> None:
+        stored = StoredTurn(
+            id=uuid.UUID(hex=turn.turn_id), transcript=turn.transcript, reply=turn.reply, tool_results=turn.tool_results
+        )
+        try:
+            await self._store.save_turn(session_id, stored)
+        except DatabaseUnavailableError as error:
+            logger.warning("turn %(turn_id)s not stored: %(reason)s", {"turn_id": turn.turn_id, "reason": str(error)})
