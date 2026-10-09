@@ -1,15 +1,33 @@
 import type { RememberedFact } from '@/lib/protocol'
-import type { AudioLevels, PushToTalk, Status, Visit, VoiceSessionCallbacks } from '@/lib/voice-session'
+import type { AudioLevels, Problem, PushToTalk, Status, Visit, VoiceSessionCallbacks } from '@/lib/voice-session'
 
-// A stand-in for VoiceSession that plays scripted turns, so the screen's motion can
-// be reviewed without a gateway or a microphone. Development only, opened with ?rehearse;
-// the words below are examples, not Sarjy's answers.
+// A stand-in for VoiceSession that plays scripted turns, so the screen's motion and its
+// problem states can be reviewed without a gateway or a microphone. Development only:
+// ?rehearse plays answered turns, ?rehearse=problems one failure after another. The
+// words below are examples, not Sarjy's answers.
 
 interface ScriptedTurn {
   fact?: RememberedFact
   question: string
   reply: string
 }
+
+// A failing turn, in the order VoiceSession reports it: what was heard and said, if
+// anything, then the problem.
+interface ScriptedProblem {
+  problem: Problem
+  question?: string
+  reply?: string
+}
+
+const PROBLEM_SCRIPT: readonly ScriptedProblem[] = [
+  { problem: 'mic_unavailable' },
+  { problem: 'no_speech' },
+  { problem: 'llm_failed', question: 'Which tours run on Friday morning?' },
+  { problem: 'tts_failed', question: 'Is the dhow cruise good for kids?', reply: 'Yes, it is calm, and children love the lights.' },
+  { problem: 'rate_limited' },
+  { problem: 'visit_limit' },
+]
 
 const SCRIPT: readonly ScriptedTurn[] = [
   {
@@ -41,9 +59,11 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit {
   #facts: RememberedFact[] = []
   #status: Status = 'idle'
   #turn = 0
+  readonly #withProblems: boolean
 
-  constructor(callbacks: VoiceSessionCallbacks) {
+  constructor(callbacks: VoiceSessionCallbacks, withProblems = false) {
     this.#callbacks = callbacks
+    this.#withProblems = withProblems
   }
 
   connect(): void {
@@ -66,11 +86,21 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit {
 
   press(): void {
     this.#callbacks.onProblem(null)
+    if (this.#withProblems && this.#nextProblem().problem === 'mic_unavailable') {
+      this.#turn += 1
+      this.#callbacks.onProblem('mic_unavailable')
+      return
+    }
     this.#setStatus('listening')
   }
 
   release(): void {
     if (this.#status !== 'listening') {
+      return
+    }
+    if (this.#withProblems) {
+      this.#fail(this.#nextProblem())
+      this.#turn += 1
       return
     }
     const turn = SCRIPT[this.#turn % SCRIPT.length]
@@ -100,6 +130,32 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit {
     window.setTimeout(() => {
       this.#setStatus('idle')
     }, startsAt)
+  }
+
+  #fail(scripted: ScriptedProblem): void {
+    if (scripted.problem === 'no_speech') {
+      this.#setStatus('idle')
+      this.#callbacks.onProblem('no_speech')
+      return
+    }
+    this.#setStatus('thinking')
+    const { question, reply } = scripted
+    if (question !== undefined) {
+      window.setTimeout(() => {
+        this.#callbacks.onTranscript(question)
+      }, HEARD_AFTER_MS)
+    }
+    window.setTimeout(() => {
+      if (reply !== undefined) {
+        this.#callbacks.onReply(reply)
+      }
+      this.#setStatus('idle')
+      this.#callbacks.onProblem(scripted.problem)
+    }, SPEAKS_AFTER_MS)
+  }
+
+  #nextProblem(): ScriptedProblem {
+    return PROBLEM_SCRIPT[this.#turn % PROBLEM_SCRIPT.length]
   }
 
   #setStatus(status: Status): void {

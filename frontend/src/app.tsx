@@ -1,3 +1,5 @@
+import { Alert02Icon, MicOff01Icon } from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { ConversationThread, type Turn } from '@/components/conversation-thread'
@@ -6,9 +8,11 @@ import { LatencyPanel } from '@/components/latency-panel'
 import { MemoryPanel } from '@/components/memory-panel'
 import type { OrbPhase } from '@/components/orb-renderer'
 import { applyPalette, initialPalette, type Palette, PaletteSwitcher } from '@/components/palette-switcher'
+import { PROBLEMS } from '@/components/problems'
 import { RehearsalSession } from '@/components/rehearsal-session'
 import { SarjyMark } from '@/components/sarjy-mark'
 import { TalkOrb } from '@/components/talk-orb'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import type { RememberedFact } from '@/lib/protocol'
 import {
@@ -35,25 +39,7 @@ const PHASE_FOR: Record<Status, OrbPhase> = {
 
 // In development, ?rehearse plays scripted turns, to review the motion without a gateway or
 // a microphone. Production builds never rehearse.
-const REHEARSE = import.meta.env.DEV && new URLSearchParams(window.location.search).has('rehearse')
-
-const PROBLEM_TEXT: Record<Problem, string> = {
-  'connection_lost': 'Lost the connection. Hold the orb to try again.',
-  'forget_failed': 'I couldn’t forget you just now. Please try again.',
-  'invalid_message': 'Something went wrong on our side. Please try again.',
-  'llm_failed': 'I couldn’t think of an answer just now. Please try again.',
-  'mic_unavailable': 'Sarjy needs your microphone. Allow it in the browser, then try again.',
-  'no_audio': 'I didn’t catch any audio. Hold the orb a little longer.',
-  'no_speech': 'I didn’t hear any words. Hold the orb and try again.',
-  'playback_failed': 'Couldn’t play the audio back.',
-  'rate_limited': 'I’m getting a lot of questions right now. Please try again in a moment.',
-  'stt_failed': 'I couldn’t make out what you said. Please try again.',
-  'too_many_turns': 'You’re asking faster than I can keep up. Please wait a few minutes, then try again.',
-  'tts_failed': 'I have an answer but couldn’t say it out loud. Please try again.',
-  'turn_too_long': 'That turn was too long. Try a shorter one.',
-  'unknown_voice': 'That voice isn’t available.',
-  'visit_limit': 'That’s as many questions as one visit allows. Reload the page to start a new one.',
-}
+const REHEARSE_AS = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('rehearse') : null
 
 function App() {
   const [status, setStatus] = useState<Status>('idle')
@@ -66,6 +52,8 @@ function App() {
   const [welcomed] = useState(wantsWelcome)
   const [welcoming, setWelcoming] = useState(welcomed)
   const [orbRevealed, setOrbRevealed] = useState(!welcomed)
+  // Once the visit's question limit is reached, only a new visit can ask more.
+  const [visitOver, setVisitOver] = useState(false)
   const orbRef = useRef<HTMLButtonElement>(null)
 
   const [session] = useState<AudioLevels & PushToTalk & Visit>(() => {
@@ -73,18 +61,35 @@ function App() {
     const updateLast = (change: (turn: Turn) => Partial<Turn>): void => {
       setTurns((all) => all.map((turn, index) => (index === all.length - 1 ? { ...turn, ...change(turn) } : turn)))
     }
+    let nextId = 0
+    // The turn whose question was heard but whose answer has not started yet: a problem
+    // until then belongs to it, and is noted on it in the conversation.
+    let answering: null | number = null
     const callbacks: VoiceSessionCallbacks = {
       onMemory: setFacts,
       onProblem: (next) => {
-        setProblem(next)
-        if (next !== null) {
-          setWaitingForWords(false)
+        if (next === null) {
+          setProblem(null)
+          return
         }
+        setWaitingForWords(false)
+        if (next === 'visit_limit') {
+          setVisitOver(true)
+        }
+        const spoiled = answering
+        if (PROBLEMS[next].kind === 'turn' && spoiled !== null) {
+          answering = null
+          setTurns((all) => all.map((turn) => (turn.id === spoiled ? { ...turn, trouble: PROBLEMS[next].text } : turn)))
+          setProblem(null)
+          return
+        }
+        setProblem(next)
       },
       onReply: (reply) => {
         updateLast(() => ({ reply }))
       },
       onSpeak: (text, durationMs) => {
+        answering = null
         updateLast((turn) => ({ clips: [...turn.clips, { durationMs, text }] }))
       },
       onStatus: (next) => {
@@ -95,7 +100,10 @@ function App() {
       },
       onTranscript: (heard) => {
         setWaitingForWords(false)
-        setTurns((all) => [...all, { clips: [], heard, id: all.length, reply: null, stages: null, ttfaMs: null }])
+        const id = nextId
+        nextId += 1
+        answering = id
+        setTurns((all) => [...all, { clips: [], heard, id, reply: null, stages: null, trouble: null, ttfaMs: null }])
       },
       onStages: (stages) => {
         updateLast(() => ({ stages }))
@@ -104,7 +112,7 @@ function App() {
         updateLast(() => ({ ttfaMs }))
       },
     }
-    return REHEARSE ? new RehearsalSession(callbacks) : new VoiceSession(SOCKET_URL, callbacks)
+    return REHEARSE_AS === null ? new VoiceSession(SOCKET_URL, callbacks) : new RehearsalSession(callbacks, REHEARSE_AS === 'problems')
   })
 
   useLayoutEffect(() => {
@@ -155,7 +163,10 @@ function App() {
   const timed = turns.flatMap((turn) =>
     turn.ttfaMs === null ? [] : [{ id: turn.id, stages: turn.stages, ttfaMs: turn.ttfaMs }],
   )
-  const statusText = problem === null ? describe(status, waitingForWords) : PROBLEM_TEXT[problem]
+  const shown = problem === null ? null : PROBLEMS[problem]
+  const inLine = shown !== null && (shown.kind === 'hint' || shown.kind === 'trouble') ? shown : null
+  const idleText = visitOver ? 'Start a new visit to ask more' : describe(status, waitingForWords)
+  const statusText = inLine === null ? idleText : inLine.text
 
   return (
     <div className="flex h-svh flex-col bg-background text-foreground">
@@ -198,9 +209,37 @@ function App() {
             </div>
           </div>
           <div className="pb-safe flex flex-col items-center gap-1 pt-2">
+            {shown?.kind === 'microphone' ? (
+              <div className="w-full max-w-md pb-3">
+                <Alert>
+                  <HugeiconsIcon icon={MicOff01Icon} />
+                  <AlertTitle>Sarjy can’t hear you yet</AlertTitle>
+                  <AlertDescription>{shown.text}</AlertDescription>
+                </Alert>
+              </div>
+            ) : null}
+            {visitOver ? (
+              <div className="w-full max-w-md pb-3">
+                <Alert>
+                  <HugeiconsIcon icon={Alert02Icon} />
+                  <AlertTitle>This visit is full</AlertTitle>
+                  <AlertDescription>{PROBLEMS['visit_limit'].text}</AlertDescription>
+                  <div className="col-start-2 pt-2">
+                    <Button
+                      onClick={() => {
+                        window.location.reload()
+                      }}
+                      size="sm"
+                    >
+                      Start a new visit
+                    </Button>
+                  </div>
+                </Alert>
+              </div>
+            ) : null}
             <TalkOrb
               animateIn={welcomed}
-              disabled={status === 'thinking' || status === 'speaking'}
+              disabled={visitOver || status === 'thinking' || status === 'speaking'}
               levels={session}
               onPress={() => {
                 session.press()
@@ -211,7 +250,7 @@ function App() {
               phase={PHASE_FOR[status]}
               revealed={orbRevealed}
             />
-            <p aria-live="polite" className={problem === null ? 'text-sm text-muted-foreground' : 'text-sm text-destructive'}>
+            <p aria-live="polite" className={inLine?.kind === 'trouble' ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'}>
               <span className="label-in inline-block" key={statusText}>
                 {statusText}
               </span>
