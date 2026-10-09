@@ -469,14 +469,20 @@ New dependencies: psycopg (binary), psycopg-pool (approved).
 
 ### M2.4 Identity cookie, sessions and turns
 
-- [ ] The first visit sets an HTTP-only, Secure, SameSite=Lax cookie holding a random user
-      id; a missing or invalid cookie gives a new user.
-- [ ] A WebSocket without the cookie is refused.
-- [ ] Each visit upserts `users` (updating `last_seen_at`) and adds a `sessions` row.
-- [ ] Each turn's user and assistant text is saved to `turns`.
-- [ ] SQL runs only inside repository classes injected into the code that uses them
-      (`no-psycopg-execution-outside-injected-owner`).
-- [ ] Tests cover a new user, a returning user and a new session.
+- [x] The first visit sets an HTTP-only, Secure, SameSite=Lax cookie holding a random user
+      id; a missing or invalid cookie gives a new user (D-66).
+- [x] A WebSocket without the cookie is refused (HTTP 403 at the handshake, close code
+      1008).
+- [x] Each visit upserts `users` (updating `last_seen_at`) and adds a `sessions` row.
+- [x] Each turn's user and assistant text is saved to `turns`, with its tool results,
+      after the reply has been spoken; without the database the turn is still answered.
+- [x] SQL runs only inside repository classes injected into the code that uses them
+      (`no-psycopg-execution-outside-injected-owner`): `PostgresConversationStore`.
+- [x] Tests cover a new user, a returning user and a new session, on the real Postgres.
+- [x] Checked locally end to end with real Groq: the first visit got its cookie, a socket
+      without it was refused, and one spoken turn left one user, one session and one
+      turn in the database. That turn also named attractions without searching first,
+      which M2.14 checks.
 
 ### M2.5 Tool-calling loop
 
@@ -619,6 +625,8 @@ New dependencies: psycopg (binary), psycopg-pool (approved).
 ### M2.14 Demo scenarios 1–4 on the deployed URL
 
 - [ ] All four PRD scenarios pass end to end on the deployed URL in desktop Chrome.
+- [ ] A general "what can I do in Dubai?" names only tours from `search_tours`: on 9 Oct
+      Groq's model once named the Dubai Frame and a dhow cruise without searching.
 - [ ] Results go into the 9 Oct update.
 
 ### M2.15 Groq and Claude, switchable, each the other's fallback

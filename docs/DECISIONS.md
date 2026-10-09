@@ -834,6 +834,28 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   concepts); a Cloud Run job or CI step for migrations (more infrastructure); fakes only
   for database tests.
 
+### D-66 Identity by cookie, one session per visit, turns saved after they are spoken
+
+- **Decision:** any response to a browser without a valid `sarjy_user` cookie, normally
+  the page load, sets one: a new random user id (UUIDv7), HTTP-only, Secure, SameSite=Lax,
+  for 400 days, the longest browsers allow. The cookie holds only the id, which works
+  like a session token: knowing it is what makes a browser that user. The voice socket
+  refuses a browser without it (HTTP 403 at the handshake). Each socket connection is a
+  visit: the user is upserted (`last_seen_at` refreshed) and a session added, in one
+  transaction. Each completed turn is saved after its audio and marks have been sent, so
+  saving never delays a reply. If the database is unavailable, the visit and its turns
+  go unrecorded with a warning and the conversation carries on. `SARJY_COOKIE_SECURE=false`
+  lets browsers that refuse Secure cookies on plain-HTTP localhost keep it locally
+  (settled 9 Oct in M2.4).
+- **Reason:** the PRD has no accounts, so the browser is the user; every tab and later
+  visit from it shares the same facts, while each tab keeps its own short conversation
+  (D-65). Refusing cookieless sockets means every conversation belongs to a user, which
+  rate limits per user (M2.13) rely on. Voice matters more than history, as with
+  `/ready` (D-64).
+- **Alternatives considered:** a signed cookie (another secret to manage, for an id that
+  is already unguessable); setting the cookie in the socket handshake (scripts without a
+  page could then talk freely); accounts and login (outside the PRD).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
