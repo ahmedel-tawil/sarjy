@@ -1203,6 +1203,31 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   voice column on users (a schema change for one setting); reconnecting in hidden tabs
   too (the cost above).
 
+### D-81 Problems shown where they belong; links and a dropped connection on screen
+
+- **Decision:** every problem the page can hear has a kind, kept in one table
+  (`components/problems.ts`). A slip of the hand (no speech, too long) is a quiet hint
+  under the orb. A question that was heard but not answered (the model, the connection or
+  our side failed) gets a note on that turn in the conversation, and a reply whose voice
+  failed is shown in writing with a note. A denied microphone and a full visit get a
+  shadcn Alert above the orb: the first says how to allow the microphone and clears on the
+  next press, the second has a "Start a new visit" button and disables the orb. Rate
+  limits and anything else show under the orb in the error colour. When a connection that
+  was up drops, the header says "Reconnecting…" and the orb waits until the socket is
+  back (D-90), then "Back online" shows for 2.5 s; the first connection as the page opens
+  says nothing. The tours a reply named appear under it as outline buttons that open
+  their pages in a new tab. The empty conversation shows how to talk, three questions
+  from the demo scenarios, and that the browser will ask for the microphone. In
+  development, `?rehearse=problems` plays each failure in turn (settled 9 Oct in M4.2).
+- **Reason:** one red line for every problem made a denied microphone look like a slow
+  model, and lost the history of what went wrong. Putting each problem where it can be
+  acted on (the turn, the card, the line under the orb) keeps the conversation honest and
+  tells the traveller what to do next.
+- **Alternatives considered:** a toast for every problem (they vanish before they are
+  read, and need a new component); a modal for the microphone (blocks the page for
+  something the browser's own prompt already asks); retrying failed turns automatically
+  (a second wait the traveller did not ask for).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.

@@ -955,10 +955,19 @@ one by one over its four seconds.
 
 ### M4.2 Conversation states and errors
 
-- [ ] Clear states for: mic denied, connection lost (with automatic reconnect), provider
-      failure, rate limit hit.
-- [ ] Product links in Sarjy's replies are clickable in the conversation.
+- [x] Clear states for: mic denied, connection lost (with automatic reconnect), provider
+      failure, rate limit hit. Each problem shows where it can be acted on: a hint or an
+      error line under the orb, a note on the turn it spoiled, or a card above the orb
+      (D-81); the socket reconnects by itself (D-90).
+- [x] Product links in Sarjy's replies are clickable in the conversation: the tours a
+      reply named, as buttons that open their pages in a new tab.
 - [ ] One person who hasn't seen the app before understands what to do within seconds.
+      The empty conversation now shows how to talk and three example questions; this
+      needs one real person's try.
+
+Checked on 9 Oct in the in-app browser at 375 px and 1024 px with `?rehearse` and
+`?rehearse=problems` (microphone denied, no speech, no answer, voice failed, a dropped
+connection and its recovery, rate limit, full visit).
 
 ### M4.3 Safari and iOS audio
 
