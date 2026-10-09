@@ -210,6 +210,13 @@ class Catalogue(Protocol):
     async def tour(self, product_type: ProductType, slug: str) -> TourDetails: ...
 
 
+# SayTech's answers as they came, unmapped: experiment 5's raw tool payload (M3.9).
+class RawCatalogue(Protocol):
+    async def raw_search(self, query: TourQuery) -> str: ...
+
+    async def raw_tour(self, product_type: ProductType, slug: str) -> str: ...
+
+
 class SayTechCatalogue:
     def __init__(self, client: httpx2.AsyncClient, base_url: str, timeout_seconds: float) -> None:
         self._client = client
@@ -231,9 +238,7 @@ class SayTechCatalogue:
         return TourSearch(tours=[lean_tour(product) for product in search.results], total=search.total)
 
     async def tour(self, product_type: ProductType, slug: str) -> TourDetails:
-        # Slugs are stored as typed, spaces included ("DUNE- BUGGY"); safe="" also encodes
-        # a slash, so a slug can never reach another path.
-        detail = parse(ApiProductDetail, await self._get(f"products/{product_type}/{quote(slug, safe='')}/", ()))
+        detail = parse(ApiProductDetail, await self._get(tour_path(product_type, slug), ()))
         return TourDetails(
             name=detail.name,
             type=detail.type,
@@ -251,6 +256,12 @@ class SayTechCatalogue:
             requirements=detail.requirements,
             languages=detail.languages,
         )
+
+    async def raw_search(self, query: TourQuery) -> str:
+        return (await self._get("products/", search_params(query))).decode()
+
+    async def raw_tour(self, product_type: ProductType, slug: str) -> str:
+        return (await self._get(tour_path(product_type, slug), ())).decode()
 
     async def _get(self, path: str, params: tuple[tuple[str, str], ...]) -> bytes:
         try:
@@ -278,6 +289,12 @@ def parse[ApiModel: BaseModel](model: type[ApiModel], body: bytes) -> ApiModel:
 
 # Only the filters that are set: SayTech refuses unknown parameters, and an empty one would
 # still filter.
+# Slugs are stored as typed, spaces included ("DUNE- BUGGY"); safe="" also encodes a
+# slash, so a slug can never reach another path.
+def tour_path(product_type: ProductType, slug: str) -> str:
+    return f"products/{product_type}/{quote(slug, safe='')}/"
+
+
 def search_params(query: TourQuery) -> tuple[tuple[str, str], ...]:
     params = [("limit", str(query.limit))]
     if query.query is not None:

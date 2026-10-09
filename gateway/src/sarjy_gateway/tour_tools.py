@@ -10,7 +10,7 @@ from sarjy_gateway.tools import ToolError
 if TYPE_CHECKING:
     from collections.abc import Awaitable
 
-    from sarjy_gateway.catalogue import Catalogue
+    from sarjy_gateway.catalogue import Catalogue, RawCatalogue
 
 
 # A spoken answer names two or three tours; five leaves the model room to choose.
@@ -62,15 +62,7 @@ class SearchToursTool:
         self._catalogue = catalogue
 
     async def run(self, arguments: str) -> str:
-        search = SearchToursArguments.model_validate_json(arguments)
-        query = TourQuery(
-            query=search.query,
-            city=search.city,
-            category=search.category,
-            max_price_aed=search.max_price_aed,
-            accessible=search.accessible,
-            limit=SEARCH_LIMIT,
-        )
+        query = tour_query(SearchToursArguments.model_validate_json(arguments))
         return await answer_from(self._catalogue.search(query))
 
 
@@ -88,6 +80,50 @@ class GetTourTool:
     async def run(self, arguments: str) -> str:
         tour = GetTourArguments.model_validate_json(arguments)
         return await answer_from(self._catalogue.tour(tour.product_type, tour.slug))
+
+
+# Experiment 5 (M3.9): the same two tools, answering with SayTech's response exactly as
+# it came instead of the lean results, so only what the model reads changes.
+class RawSearchToursTool:
+    spec = SearchToursTool.spec
+
+    def __init__(self, catalogue: RawCatalogue) -> None:
+        self._catalogue = catalogue
+
+    async def run(self, arguments: str) -> str:
+        query = tour_query(SearchToursArguments.model_validate_json(arguments))
+        return await raw_answer_from(self._catalogue.raw_search(query))
+
+
+class RawGetTourTool:
+    spec = GetTourTool.spec
+
+    def __init__(self, catalogue: RawCatalogue) -> None:
+        self._catalogue = catalogue
+
+    async def run(self, arguments: str) -> str:
+        tour = GetTourArguments.model_validate_json(arguments)
+        return await raw_answer_from(self._catalogue.raw_tour(tour.product_type, tour.slug))
+
+
+def tour_query(search: SearchToursArguments) -> TourQuery:
+    return TourQuery(
+        query=search.query,
+        city=search.city,
+        category=search.category,
+        max_price_aed=search.max_price_aed,
+        accessible=search.accessible,
+        limit=SEARCH_LIMIT,
+    )
+
+
+async def raw_answer_from(request: Awaitable[str]) -> str:
+    try:
+        return await request
+    except CatalogueQueryError as error:
+        raise ToolError(str(error)) from error
+    except CatalogueUnavailableError as error:
+        raise ToolError(UNAVAILABLE) from error
 
 
 # SayTech's refusals already explain themselves ("Known cities: ..."), so the model can

@@ -358,3 +358,19 @@ class RecordingMemoryListener:
 
     async def memory(self, facts: Mapping[str, str]) -> None:
         self.pushes.append(dict(facts))
+
+
+# Answers with a fixed raw SayTech response and records what was asked (M3.9).
+class FakeRawCatalogue:
+    def __init__(self, answer: str = '{"results": [], "total": 0, "unused": "kept"}') -> None:
+        self.answer = answer
+        self.queries: list[TourQuery] = []
+        self.lookups: list[tuple[ProductType, str]] = []
+
+    async def raw_search(self, query: TourQuery) -> str:
+        self.queries.append(query)
+        return self.answer
+
+    async def raw_tour(self, product_type: ProductType, slug: str) -> str:
+        self.lookups.append((product_type, slug))
+        return self.answer

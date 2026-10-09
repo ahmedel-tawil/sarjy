@@ -4,9 +4,9 @@ from pydantic import ValidationError
 import pytest
 from sarjy_gateway.catalogue import CatalogueQueryError, CatalogueUnavailableError, TourQuery, TourSearch
 from sarjy_gateway.tools import ToolError
-from sarjy_gateway.tour_tools import UNAVAILABLE, GetTourTool, SearchToursTool
+from sarjy_gateway.tour_tools import UNAVAILABLE, GetTourTool, RawGetTourTool, RawSearchToursTool, SearchToursTool
 
-from gateway.tests.fakes import FERRARI, FakeCatalogue
+from gateway.tests.fakes import FERRARI, FakeCatalogue, FakeRawCatalogue
 
 
 def test_a_search_sends_the_models_filters_with_a_limit_of_five() -> None:
@@ -79,3 +79,18 @@ def test_catalogue_problems_reach_the_model_as_words(error: Exception, expected:
         asyncio.run(SearchToursTool(FakeCatalogue(error=error)).run('{"city": "Paris"}'))
 
     assert str(raised.value) == expected
+
+
+def test_raw_tools_hand_the_model_saytechs_answer_untouched() -> None:
+    catalogue = FakeRawCatalogue()
+
+    found = asyncio.run(RawSearchToursTool(catalogue).run('{"city": "Dubai", "max_price_aed": 400}'))
+    detail = asyncio.run(RawGetTourTool(catalogue).run('{"slug": "DUNE- BUGGY"}'))
+
+    assert found == detail == '{"results": [], "total": 0, "unused": "kept"}'
+    assert (catalogue.queries[0].city, catalogue.queries[0].max_price_aed, catalogue.queries[0].limit) == ("Dubai", 400, 5)
+    assert catalogue.lookups == [("tour", "DUNE- BUGGY")]
+
+
+def test_raw_tools_offer_the_model_the_same_tools() -> None:
+    assert (RawSearchToursTool.spec, RawGetTourTool.spec) == (SearchToursTool.spec, GetTourTool.spec)
