@@ -175,12 +175,8 @@ def test_set_voice_changes_the_voice_of_later_turns() -> None:
     tts = FakeTextToSpeech()
     with visit(voice_client(tts=tts)) as socket:
         socket.send_text('{"type": "set_voice", "voice": "am_adam"}')
-        socket.send_bytes(b"clip")
-        socket.send_text(TURN_END)
-        for _ in range(3):
-            socket.receive_text()
-        socket.receive_bytes()
-        socket.receive_text()
+        Memory.model_validate_json(socket.receive_text())
+        answered_turn(socket)
 
     assert tts.requests == [SpeechRequest("Try the Louvre.", "am_adam")]
 
@@ -449,3 +445,22 @@ def test_a_failed_wake_up_does_not_stop_the_visit(caplog: pytest.LogCaptureFixtu
 
     assert refused.code == "no_audio"
     assert "tts wake-up failed: tts unreachable" in caplog.messages
+
+
+def test_a_picked_voice_is_remembered_and_shown_in_the_memory_panel() -> None:
+    facts = FakeFactStore()
+    with visit(voice_client(facts=facts)) as socket:
+        socket.send_text('{"type": "set_voice", "voice": "am_adam"}')
+        memory = Memory.model_validate_json(socket.receive_text())
+
+    assert facts.saved[USER_ID] == {"voice": "am_adam"}
+    assert memory.facts == [RememberedFact(key="voice", value="am_adam")]
+
+
+def test_a_returning_visitor_hears_the_voice_they_picked() -> None:
+    tts = FakeTextToSpeech()
+    facts = FakeFactStore({USER_ID: {"voice": "am_adam"}})
+    with visit(voice_client(tts=tts, facts=facts)) as socket:
+        answered_turn(socket)
+
+    assert tts.requests == [SpeechRequest("Try the Louvre.", "am_adam")]

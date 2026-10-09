@@ -7,6 +7,7 @@ import uuid
 
 from sarjy_gateway.conversation_store import SessionId
 from sarjy_gateway.identity import UserId, new_user_id
+from sarjy_gateway.links import tour_links
 from sarjy_gateway.llm import (
     ChatMessage,
     ChatModelError,
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 
     from sarjy_gateway.llm import ChatEvent, ChatModel, ToolSpec
-    from sarjy_gateway.messages import ErrorCode
+    from sarjy_gateway.messages import ErrorCode, TourLink
     from sarjy_gateway.stt import SpeechToText
     from sarjy_gateway.tools import Toolbox
     from sarjy_gateway.tts import TextToSpeech
@@ -43,7 +44,8 @@ MAX_TOOL_ROUNDS = 3
 class TurnListener(Protocol):
     async def transcript(self, turn_id: str, text: str) -> None: ...
 
-    async def reply(self, turn_id: str, text: str) -> None: ...
+    # `links` are the pages of the tours the reply names (D-90).
+    async def reply(self, turn_id: str, text: str, links: list[TourLink]) -> None: ...
 
     # `text` is what the audio says: the whole reply, or one sentence when streaming.
     async def audio(self, turn_id: str, text: str, wav: bytes) -> None: ...
@@ -224,7 +226,7 @@ class TurnPipeline:
         else:
             answer = await self._answer(system, transcript, conversation, timeline, turn_id)
             timeline.mark("first_sentence_ready")
-            await listener.reply(turn_id, answer.reply)
+            await listener.reply(turn_id, answer.reply, tour_links(answer.reply, answer.tool_results))
             wav = await self._speak(answer.reply, conversation.voice, turn_id)
             timeline.mark("tts_first_byte")
             await listener.audio(turn_id, answer.reply, wav)
@@ -266,7 +268,7 @@ class TurnPipeline:
         if not sentences:
             raise TurnError(code="llm_failed", turn_id=turn.turn_id)
         reply = " ".join(sentences)
-        await listener.reply(turn.turn_id, reply)
+        await listener.reply(turn.turn_id, reply, tour_links(reply, conversed.tool_results))
         return Answer(reply, conversed.tool_results)
 
     # Asks the model, runs any tools it calls and asks again with their results, until it

@@ -82,10 +82,17 @@ class Transcript(BaseModel):
     text: str
 
 
+# A tour the reply names, with its page on the Magic Experience website (D-90).
+class TourLink(BaseModel):
+    name: str
+    url: str
+
+
 class Reply(BaseModel):
     type: Literal["reply"] = "reply"
     turn_id: str
     text: str
+    links: list[TourLink] = []
 
 
 class RememberedFact(BaseModel):

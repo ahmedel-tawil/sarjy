@@ -26,6 +26,7 @@ from sarjy_gateway.weather_tool import GetWeatherTool
 
 if TYPE_CHECKING:
     from sarjy_gateway.llm import ToolSpec
+    from sarjy_gateway.messages import TourLink
     from sarjy_gateway.tools import Tool
 
 
@@ -53,7 +54,7 @@ class NoListener:
     async def transcript(self, turn_id: str, text: str) -> None:
         pass
 
-    async def reply(self, turn_id: str, text: str) -> None:
+    async def reply(self, turn_id: str, text: str, links: list[TourLink]) -> None:
         pass
 
     async def audio(self, turn_id: str, text: str, wav: bytes) -> None:
