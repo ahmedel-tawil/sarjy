@@ -16,6 +16,7 @@ from sarjy_gateway.limits import MAX_KEYS, SlidingWindow, TurnLimits
 from sarjy_gateway.llm import TextDelta, ToolCallDelta
 from sarjy_gateway.messages import (
     AudioFollows,
+    History,
     Memory,
     RememberedFact,
     Reply,
@@ -126,11 +127,12 @@ class Socket(Protocol):
     def receive_bytes(self) -> bytes: ...
 
 
-# Opens the socket and reads the memory message every visit starts with.
+# Opens the socket and reads the memory list and the history every visit starts with.
 @contextmanager
 def visit(client: TestClient) -> Generator[Socket]:
     with client.websocket_connect("/ws") as socket:
         Memory.model_validate_json(socket.receive_text())
+        History.model_validate_json(socket.receive_text())
         yield socket
 
 
@@ -292,7 +294,10 @@ def test_without_the_database_the_turn_is_still_answered(caplog: pytest.LogCaptu
         reply = [Transcript.model_validate_json(socket.receive_text()), Reply.model_validate_json(socket.receive_text())]
 
     assert reply[1].text == "Try the Louvre."
-    assert caplog.messages == ["session not stored: database unreachable: PoolTimeout"]
+    assert caplog.messages == [
+        "session not stored: database unreachable: PoolTimeout",
+        "earlier visits not loaded: database unreachable: PoolTimeout",
+    ]
 
 
 def test_a_visit_starts_knowing_the_users_facts_and_with_memory_tools() -> None:
@@ -380,6 +385,7 @@ def test_new_cookies_from_one_address_share_its_limit_however_the_header_is_forg
         headers = {"x-forwarded-for": f"{forged}, 203.0.113.7"}
         with client.websocket_connect("/ws", headers=headers) as socket:
             Memory.model_validate_json(socket.receive_text())
+            History.model_validate_json(socket.receive_text())
             socket.send_bytes(b"clip")
             socket.send_text(TURN_END)
             answers.append(AnyMessage.model_validate_json(socket.receive_text()).type)
@@ -464,3 +470,60 @@ def test_a_returning_visitor_hears_the_voice_they_picked() -> None:
         answered_turn(socket)
 
     assert tts.requests == [SpeechRequest("Try the Louvre.", "am_adam")]
+
+
+def test_a_visit_opens_with_the_users_earlier_visits_newest_first() -> None:
+    store = FakeConversationStore()
+    with visit(voice_client(store=store)) as socket:
+        answered_turn(socket)
+    with visit(voice_client(store=store)) as socket:
+        socket.send_text(TURN_END)
+        ServerError.model_validate_json(socket.receive_text())
+    with voice_client(store=store).websocket_connect("/ws") as socket:
+        Memory.model_validate_json(socket.receive_text())
+        history = History.model_validate_json(socket.receive_text())
+
+    # The second visit asked nothing, so only the first is shown.
+    ((earlier,),) = [history.visits]
+    ((turn,),) = [earlier.turns]
+    assert (turn.transcript, turn.reply) == ("What can we do in Abu Dhabi?", "Try the Louvre.")
+
+
+def test_a_replay_speaks_an_earlier_reply_again_in_the_visits_voice() -> None:
+    store = FakeConversationStore()
+    tts = FakeTextToSpeech()
+    with visit(voice_client(store=store)) as socket:
+        reply = answered_turn(socket)
+    tts.requests.clear()
+    facts = FakeFactStore({USER_ID: {"voice": "am_adam"}})
+    with visit(voice_client(store=store, tts=tts, facts=facts)) as socket:
+        socket.send_text(json.dumps({"type": "replay", "turn_id": reply.turn_id}))
+        follows = AudioFollows.model_validate_json(socket.receive_text())
+        audio = socket.receive_bytes()
+        done = AnyMessage.model_validate_json(socket.receive_text())
+
+    assert (follows.turn_id, follows.text, audio) == (reply.turn_id, "Try the Louvre.", b"RIFFTry the Louvre.")
+    assert done.type == "replay_done"
+    assert tts.requests == [SpeechRequest("Try the Louvre.", "am_adam")]
+
+
+def test_a_page_cannot_replay_another_users_turn() -> None:
+    store = FakeConversationStore()
+    with visit(voice_client(store=store, cookie=str(new_user_id()))) as socket:
+        theirs = answered_turn(socket)
+    with visit(voice_client(store=store)) as socket:
+        socket.send_text(json.dumps({"type": "replay", "turn_id": theirs.turn_id}))
+        refused = ServerError.model_validate_json(socket.receive_text())
+
+    assert (refused.code, refused.turn_id) == ("replay_failed", theirs.turn_id)
+
+
+def test_replays_count_against_the_turn_limits() -> None:
+    store = FakeConversationStore()
+    limits = roomy_limits(per_user=1)
+    with visit(voice_client(store=store, limits=limits)) as socket:
+        reply = answered_turn(socket)
+        socket.send_text(json.dumps({"type": "replay", "turn_id": reply.turn_id}))
+        refused = ServerError.model_validate_json(socket.receive_text())
+
+    assert refused.code == "too_many_turns"

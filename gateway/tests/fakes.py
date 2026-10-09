@@ -18,7 +18,7 @@ from sarjy_gateway.catalogue import (
     TourQuery,
     TourSearch,
 )
-from sarjy_gateway.conversation_store import SessionId, StoredUser, TurnId
+from sarjy_gateway.conversation_store import PastTurn, PastVisit, SessionId, StoredUser, TurnId
 from sarjy_gateway.llm import ChatMessage, Finished, TextDelta, ToolSpec
 from sarjy_gateway.memory import Fact
 from sarjy_gateway.messages import TourLink
@@ -322,6 +322,30 @@ class FakeConversationStore:
         if self.error is not None:
             raise self.error
         return self.stored_marks.get(turn_id, {})
+
+    # Like Postgres: the user's other visits that had turns, newest first.
+    async def earlier_visits(self, user_id: UserId, current: SessionId | None, *, visits: int) -> list[PastVisit]:
+        if self.error is not None:
+            raise self.error
+        mine = [session for user, session in reversed(self.sessions) if user == user_id and session != current]
+        found = [
+            PastVisit(
+                started_at=SOME_MOMENT,
+                turns=[PastTurn(turn.id, turn.transcript, turn.reply) for turn in self.saved[session]],
+            )
+            for session in mine
+            if self.saved.get(session)
+        ]
+        return found[:visits]
+
+    async def reply_of(self, user_id: UserId, turn_id: TurnId) -> str | None:
+        if self.error is not None:
+            raise self.error
+        for user, session in self.sessions:
+            for turn in self.saved.get(session, []):
+                if user == user_id and turn.id == turn_id:
+                    return turn.reply
+        return None
 
 
 # Keeps facts per user in memory, or raises `error` as an unreachable database would.

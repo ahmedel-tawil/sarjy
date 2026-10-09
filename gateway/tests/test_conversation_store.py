@@ -3,7 +3,14 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 import uuid
 
-from sarjy_gateway.conversation_store import PostgresConversationStore, SessionId, StoredTurn, StoredUser, TurnId
+from sarjy_gateway.conversation_store import (
+    PastVisit,
+    PostgresConversationStore,
+    SessionId,
+    StoredTurn,
+    StoredUser,
+    TurnId,
+)
 from sarjy_gateway.database import database_pool
 from sarjy_gateway.identity import new_user_id
 from sarjy_gateway.migrate import MIGRATIONS_FOLDER, MigrationRunner
@@ -115,3 +122,35 @@ def test_marks_are_kept_for_a_turn_of_the_same_session_only(database_url: Secret
 
     assert marks.own == {"audio_received": 0.0, "tts_first_byte": 2400.5, "speech_end": 1000.0, "playback_start": 4100.0}
     assert marks.someone_elses == {}
+
+
+@dataclass(frozen=True)
+class History:
+    visits: list[PastVisit]
+    own_reply: str | None
+    someone_elses_reply: str | None
+
+
+def test_earlier_visits_are_the_users_own_with_questions_newest_first(database_url: SecretStr) -> None:
+    async def body(store: PostgresConversationStore) -> History:
+        user, other = new_user_id(), new_user_id()
+        first = await store.start_session(user)
+        await store.save_turn(first, StoredTurn(TurnId(uuid.uuid7()), "Hi", "Hello", []))
+        await store.start_session(user)  # a page load with no question
+        second = await store.start_session(user)
+        asked = TurnId(uuid.uuid7())
+        await store.save_turn(second, StoredTurn(asked, "Safari tomorrow?", "It will be hot.", []))
+        theirs = await store.start_session(other)
+        their_turn = TurnId(uuid.uuid7())
+        await store.save_turn(theirs, StoredTurn(their_turn, "Mine", "Not yours", []))
+        current = await store.start_session(user)
+        return History(
+            visits=await store.earlier_visits(user, current, visits=3),
+            own_reply=await store.reply_of(user, asked),
+            someone_elses_reply=await store.reply_of(user, their_turn),
+        )
+
+    history = with_store(database_url, body)
+
+    assert [[turn.transcript for turn in visit.turns] for visit in history.visits] == [["Safari tomorrow?"], ["Hi"]]
+    assert (history.own_reply, history.someone_elses_reply) == ("It will be hot.", None)

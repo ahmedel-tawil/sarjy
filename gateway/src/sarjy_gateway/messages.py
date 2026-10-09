@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, FiniteFloat, RootModel, model_validator
@@ -28,6 +29,12 @@ class SetVoice(BaseModel):
     voice: str
 
 
+# Speaks again the reply of an earlier turn of this user's (D-92).
+class Replay(BaseModel):
+    type: Literal["replay"]
+    turn_id: Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
+
+
 # The browser's two marks for one turn, in milliseconds from `performance.now()` on its
 # own clock, sent once Sarjy's audio starts playing (D-04).
 class BrowserMarks(BaseModel):
@@ -49,7 +56,9 @@ class BrowserMarks(BaseModel):
 
 
 class ClientMessage(
-    RootModel[Annotated[TurnEnd | TurnCancel | SetVoice | BrowserMarks | ForgetMe, Field(discriminator="type")]]
+    RootModel[
+        Annotated[TurnEnd | TurnCancel | SetVoice | BrowserMarks | ForgetMe | Replay, Field(discriminator="type")]
+    ]
 ):
     pass
 
@@ -67,6 +76,7 @@ type ErrorCode = Literal[
     "forget_failed",
     "too_many_turns",
     "visit_limit",
+    "replay_failed",
 ]
 
 
@@ -105,6 +115,30 @@ class RememberedFact(BaseModel):
 class Memory(BaseModel):
     type: Literal["memory"] = "memory"
     facts: list[RememberedFact]
+
+
+class EarlierTurn(BaseModel):
+    turn_id: str
+    transcript: str
+    reply: str
+
+
+class EarlierVisit(BaseModel):
+    started_at: datetime
+    turns: list[EarlierTurn]
+
+
+# The user's last few visits with a question, newest first, sent after the memory list
+# when a visit starts (D-92).
+class History(BaseModel):
+    type: Literal["history"] = "history"
+    visits: list[EarlierVisit]
+
+
+# The last clip of a replay has been sent.
+class ReplayDone(BaseModel):
+    type: Literal["replay_done"] = "replay_done"
+    turn_id: str
 
 
 # Sent just before each binary WAV frame of the turn, with the words that frame speaks:
