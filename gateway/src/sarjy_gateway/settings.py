@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     database_url: SecretStr | None = None
     # Two gateway instances at most, so 8 of the smallest Cloud SQL tier's ~25 connections.
     database_pool_max: int = Field(default=4, gt=0)
+    # The identity cookie is HTTPS-only; Chrome and Firefox allow that on http://localhost,
+    # and false lets other browsers keep it in local development.
+    cookie_secure: bool = True
     # Open-Meteo: no key, free for non-commercial use (O-21).
     weather_url: str = "https://api.open-meteo.com/v1/forecast"
     weather_timeout_seconds: float = Field(default=3.0, gt=0)
