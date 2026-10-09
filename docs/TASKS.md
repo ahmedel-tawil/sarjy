@@ -652,11 +652,29 @@ No new dependencies: the shadcn alert dialog and card use radix-ui, already inst
 
 ### M2.14 Demo scenarios 1–4 on the deployed URL
 
-- [ ] All four PRD scenarios pass end to end on the deployed URL in desktop Chrome.
-- [ ] A general "what can I do in Dubai?" names only tours from `search_tours`: on 9 Oct
+- [ ] All four PRD scenarios pass end to end on the deployed URL in desktop Chrome. Over
+      the deployed socket, with each question spoken by Kokoro, all four pass (below);
+      the pass by voice in desktop Chrome is yours.
+- [x] A general "what can I do in Dubai?" names only tours from `search_tours`: on 9 Oct
       Groq's model once named the Dubai Frame and a dhow cruise without searching, and
-      once called the weekend hot without calling `get_weather`.
-- [ ] Results go into the 9 Oct update.
+      once called the weekend hot without calling `get_weather`. With Claude first
+      (D-69), 3 of 3 runs searched and named the Aquarium (209), the Museum of the
+      Future (169) and the helicopter flight (715), each as SayTech has it.
+- [ ] Results go into the 9 Oct update: drafted for you to send.
+
+Run on 9 Oct against the deployed URL (Claude first, prompt v1.1, TTS on 8 vCPU), one
+fresh cookie per scenario. Every name, price and detail was checked against SayTech's
+live data and the forecast; details beyond a tour's name came from its slug.
+
+| Scenario | Tools | What Sarjy said | Checked | First word, TTS first byte |
+| --- | --- | --- | --- | --- |
+| 1, kids under 400 in Abu Dhabi | `search_tours` | Ferrari World and Warner Bros. World from 345, teamLab from 55, Qasr Al Watan from 30; skip the Louvre, 18 and above | prices match; the Louvre's slug is `...-18-years-and-above`; four tours, one over the prompt's three | 3.6 s, 9.1 s |
+| 2, remember across visits | `remember_fact` twice, then none, then `search_tours` | saved green and heights; next visit: "Your favourite colour is green"; Dubai ideas "left out the helicopter flight" | facts in the panel and the next visit's prompt | 4.0, 1.6, 3.0 s |
+| 3, safari tomorrow afternoon | `search_tours`, `get_weather` | about 35 at 3 pm, an evening safari at 6 pm when it's 33; both safaris price on request | forecast for 10 Oct: 34.7 at 3 pm, 32.8 at 6 pm | 3.7 s, 9.9 s |
+| 4, buggy price | `search_tours` | "listed as price on request, so I can't give you a figure" | SayTech: price on request | 3.5 s, 6.5 s |
+
+Time to the first audio byte is mostly TTS synthesising the whole reply (10 to 21 s of
+audio); sentence streaming (M3.5) is the fix.
 
 ### M2.15 Groq and Claude, switchable, each the other's fallback
 
