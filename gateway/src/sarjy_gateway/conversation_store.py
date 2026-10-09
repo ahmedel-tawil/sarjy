@@ -11,6 +11,8 @@ from sarjy_gateway.database import DatabaseUnavailableError
 
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from sarjy_gateway.database import Pool
     from sarjy_gateway.identity import UserId
 
@@ -24,6 +26,8 @@ class StoredUser:
 
 # A session's id, kept apart from user and turn ids by the type checker.
 SessionId = NewType("SessionId", uuid.UUID)
+# A turn's id: the pipeline's turn id, which turn_timings refers to (D-65).
+TurnId = NewType("TurnId", uuid.UUID)
 
 
 @dataclass(frozen=True)
@@ -33,14 +37,20 @@ class NewSession:
 
 @dataclass(frozen=True)
 class StoredTurn:
-    id: uuid.UUID
+    id: TurnId
     transcript: str
     reply: str
     tool_results: list[str]
 
 
+@dataclass(frozen=True)
+class StoredMark:
+    mark: str
+    at_ms: float
+
+
 # Who is talking and what was said (D-66): one row per user (browser), one per page visit,
-# one per exchange.
+# one per exchange, and each exchange's latency marks (M3.1).
 class ConversationStore(Protocol):
     async def start_session(self, user_id: UserId) -> SessionId: ...
 
@@ -49,6 +59,10 @@ class ConversationStore(Protocol):
     async def user(self, user_id: UserId) -> StoredUser | None: ...
 
     async def turns(self, session_id: SessionId) -> list[StoredTurn]: ...
+
+    async def save_marks(self, session_id: SessionId, turn_id: TurnId, marks: Mapping[str, float]) -> None: ...
+
+    async def marks(self, turn_id: TurnId) -> dict[str, float]: ...
 
 
 class PostgresConversationStore(ConversationStore):
@@ -106,6 +120,30 @@ class PostgresConversationStore(ConversationStore):
         except (psycopg.Error, PoolTimeout) as error:
             raise unavailable(error) from error
 
+    # Stored only for a turn of this session, so a browser can't attach marks to someone
+    # else's turn; a mark already stored is kept (D-74).
+    async def save_marks(self, session_id: SessionId, turn_id: TurnId, marks: Mapping[str, float]) -> None:
+        rows = [(mark, at_ms, turn_id, session_id) for mark, at_ms in marks.items()]
+        try:
+            async with self._pool.connection() as connection, connection.transaction(), connection.cursor() as cursor:
+                await cursor.executemany(
+                    "INSERT INTO turn_timings (turn_id, mark, at_ms) "
+                    "SELECT id, %s::text, %s::double precision FROM turns WHERE id = %s AND session_id = %s "
+                    "ON CONFLICT (turn_id, mark) DO NOTHING",
+                    rows,
+                )
+        except (psycopg.Error, PoolTimeout) as error:
+            raise unavailable(error) from error
+
+    async def marks(self, turn_id: TurnId) -> dict[str, float]:
+        try:
+            async with self._pool.connection() as connection:
+                cursor = connection.cursor(row_factory=class_row(StoredMark))
+                await cursor.execute("SELECT mark, at_ms FROM turn_timings WHERE turn_id = %s", (turn_id,))
+                return {row.mark: row.at_ms for row in await cursor.fetchall()}
+        except (psycopg.Error, PoolTimeout) as error:
+            raise unavailable(error) from error
+
 
 # Without SARJY_DATABASE_URL nothing is stored; the voice loop carries on without it.
 class MissingConversationStore(ConversationStore):
@@ -123,6 +161,14 @@ class MissingConversationStore(ConversationStore):
 
     async def turns(self, session_id: SessionId) -> list[StoredTurn]:
         message = f"SARJY_DATABASE_URL is not set: session {session_id} can't be read"
+        raise DatabaseUnavailableError(message)
+
+    async def save_marks(self, session_id: SessionId, turn_id: TurnId, marks: Mapping[str, float]) -> None:
+        message = f"SARJY_DATABASE_URL is not set: {len(marks)} marks of turn {turn_id} in session {session_id} not stored"
+        raise DatabaseUnavailableError(message)
+
+    async def marks(self, turn_id: TurnId) -> dict[str, float]:
+        message = f"SARJY_DATABASE_URL is not set: marks of turn {turn_id} can't be read"
         raise DatabaseUnavailableError(message)
 
 
