@@ -67,6 +67,7 @@ const MS_PER_WORD = 380
 
 export class RehearsalSession implements AudioLevels, PushToTalk, Visit, VoiceCatalogue, VoicePicker {
   readonly #callbacks: VoiceSessionCallbacks
+  #connected = false
   #facts: RememberedFact[] = []
   #status: Status = 'idle'
   #turn = 0
@@ -77,7 +78,12 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit, VoiceCa
     this.#withProblems = withProblems
   }
 
+  // React's development mode connects twice; like the real socket, only the first counts.
   connect(): void {
+    if (this.#connected) {
+      return
+    }
+    this.#connected = true
     this.#callbacks.onConnection?.('connecting')
     this.#callbacks.onConnection?.('online')
     this.#callbacks.onMemory(this.#facts)

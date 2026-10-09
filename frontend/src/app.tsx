@@ -13,10 +13,12 @@ import { ProblemCards } from '@/components/problem-cards'
 import { PROBLEMS, statusLine } from '@/components/problems'
 import { RehearsalSession } from '@/components/rehearsal-session'
 import { SarjyMark } from '@/components/sarjy-mark'
+import { SettingsMenu } from '@/components/settings-menu'
+import { initialTalkMode, saveTalkMode, type TalkMode } from '@/components/talk-mode'
 import { TalkOrb } from '@/components/talk-orb'
 import { Button } from '@/components/ui/button'
+import { useTalkControls } from '@/components/use-talk-controls'
 import { useVoices } from '@/components/use-voices'
-import { VoicePicker } from '@/components/voice-picker'
 import type { RememberedFact } from '@/lib/protocol'
 import {
   type AudioLevels,
@@ -44,6 +46,9 @@ const PHASE_FOR: Record<Status, OrbPhase> = {
 
 // In development, ?rehearse plays scripted turns, to review the motion without a gateway or
 // a microphone. Production builds never rehearse.
+// The line under the orb, which also describes the orb to screen readers (D-83).
+const STATUS_LINE_ID = 'orb-status'
+
 // The fact the gateway keeps the chosen voice under (D-90).
 const VOICE_FACT = 'voice'
 
@@ -70,6 +75,7 @@ function App() {
   const [backOnline, setBackOnline] = useState(false)
   // A voice just chosen, shown at once while the gateway saves it as the `voice` fact.
   const [picked, setPicked] = useState<null | string>(null)
+  const [talkMode, setTalkMode] = useState<TalkMode>(initialTalkMode)
   const orbRef = useRef<HTMLButtonElement>(null)
 
   const [{ catalogue, session }] = useState<{
@@ -158,6 +164,7 @@ function App() {
   })
 
   const voices = useVoices(catalogue)
+  const talk = useTalkControls({ orbRef, paused: welcoming, session, status, talkMode })
 
   useLayoutEffect(() => {
     applyPalette(palette)
@@ -168,34 +175,6 @@ function App() {
   }, [session])
 
 
-  // Hold Space to talk, as well as the orb.
-  useEffect(() => {
-    const ownsKey = (event: KeyboardEvent): boolean =>
-      event.code === 'Space' && (event.target === document.body || event.target === orbRef.current)
-    const down = (event: KeyboardEvent): void => {
-      if (ownsKey(event)) {
-        event.preventDefault()
-        if (!event.repeat) {
-          session.press()
-        }
-      }
-    }
-    const up = (event: KeyboardEvent): void => {
-      if (ownsKey(event)) {
-        session.release()
-      }
-    }
-    window.addEventListener('keydown', down)
-    window.addEventListener('keyup', up)
-    return () => {
-      window.removeEventListener('keydown', down)
-      window.removeEventListener('keyup', up)
-    }
-  }, [session])
-
-  const release = () => {
-    session.release()
-  }
   const forgetMe = () => {
     session.forgetMe()
   }
@@ -216,10 +195,16 @@ function App() {
   const timed = turns.flatMap((turn) =>
     turn.ttfaMs === null ? [] : [{ id: turn.id, stages: turn.stages, ttfaMs: turn.ttfaMs }],
   )
-  const line = statusLine(problem, restingText(status, waitingForWords, visitOver, reconnecting))
+  const line = statusLine(problem, restingText(status, waitingForWords, visitOver, reconnecting, talkMode))
+  const chooseTalkMode = (mode: TalkMode) => {
+    setTalkMode(mode)
+    saveTalkMode(mode)
+  }
 
   return (
     <div className="flex h-svh flex-col bg-background text-foreground">
+      {/* While the welcome covers the page, nothing under it takes focus. */}
+      <div className="contents" inert={welcoming}>
       <header className="flex items-start justify-between gap-4 px-4 pt-4 md:px-8 md:pt-6">
         <div className="flex items-center gap-3">
           <SarjyMark className="size-10" />
@@ -229,7 +214,17 @@ function App() {
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <PaletteSwitcher onChange={setPalette} palette={palette} />
+          <div className="flex items-center gap-1">
+            <PaletteSwitcher onChange={setPalette} palette={palette} />
+            <SettingsMenu
+              busy={status !== 'idle'}
+              onTalkMode={chooseTalkMode}
+              onVoice={chooseVoice}
+              talkMode={talkMode}
+              voice={voice}
+              voices={voices?.voices ?? null}
+            />
+          </div>
           <p aria-live="polite" className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {reconnecting ? (
               <>
@@ -264,32 +259,29 @@ function App() {
           ) : null}
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-6">
             <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-end">
-              <ConversationThread turns={turns} />
+              <ConversationThread talkMode={talkMode} turns={turns} />
             </div>
           </div>
           <div className="pb-safe flex flex-col items-center gap-1 pt-2">
             <ProblemCards microphone={problem === 'mic_unavailable'} visitOver={visitOver} />
             <TalkOrb
               animateIn={welcomed}
+              describedBy={STATUS_LINE_ID}
               disabled={visitOver || reconnecting || status === 'thinking' || status === 'speaking'}
+              label={orbLabel(talkMode, status)}
               levels={session}
-              onPress={() => {
-                session.press()
-              }}
-              onRelease={release}
+              onPress={talk.onPress}
+              onRelease={talk.onRelease}
               orbRef={orbRef}
               palette={palette}
               phase={PHASE_FOR[status]}
               revealed={orbRevealed}
             />
-            <p aria-live="polite" className={line.trouble ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'}>
+            <p aria-live="polite" className={line.trouble ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'} id={STATUS_LINE_ID}>
               <span className="label-in inline-block" key={line.text}>
                 {line.text}
               </span>
             </p>
-            {voices !== null && voice !== null ? (
-              <VoicePicker disabled={status !== 'idle'} onChoose={chooseVoice} voice={voice} voices={voices.voices} />
-            ) : null}
           </div>
         </main>
 
@@ -297,6 +289,7 @@ function App() {
           {shownFacts !== null && <MemoryPanel busy={status !== 'idle'} facts={shownFacts} onForgetMe={forgetMe} orbRef={orbRef} />}
           <LatencyPanel turns={timed} />
         </aside>
+      </div>
       </div>
       {welcoming ? <FirstLoad onDocked={revealOrb} onDone={endWelcome} orbRef={orbRef} /> : null}
     </div>
@@ -309,20 +302,28 @@ function chosenVoice(wanted: string | undefined, list: VoiceList): string {
 }
 
 // What the line under the orb says when there is no problem to report.
-function restingText(status: Status, waitingForWords: boolean, visitOver: boolean, reconnecting: boolean): string {
+function restingText(status: Status, waitingForWords: boolean, visitOver: boolean, reconnecting: boolean, talkMode: TalkMode): string {
   if (visitOver) {
     return 'Start a new visit to ask more'
   }
-  return reconnecting ? 'Waiting for the connection…' : describe(status, waitingForWords)
+  return reconnecting ? 'Waiting for the connection…' : describe(status, waitingForWords, talkMode)
 }
 
-function describe(status: Status, waitingForWords: boolean): string {
+// The orb's name for screen readers, which changes in tap mode once it is listening.
+function orbLabel(talkMode: TalkMode, status: Status): string {
+  if (talkMode === 'hold') {
+    return 'Hold to talk to Sarjy'
+  }
+  return status === 'listening' ? 'Tap to send' : 'Tap to talk to Sarjy'
+}
+
+function describe(status: Status, waitingForWords: boolean, talkMode: TalkMode): string {
   switch (status) {
     case 'idle': {
-      return 'Hold to talk, or hold Space'
+      return talkMode === 'hold' ? 'Hold to talk, or hold Space' : 'Tap to talk, or press Space'
     }
     case 'listening': {
-      return 'Listening… let go to send'
+      return talkMode === 'hold' ? 'Listening… let go to send' : 'Listening… tap again to send'
     }
     case 'speaking': {
       return 'Sarjy is speaking'

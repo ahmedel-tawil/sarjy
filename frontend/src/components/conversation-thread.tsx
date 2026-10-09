@@ -3,6 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useRef } from 'react'
 
 import { type SpokenClip, SpokenWords } from '@/components/spoken-words'
+import type { TalkMode } from '@/components/talk-mode'
 import { Button } from '@/components/ui/button'
 import type { TourLink } from '@/lib/protocol'
 import type { TurnStages } from '@/lib/stages-of'
@@ -32,7 +33,13 @@ const EXAMPLES = [
 
 // The visit's conversation, set like a script: who speaks, then their words. Newest at
 // the bottom, next to the orb the words come from.
-export function ConversationThread({ turns }: { turns: Turn[] }) {
+// How to ask, for the talk mode in use (D-83).
+const HOW_TO_ASK: Record<TalkMode, string> = {
+  hold: 'Hold the orb, or hold Space, and ask Sarjy. Let go when you’re done.',
+  tap: 'Tap the orb, or press Space, and ask Sarjy. Tap again when you’re done.',
+}
+
+export function ConversationThread({ talkMode, turns }: { talkMode: TalkMode; turns: Turn[] }) {
   const endRef = useRef<HTMLDivElement>(null)
   const last = turns.at(-1)
 
@@ -46,7 +53,7 @@ export function ConversationThread({ turns }: { turns: Turn[] }) {
       <div className="flex flex-1 flex-col justify-end gap-4 pb-6">
         <div className="flex flex-col gap-2">
           <p className="text-2xl/snug font-medium text-balance md:text-3xl/snug">Tours, prices and the weather, anywhere in the UAE.</p>
-          <p className="text-muted-foreground">Hold the orb, or hold Space, and ask Sarjy. Let go when you’re done.</p>
+          <p className="text-muted-foreground">{HOW_TO_ASK[talkMode]}</p>
         </div>
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">Try asking</span>
@@ -58,7 +65,7 @@ export function ConversationThread({ turns }: { turns: Turn[] }) {
             ))}
           </ul>
         </div>
-        <p className="text-sm text-muted-foreground">The first time you hold the orb, your browser asks to use the microphone.</p>
+        <p className="text-sm text-muted-foreground">The first time you use the orb, your browser asks to use the microphone.</p>
       </div>
     )
   }
