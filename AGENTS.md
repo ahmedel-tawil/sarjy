@@ -36,7 +36,7 @@ any task, and treat it as the source of truth for scope.
 - **Backend:** Python, uv, FastAPI, Pydantic v2, asyncio, psycopg 3 with raw SQL (no ORM),
   PostgreSQL. Python 3.14, as Sarj's standards require (D-30 in `docs/DECISIONS.md`).
 - **Frontend:** React + Vite + TypeScript + Tailwind + shadcn/ui, built and served by the gateway (one origin).
-- **Voice:** hosted STT (Groq Whisper, D-51), LLM on Groq (Qwen 3.8 27B) and Claude
+- **Voice:** hosted STT (Groq Whisper, D-51), LLM on Groq (gpt-oss-120b, D-96) and Claude
   (Haiku 5.5 through Anthropic's SDK), switchable, each the other's fallback (D-63),
   TTS with the Kokoro-82M ONNX model on onnxruntime, through our own text front end
   (no kokoro-onnx, D-38), as a separate service.
@@ -149,6 +149,7 @@ uv run python gateway/scripts/transcribe.py clip.webm clip.mp4   # real Groq cal
 uv run python gateway/scripts/chat.py "Is tomorrow good for a safari?"   # LLM time to first word (SARJY_LLM_API_KEY)
 uv run python gateway/scripts/saytech.py   # the real SayTech API: demo questions, timings, result sizes (no key)
 uv run python gateway/scripts/ask.py "How much is the buggy tour?"   # typed turns through the real pipeline and tools (Groq or Claude key)
+uv run python gateway/scripts/models.py claude:claude-haiku-5-5 claude-haiku 2   # experiment 4: the script per model, timed and checked
 ```
 
 Local Postgres 18, the same major version as Cloud SQL (D-64):

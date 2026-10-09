@@ -883,13 +883,15 @@ the page's queue in M3.6.
 
 ### M3.8 Experiment 4: model choice
 
-- [ ] Groq, Cerebras and Gemini, with at least two model sizes, are compared on first-token
-      time using the same script.
-- [ ] Tool calls are checked for correctness, not just speed, including saving a fact from
-      a casual remark such as scenario 2's, which Groq's Qwen misses (D-69).
-- [ ] The final provider and model are recorded in `DECISIONS.md` with the numbers.
-
-Needs API keys for each provider.
+- [x] Models are compared on first-word time with the same script: Claude Haiku 5.5 and
+      Groq's Qwen 3.8 27B, gpt-oss-20b and gpt-oss-120b, two passes each through the real
+      pipeline (`gateway/scripts/models.py`); Sonnet 5.5 timed directly. Cerebras and
+      Gemini were dropped on 10 Oct: they need keys of their own (Ahmed's call).
+- [x] Tool calls are checked for correctness, not just speed: Haiku passed 18 of 20 and
+      saved all four facts; gpt-oss-120b 17, Qwen 11 with no fact saved and an invented
+      price.
+- [x] The final provider and model are recorded in `DECISIONS.md` with the numbers:
+      Claude Haiku 5.5 first, gpt-oss-120b as the fallback (D-96).
 
 ### M3.9 Experiment 5: tool payload size
 
