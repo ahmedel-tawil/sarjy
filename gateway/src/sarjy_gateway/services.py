@@ -118,7 +118,11 @@ def build_chat_model(
         providers["groq"] = OpenAiCompatibleChatModel(client, settings.llm_base_url, settings.llm_api_key, options)
     if claude_client is not None:
         providers["claude"] = ClaudeChatModel(
-            claude_client, settings.claude_model, settings.claude_effort, settings.llm_max_tokens
+            claude_client,
+            settings.claude_model,
+            settings.claude_effort,
+            settings.llm_max_tokens,
+            cache_prompt=settings.claude_prompt_cache,
         )
     other = "claude" if settings.llm_primary == "groq" else "groq"
     first, second = providers.get(settings.llm_primary), providers.get(other)

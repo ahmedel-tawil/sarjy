@@ -14,19 +14,32 @@ if TYPE_CHECKING:
 
 
 JUST_AFTER_MIDNIGHT = datetime.fromisoformat("2026-10-09T00:46+04:00")
+NEXT_AFTERNOON = datetime.fromisoformat("2026-10-10T15:20+04:00")
 
 
 def test_the_prompt_ends_with_the_date_and_time_in_the_uae() -> None:
     prompt = system_prompt(JUST_AFTER_MIDNIGHT, None, {})
 
-    assert prompt.startswith(SYSTEM_PROMPT)
-    assert prompt.endswith("Today is Friday 9 October 2026 (2026-10-09), and the time in the UAE is 00:46.\n")
+    assert prompt.shared.startswith(SYSTEM_PROMPT)
+    assert prompt.this_turn.endswith("Today is Friday 9 October 2026 (2026-10-09), and the time in the UAE is 00:46.\n")
+
+
+# Claude caches the shared part only while it stays byte for byte the same (D-93).
+def test_the_shared_part_is_the_same_for_every_traveller_and_time() -> None:
+    context = asyncio.run(FakeCatalogue().context())
+
+    new_traveller = system_prompt(JUST_AFTER_MIDNIGHT, context, {})
+    known_traveller = system_prompt(NEXT_AFTERNOON, context, {"name": "Sam"})
+
+    assert new_traveller.shared == known_traveller.shared
+    assert "Sam" not in known_traveller.shared
+    assert "15:20" not in known_traveller.shared
 
 
 def test_the_catalogue_gives_cities_kinds_of_tour_and_general_answers() -> None:
     context = asyncio.run(FakeCatalogue().context())
 
-    prompt = system_prompt(JUST_AFTER_MIDNIGHT, context, {})
+    prompt = system_prompt(JUST_AFTER_MIDNIGHT, context, {}).shared
 
     assert "Cities: Abu Dhabi (7 tours), Dubai (8 tours)." in prompt
     assert "Categories you can search by: safari, theme parks." in prompt
@@ -39,8 +52,8 @@ def test_the_builder_reads_the_catalogue_and_the_clock() -> None:
 
     prompt = asyncio.run(builder.build({}))
 
-    assert "From Magic Experience's catalogue:" in prompt
-    assert "(2026-10-09)" in prompt
+    assert "From Magic Experience's catalogue:" in prompt.shared
+    assert "(2026-10-09)" in prompt.this_turn
 
 
 def test_without_saytech_the_turn_still_gets_a_prompt(caplog: pytest.LogCaptureFixture) -> None:
@@ -50,15 +63,15 @@ def test_without_saytech_the_turn_still_gets_a_prompt(caplog: pytest.LogCaptureF
     with caplog.at_level(logging.WARNING, logger="sarjy_gateway.prompts"):
         prompt = asyncio.run(builder.build({}))
 
-    assert NO_CATALOGUE in prompt
+    assert NO_CATALOGUE in prompt.shared
     assert caplog.messages == ["prompt built without the catalogue context: SayTech answered HTTP 503"]
 
 
 def test_saved_facts_are_listed_with_their_keys() -> None:
     prompt = system_prompt(JUST_AFTER_MIDNIGHT, None, {"favourite_colour": "green", "avoids": "heights"})
 
-    assert "What you know about this traveller from earlier (key: value):\n- avoids: heights\n- favourite_colour: green" in prompt
+    assert "What you know about this traveller from earlier (key: value):\n- avoids: heights\n- favourite_colour: green" in prompt.this_turn
 
 
 def test_a_new_traveller_is_known_to_be_new() -> None:
-    assert "You know nothing about this traveller yet." in system_prompt(JUST_AFTER_MIDNIGHT, None, {})
+    assert "You know nothing about this traveller yet." in system_prompt(JUST_AFTER_MIDNIGHT, None, {}).this_turn

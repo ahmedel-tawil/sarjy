@@ -28,6 +28,9 @@ class ChatMessage(BaseModel):
     # one of those calls.
     tool_calls: list[ToolCall] = Field(default_factory=list[ToolCall])
     tool_call_id: str | None = None
+    # Set on the last message that is the same from request to request: a provider that
+    # caches prompts may cache everything up to and including it (D-93).
+    cache_point: bool = False
 
 
 # What the model is told about one tool: its name, when to use it, and the JSON schema of
@@ -60,10 +63,13 @@ class Finished:
 
 
 # What one request cost, by the provider's own count: experiment 5 compares input tokens
-# (M3.9).
+# (M3.9). With prompt caching, `input_tokens` is only the part read fresh; the cached part
+# is counted apart, as read from the cache or written to it (D-93).
 @dataclass(frozen=True)
 class Usage:
     input_tokens: int
+    cache_read_tokens: int
+    cache_write_tokens: int
     output_tokens: int
 
 
@@ -330,7 +336,15 @@ def events_in(chunk: StreamChunk) -> list[ChatEvent]:
             events.append(Finished(choice.finish_reason))
     usage = chunk.usage or (chunk.x_groq.usage if chunk.x_groq is not None else None)
     if usage is not None:
-        events.append(Usage(usage.prompt_tokens, usage.completion_tokens))
+        # Only Claude's prompt is cached on purpose (D-93); Groq's cache counts aren't read.
+        events.append(
+            Usage(
+                input_tokens=usage.prompt_tokens,
+                cache_read_tokens=0,
+                cache_write_tokens=0,
+                output_tokens=usage.completion_tokens,
+            )
+        )
     return events
 
 

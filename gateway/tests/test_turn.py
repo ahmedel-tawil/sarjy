@@ -92,7 +92,9 @@ def test_the_llm_sees_the_system_prompt_recent_turns_and_the_new_question() -> N
     asyncio.run(pipeline.run(b"second", conversation, RecordingListener()))
 
     assert llm.requests[1] == [
-        ChatMessage(role="system", content=FIXED_PROMPT),
+        # The shared part of the prompt is where a provider may cache up to (D-93).
+        ChatMessage(role="system", content=FIXED_PROMPT.shared, cache_point=True),
+        ChatMessage(role="system", content=FIXED_PROMPT.this_turn),
         ChatMessage(role="user", content="What can we do in Abu Dhabi?"),
         ChatMessage(role="assistant", content="Try the Louvre."),
         ChatMessage(role="user", content="What can we do in Abu Dhabi?"),
@@ -312,8 +314,11 @@ def test_each_round_logs_the_tokens_the_provider_counted(caplog: pytest.LogCaptu
     caplog.set_level(logging.INFO, logger="sarjy_gateway.turn")
     llm = FakeChatModel(
         rounds=[
-            [DUBAI_CALL, Usage(input_tokens=1200, output_tokens=30)],
-            [TextDelta("It will be sunny."), Usage(input_tokens=1450, output_tokens=12)],
+            [DUBAI_CALL, Usage(input_tokens=1200, cache_read_tokens=0, cache_write_tokens=3500, output_tokens=30)],
+            [
+                TextDelta("It will be sunny."),
+                Usage(input_tokens=1450, cache_read_tokens=3500, cache_write_tokens=0, output_tokens=12),
+            ],
         ]
     )
 
@@ -321,8 +326,15 @@ def test_each_round_logs_the_tokens_the_provider_counted(caplog: pytest.LogCaptu
 
     rounds = [record.args for record in caplog.records if "input tokens" in record.msg]
     counted = [
-        (args["round"], args["input_tokens"], args["output_tokens"], args["tool_calls"])
+        (
+            args["round"],
+            args["input_tokens"],
+            args["cache_read_tokens"],
+            args["cache_write_tokens"],
+            args["output_tokens"],
+            args["tool_calls"],
+        )
         for args in rounds
         if isinstance(args, Mapping)
     ]
-    assert counted == [(0, 1200, 30, 1), (1, 1450, 12, 0)]
+    assert counted == [(0, 1200, 0, 3500, 30, 1), (1, 1450, 3500, 0, 12, 0)]
