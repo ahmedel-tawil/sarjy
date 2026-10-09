@@ -22,7 +22,7 @@ from sarjy_gateway.llm import (
 from sarjy_gateway.sentences import SentenceChunker, speakable
 from sarjy_gateway.stt import RateLimitedError, SpeechToTextError
 from sarjy_gateway.timeline import Timeline
-from sarjy_gateway.tools import Tool
+from sarjy_gateway.tools import Tool, failed
 from sarjy_gateway.tts import TextToSpeechError
 
 
@@ -42,6 +42,9 @@ logger = logging.getLogger(__name__)
 # How many rounds of tool calls one turn may make. One more round follows that offers no
 # tools, so the model has to answer with what it has (D-57).
 MAX_TOOL_ROUNDS = 3
+
+# Saving or forgetting a fact gives the model nothing it needs for its answer (D-95).
+FACT_TOOLS = frozenset({"remember_fact", "forget_fact"})
 
 
 class TurnListener(Protocol):
@@ -323,10 +326,15 @@ class TurnPipeline:
                 if activity is not None:
                     await listener.activity(turn_id, activity)
             results = await toolbox.run_all(model_round.tool_calls, turn_id)
+            tool_results += results
+            if answered_while_saving(model_round, results):
+                logger.info("turn %(turn_id)s answered while saving facts, so it ends", {"turn_id": turn_id})
+                return Conversed(model_round, tool_results)
             messages.append(ChatMessage(role="assistant", content=model_round.text, tool_calls=model_round.tool_calls))
             for call, result in zip(model_round.tool_calls, results, strict=True):
                 messages.append(ChatMessage(role="tool", content=result, tool_call_id=call.call_id))
-            tool_results += results
+            if speaker is not None and model_round.text.strip():
+                messages.append(already_heard(model_round.text))
         # Still calling tools in the round that offered none.
         raise TurnError(code="llm_failed", turn_id=turn_id)
 
@@ -372,6 +380,29 @@ class TurnPipeline:
             return await self._tts.synthesize(reply, voice)
         except TextToSpeechError as error:
             raise TurnError(code="tts_failed", turn_id=turn_id) from error
+
+
+# A round that answered in words and only saved or forgot facts is the whole answer:
+# asked again with the results, the model says it all a second time (D-95). A failed save
+# still goes back to the model, so it can say so.
+def answered_while_saving(model_round: ModelRound, results: Sequence[str]) -> bool:
+    return (
+        bool(model_round.text.strip())
+        and all(call.name in FACT_TOOLS for call in model_round.tool_calls)
+        and not any(failed(result) for result in results)
+    )
+
+
+# With sentence streaming, words written before a tool call are spoken at once. Told what
+# the traveller heard, the model carries on from it instead of saying it again (D-95).
+def already_heard(text: str) -> ChatMessage:
+    return ChatMessage(
+        role="system",
+        content=(
+            f'The traveller has already heard you say: "{text.strip()}" Carry on from there with what '
+            "the tool results add, without repeating it, greeting or thanking them again."
+        ),
+    )
 
 
 # How much each request read and wrote, so experiment 5 can compare tool payloads.

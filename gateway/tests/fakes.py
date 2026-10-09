@@ -103,6 +103,19 @@ class FakeWeatherTool:
         return self.result
 
 
+# Stands in for remember_fact: answers every call with `result`, a saved fact by default.
+class FakeFactTool:
+    spec = ToolSpec("remember_fact", "Saves a fact about the traveller.", {"type": "object", "properties": {}})
+
+    def __init__(self, result: str = '{"saved": "name", "value": "Ahmed"}') -> None:
+        self.result = result
+        self.calls: list[str] = []
+
+    async def run(self, arguments: str) -> str:
+        self.calls.append(arguments)
+        return self.result
+
+
 @dataclass(frozen=True)
 class SpeechRequest:
     text: str
