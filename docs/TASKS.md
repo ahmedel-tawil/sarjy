@@ -891,10 +891,14 @@ Needs API keys for each provider.
 
 ### M3.10 Experiment 6: warm vs cold
 
-- [ ] TTFA of the first turn after idle is measured with minimum instances at 0 and at 1,
-      for the gateway and for TTS.
-- [ ] The monthly cost of a minimum instance is noted, and a setting for review week is
-      chosen.
+- [x] TTFA of the first turn after idle is measured with minimum instances at 0 and at 1,
+      for the gateway and for TTS: a cold TTS took the first turn to 11.8 s (4.7 s warm);
+      waking TTS when a visit opens brought it to 5.2 s; with one warm instance of each,
+      the first turn after 16 idle minutes met a warm TTS (5.9 s, within the warm
+      spread). A cold gateway delays the page by 7 to 10 s, measured from its logs.
+- [x] The monthly cost of a minimum instance is noted, and a setting for review week is
+      chosen: about $0.45 a day for the gateway and $3.60 for TTS idle; both stay warm for
+      the review week, then go back to 0 (D-78).
 
 ### M3.11 Experiment 7: region
 

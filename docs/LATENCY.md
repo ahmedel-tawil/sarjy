@@ -200,6 +200,38 @@ Medians per question, before and after:
   `tts` 27%, `stt` 20%, `network_and_browser` 8%, `first_sentence` 8%. The model and its
   tool rounds are now the largest part; experiments 4 and 5 address them.
 
+## Experiment 6: warm vs cold
+
+Both services scale to zero unless told otherwise (D-78). The first turn after a quiet
+spell was measured on 9 Oct with the script's first question, kids under 400 dirhams in
+Abu Dhabi, whose warm median is 4.7 s (experiment 2). One pass of the script each.
+
+| First turn after a quiet spell | TTFA | `tts` | Run |
+| --- | --- | --- | --- |
+| TTS cold, gateway warm, no wake-up | 11.8 s | 7.5 s | `cold-tts.jsonl` |
+| TTS cold, gateway warm, with the wake-up (D-78) | 5.2 s | 1.0 s | `cold-tts-woken.jsonl` |
+| One warm instance of each, after 16 idle minutes | 5.9 s | 1.3 s | `warm-after-idle.jsonl` |
+
+- **A cold TTS costs about 6 s.** Its instance needs 2.4 s to start the container and 3.3
+  to 3.5 s to load and warm the model before it can synthesise.
+- **Waking TTS when a visit opens hides it.** In the second run, the wake-up's request
+  started the instance at 14:24:11.6 and it was ready at 14:24:17.7; the first sentence
+  reached TTS at 14:24:21.9, after the question had been spoken, transcribed and
+  answered, and took 1.0 s.
+- **A cold gateway delays the page, not the turn.** Every gateway start on 9 Oct took 7
+  to 10 s from instance start to serving, 8.8 s of it before the server process starts.
+  The page itself waits that long, before any turn; TTFA starts after the question, so
+  the harness can't see it, and the logs measure it instead.
+- **Warm instances remove both.** After the apply no new instance started, and the first
+  turn after 16 idle minutes met a warm TTS; its TTFA is within this question's warm
+  spread (its first word took 2.7 s that turn).
+- **Cost:** idle, a minimum instance is billed at Tier 2's idle rate, about $0.0000035 per
+  vCPU-second and per GiB-second: about $0.45 a day for the gateway and $3.60 for TTS,
+  roughly $28 for a review week or $123 a month.
+
+The review week runs with one warm instance of each, set back to 0 afterwards; the
+wake-up stays as the safety net when nothing is warm.
+
 ## Before the deep dive
 
 Measured while building the voice loop, and kept as the earliest points.
