@@ -1,6 +1,8 @@
 from collections.abc import Mapping
+from contextlib import contextmanager
 import json
 import logging
+from typing import TYPE_CHECKING, Protocol
 import uuid
 
 from fastapi import FastAPI, WebSocketDisconnect
@@ -8,7 +10,16 @@ from fastapi.testclient import TestClient
 import pytest
 from sarjy_gateway.database import DatabaseUnavailableError
 from sarjy_gateway.identity import COOKIE_NAME, UserId
-from sarjy_gateway.messages import AudioFollows, Reply, ServerError, Transcript, TurnMarks
+from sarjy_gateway.llm import TextDelta, ToolCallDelta
+from sarjy_gateway.messages import (
+    AudioFollows,
+    Memory,
+    RememberedFact,
+    Reply,
+    ServerError,
+    Transcript,
+    TurnMarks,
+)
 from sarjy_gateway.stt import SpeechToTextError
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
 from sarjy_gateway.turn import TurnPipeline
@@ -26,7 +37,12 @@ from gateway.tests.fakes import (
 )
 
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
+
 TURN_END = '{"type": "turn_end"}'
+FORGET_ME = '{"type": "forget_me"}'
 TURN_ID = "0199c3a4b5d67e8f9a0b1c2d3e4f5a6b"
 USER_ID = UserId(uuid.UUID("0199c3a4-0000-7000-8000-00000000abcd"))
 
@@ -71,8 +87,27 @@ def voice_client(
     return TestClient(app, cookies=None if cookie is None else {COOKIE_NAME: cookie})
 
 
+# The parts of the test client's socket these tests use.
+class Socket(Protocol):
+    def send_text(self, data: str, /) -> None: ...
+
+    def send_bytes(self, data: bytes, /) -> None: ...
+
+    def receive_text(self) -> str: ...
+
+    def receive_bytes(self) -> bytes: ...
+
+
+# Opens the socket and reads the memory message every visit starts with.
+@contextmanager
+def visit(client: TestClient) -> Generator[Socket]:
+    with client.websocket_connect("/ws") as socket:
+        Memory.model_validate_json(socket.receive_text())
+        yield socket
+
+
 def test_a_turn_sends_transcript_reply_audio_and_marks() -> None:
-    with voice_client().websocket_connect("/ws") as socket:
+    with visit(voice_client()) as socket:
         socket.send_bytes(b"first ")
         socket.send_bytes(b"second")
         socket.send_text(TURN_END)
@@ -92,7 +127,7 @@ def test_a_turn_sends_transcript_reply_audio_and_marks() -> None:
 
 def test_set_voice_changes_the_voice_of_later_turns() -> None:
     tts = FakeTextToSpeech()
-    with voice_client(tts=tts).websocket_connect("/ws") as socket:
+    with visit(voice_client(tts=tts)) as socket:
         socket.send_text('{"type": "set_voice", "voice": "am_adam"}')
         socket.send_bytes(b"clip")
         socket.send_text(TURN_END)
@@ -124,7 +159,7 @@ def test_set_voice_changes_the_voice_of_later_turns() -> None:
     ],
 )
 def test_problems_before_the_pipeline_are_reported(before: bytes, control: str, expected_code: str) -> None:
-    with voice_client(max_turn_audio_bytes=10).websocket_connect("/ws") as socket:
+    with visit(voice_client(max_turn_audio_bytes=10)) as socket:
         if before:
             socket.send_bytes(before)
         socket.send_text(control)
@@ -133,7 +168,7 @@ def test_problems_before_the_pipeline_are_reported(before: bytes, control: str, 
 
 
 def test_a_failed_turn_reports_its_code_and_keeps_the_socket_open() -> None:
-    with voice_client(stt=FakeSpeechToText(error=SpeechToTextError("down"))).websocket_connect("/ws") as socket:
+    with visit(voice_client(stt=FakeSpeechToText(error=SpeechToTextError("down")))) as socket:
         socket.send_bytes(b"clip")
         socket.send_text(TURN_END)
         failure = ServerError.model_validate_json(socket.receive_text())
@@ -146,7 +181,7 @@ def test_a_failed_turn_reports_its_code_and_keeps_the_socket_open() -> None:
 
 def test_browser_marks_log_the_turns_ttfa_without_a_reply(caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.INFO, logger="sarjy_gateway.voice")
-    with voice_client().websocket_connect("/ws") as socket:
+    with visit(voice_client()) as socket:
         socket.send_text(browser_marks(speech_end=1000.0, playback_start=4212.34))
         # The next message answers the turn end, so the marks themselves got no reply.
         socket.send_text(TURN_END)
@@ -160,7 +195,7 @@ def test_browser_marks_log_the_turns_ttfa_without_a_reply(caplog: pytest.LogCapt
 
 
 def test_a_cancelled_turn_drops_its_audio() -> None:
-    with voice_client().websocket_connect("/ws") as socket:
+    with visit(voice_client()) as socket:
         socket.send_bytes(b"silence")
         socket.send_text('{"type": "turn_cancel"}')
         socket.send_text(TURN_END)
@@ -172,7 +207,7 @@ def test_a_browser_that_leaves_mid_turn_ends_the_session_quietly(caplog: pytest.
     caplog.set_level(logging.INFO, logger="sarjy_gateway.voice")
     # A send to a closed socket raises this mid-turn; the fake STT raises it at that point.
     stt = FakeSpeechToText(error=WebSocketDisconnect(code=1006))
-    with voice_client(stt=stt).websocket_connect("/ws") as socket:
+    with visit(voice_client(stt=stt)) as socket:
         socket.send_bytes(b"clip")
         socket.send_text(TURN_END)
 
@@ -191,7 +226,7 @@ def test_a_socket_without_a_valid_identity_cookie_is_refused(cookie: str | None)
 
 def test_a_visit_starts_a_session_and_each_turn_is_saved_to_it() -> None:
     store = FakeConversationStore()
-    with voice_client(store=store).websocket_connect("/ws") as socket:
+    with visit(voice_client(store=store)) as socket:
         socket.send_bytes(b"clip")
         socket.send_text(TURN_END)
         for _ in range(3):
@@ -209,7 +244,7 @@ def test_a_visit_starts_a_session_and_each_turn_is_saved_to_it() -> None:
 def test_without_the_database_the_turn_is_still_answered(caplog: pytest.LogCaptureFixture) -> None:
     store = FakeConversationStore(error=DatabaseUnavailableError("database unreachable: PoolTimeout"))
     caplog.set_level(logging.WARNING, logger="sarjy_gateway.voice")
-    with voice_client(store=store).websocket_connect("/ws") as socket:
+    with visit(voice_client(store=store)) as socket:
         socket.send_bytes(b"clip")
         socket.send_text(TURN_END)
         reply = [Transcript.model_validate_json(socket.receive_text()), Reply.model_validate_json(socket.receive_text())]
@@ -222,7 +257,7 @@ def test_a_visit_starts_knowing_the_users_facts_and_with_memory_tools() -> None:
     facts = FakeFactStore({USER_ID: {"favourite_colour": "green"}})
     llm = FakeChatModel()
     prompt = FakePrompt()
-    with voice_client(facts=facts, llm=llm, prompt=prompt).websocket_connect("/ws") as socket:
+    with visit(voice_client(facts=facts, llm=llm, prompt=prompt)) as socket:
         socket.send_bytes(b"clip")
         socket.send_text(TURN_END)
         Transcript.model_validate_json(socket.receive_text())
@@ -230,3 +265,55 @@ def test_a_visit_starts_knowing_the_users_facts_and_with_memory_tools() -> None:
 
     assert prompt.facts_seen == [{"favourite_colour": "green"}]
     assert llm.offered_tools[0] == ["remember_fact", "forget_fact"]
+
+
+def test_a_visit_opens_with_the_users_facts_for_the_memory_panel() -> None:
+    facts = FakeFactStore({USER_ID: {"travelling_with": "two children", "favourite_colour": "green"}})
+    with voice_client(facts=facts).websocket_connect("/ws") as socket:
+        memory = Memory.model_validate_json(socket.receive_text())
+
+    assert memory.facts == [
+        RememberedFact(key="favourite_colour", value="green"),
+        RememberedFact(key="travelling_with", value="two children"),
+    ]
+
+
+def test_a_fact_saved_mid_turn_reaches_the_page_before_the_reply() -> None:
+    save = ToolCallDelta(0, "call-1", "remember_fact", '{"key": "favourite_colour", "value": "green"}')
+    llm = FakeChatModel(rounds=[[save], [TextDelta("Noted, green.")]])
+    with visit(voice_client(llm=llm)) as socket:
+        socket.send_bytes(b"clip")
+        socket.send_text(TURN_END)
+        Transcript.model_validate_json(socket.receive_text())
+        memory = Memory.model_validate_json(socket.receive_text())
+        reply = Reply.model_validate_json(socket.receive_text())
+
+    assert memory.facts == [RememberedFact(key="favourite_colour", value="green")]
+    assert reply.text == "Noted, green."
+
+
+def test_forget_me_deletes_the_facts_and_empties_the_panel_and_the_next_prompt() -> None:
+    facts = FakeFactStore({USER_ID: {"favourite_colour": "green"}})
+    prompt = FakePrompt()
+    with visit(voice_client(facts=facts, prompt=prompt)) as socket:
+        socket.send_text(FORGET_ME)
+        memory = Memory.model_validate_json(socket.receive_text())
+        socket.send_bytes(b"clip")
+        socket.send_text(TURN_END)
+        Transcript.model_validate_json(socket.receive_text())
+        Reply.model_validate_json(socket.receive_text())
+
+    assert memory.facts == []
+    assert USER_ID not in facts.saved
+    assert prompt.facts_seen == [{}]
+
+
+def test_forget_me_without_the_database_tells_the_page(caplog: pytest.LogCaptureFixture) -> None:
+    facts = FakeFactStore(error=DatabaseUnavailableError("database unreachable: PoolTimeout"))
+    caplog.set_level(logging.WARNING, logger="sarjy_gateway.voice")
+    with visit(voice_client(facts=facts)) as socket:
+        socket.send_text(FORGET_ME)
+        error = ServerError.model_validate_json(socket.receive_text())
+
+    assert error.code == "forget_failed"
+    assert "facts not forgotten: database unreachable: PoolTimeout" in caplog.messages

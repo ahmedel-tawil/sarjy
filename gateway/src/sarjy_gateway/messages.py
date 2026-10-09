@@ -17,6 +17,12 @@ class TurnCancel(BaseModel):
     type: Literal["turn_cancel"]
 
 
+# Deletes every fact Sarjy saved for this browser's user, after the page asked them to
+# confirm.
+class ForgetMe(BaseModel):
+    type: Literal["forget_me"]
+
+
 class SetVoice(BaseModel):
     type: Literal["set_voice"]
     voice: str
@@ -42,7 +48,9 @@ class BrowserMarks(BaseModel):
         return round(self.playback_start - self.speech_end, 1)
 
 
-class ClientMessage(RootModel[Annotated[TurnEnd | TurnCancel | SetVoice | BrowserMarks, Field(discriminator="type")]]):
+class ClientMessage(
+    RootModel[Annotated[TurnEnd | TurnCancel | SetVoice | BrowserMarks | ForgetMe, Field(discriminator="type")]]
+):
     pass
 
 
@@ -56,6 +64,7 @@ type ErrorCode = Literal[
     "stt_failed",
     "llm_failed",
     "tts_failed",
+    "forget_failed",
 ]
 
 
@@ -75,6 +84,18 @@ class Reply(BaseModel):
     type: Literal["reply"] = "reply"
     turn_id: str
     text: str
+
+
+class RememberedFact(BaseModel):
+    key: str
+    value: str
+
+
+# Everything Sarjy remembers about the user, sent in full when the visit starts and after
+# every change, so the page never has to merge updates.
+class Memory(BaseModel):
+    type: Literal["memory"] = "memory"
+    facts: list[RememberedFact]
 
 
 # Sent just before the binary WAV frame of the same turn.
