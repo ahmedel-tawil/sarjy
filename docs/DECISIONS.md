@@ -811,6 +811,29 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   backups (cost, for demo data); Terraform-generated passwords (they would sit in the
   state file).
 
+### D-65 Schema, migrations at startup, and tests on a real Postgres
+
+- **Decision:** the schema lives in numbered SQL files inside the gateway package
+  (`sarjy_gateway/migrations/`), so the image carries it. A `turns` row is one exchange:
+  the transcript, the reply and the turn's tool results, under the pipeline's turn id,
+  which `turn_timings` refers to. `MigrationRunner` applies pending files in name order,
+  all in one transaction, under a Postgres advisory lock, and records each in
+  `schema_migrations`, which it creates in a transaction of its own first. It runs at
+  gateway startup; a failure is logged and voice carries on. Mark names are checked by
+  the typed Python models that write them, not by a database `CHECK`. Tests run against
+  a real Postgres through the runner and, later, the repository classes, never raw SQL:
+  a `sarjy_test` database in the local container, a Postgres 18 service in CI, failing
+  rather than skipping in CI without one (settled 9 Oct in M2.3, were O-19 and O-20).
+- **Reason:** the PRD's one-row-per-speaker shape had no single row for a turn's latency
+  marks to belong to, while the pipeline already has one id per exchange. A runner of
+  about forty lines needs no dependency and is easy to explain; one transaction and the
+  lock make a half-applied schema or two racing instances impossible. Migrating at
+  startup needs no separate job or CI access to the database. Upserts and constraints
+  only behave as in production on Postgres itself.
+- **Alternatives considered:** a migration tool such as Alembic (a dependency and its own
+  concepts); a Cloud Run job or CI step for migrations (more infrastructure); fakes only
+  for database tests.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -818,8 +841,6 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
-| O-19 | Migrations | a small runner over numbered SQL files; a migration tool | A small runner: no dependency, easy to explain. | M2.3 |
-| O-20 | Database tests | real Postgres (Docker locally, a service container in CI); fakes only | Real Postgres: upsert behaviour can only be tested against Postgres. Tests go through repository classes (`no-raw-connection-in-tests`). | M2.3 |
 | O-22 | Where rate-limit state lives | in memory per instance, with max instances capped; Postgres | In memory, with the trade-off written down. | M2.13 |
 | O-23 | Where the TTS cache lives (SayTech's is settled in D-58) | in the gateway's process; in the TTS service; Cloud Storage | Decided by measurement. | M3.7 |
 | O-24 | Audio for the test script | recorded by me; synthesised (Kokoro or macOS `say`) | Synthesised for repeatability, plus a few real recordings as a sanity check. | M3.3 |

@@ -122,7 +122,7 @@ Memory is explicit: the LLM decides what is worth keeping and calls a tool to sa
 | `users` | `id`, `created_at`, `last_seen_at` | One row per cookie |
 | `facts` | `user_id`, `key`, `value`, `updated_at`; unique (`user_id`, `key`) | Long-term memory; upsert with `ON CONFLICT` |
 | `sessions` | `id`, `user_id`, `started_at` | One per page visit |
-| `turns` | `id`, `session_id`, `role`, `text`, `created_at` | Conversation history |
+| `turns` | `id`, `session_id`, `transcript`, `reply`, `tool_results`, `created_at` | Conversation history: one row per exchange, under the pipeline's turn id (D-65) |
 | `turn_timings` | `turn_id`, `mark`, `at_ms` | Latency marks for the deep dive |
 
 Recent turns of the current session go to the LLM as context; older sessions are not replayed, only their facts. This keeps prompts short, which also keeps latency down.
