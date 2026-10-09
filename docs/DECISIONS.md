@@ -923,7 +923,8 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 
 - **Decision:** The TTS service runs on 8 vCPU and 4 GiB with `SARJY_THREADS=8`, at most
   two instances and none when idle. The service-level instance limit is set to 2 in
-  Terraform as well (settled 9 Oct in M2.17).
+  Terraform as well (settled 9 Oct in M2.17; D-72 lowers both limits to one instance,
+  after two per revision made a deploy exceed the quota).
 - **Reason:** Timed directly on Cloud Run, synthesis got faster at every step: the
   60-word reply from the 9 Oct screenshot took 14.0 s on 2 vCPU, 9.0 s on 4 and 6.3 s
   on 8; a 13-word sentence 3.7, 2.7 and 2.1 s. Scaling to zero means we pay only while
@@ -958,6 +959,36 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** checking spoken weather against tool results in code (the
   optional guardrail milestone, M6); a tighter token limit (cuts replies off mid-sentence).
 
+### D-72 Turn limits in memory, per user and per IP, counted per instance
+
+- **Decision:** Before each turn runs, the gateway checks three limits: 30 turns per user
+  and 90 per IP in any ten minutes (a sliding window), and 100 turns per visit. All four
+  numbers are settings. The counts live in each instance's memory; the gateway runs at
+  most two instances, now capped at the service level too. The visitor's IP is the last
+  entry of `X-Forwarded-For`, which Cloud Run's front end appends; without the header
+  (locally) it is the socket's peer. A refused turn costs nothing and gets its own error
+  code, `too_many_turns` or `visit_limit`, with a friendly message (settled 9 Oct in
+  M2.13, was O-22).
+- **Reason:** A spoken turn takes at least twenty seconds, so a person stays well under
+  thirty in ten minutes, and an IP has room for a few people behind one router. The IP
+  limit stops a bot that clears its cookie; the visit cap stops a runaway client. Memory
+  needs no table or extra round trip on the turn path, and with two instances a visitor
+  gets at most twice the limit. Earlier entries of `X-Forwarded-For` come from the
+  client and can be forged, so only Cloud Run's own entry is trusted, the same choice as
+  Flask's `ProxyFix(x_for=1)` on Cloud Run.
+- **Instance caps:** the gateway runs at most two instances, TTS one. On 9 Oct a TTS
+  deploy failed its startup check after four minutes: the old revision still had a warm
+  8-vCPU instance and the new one tried to start two, 24 vCPU against the region's 20,
+  so the new instances were never placed. With one each, a deploy needs at most 8 + 8
+  for TTS and a few for the gateway. One TTS instance serves up to four syntheses at
+  once, which share its eight threads.
+- **Trade-off:** counts reset when an instance restarts or a deploy rolls out. If Cloud
+  Run ever added a proxy address after the visitor's, every visitor would share one IP
+  key; the visible symptom would be `too_many_turns` for everyone at once.
+- **Alternatives considered:** counts in Postgres (shared and durable, but a write on
+  every turn for a two-instance demo); a fixed one-minute window (a burst at the boundary
+  gets twice the limit); a login or access code (D-21 rejects it).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -965,7 +996,6 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
-| O-22 | Where rate-limit state lives | in memory per instance, with max instances capped; Postgres | In memory, with the trade-off written down. | M2.13 |
 | O-23 | Where the TTS cache lives (SayTech's is settled in D-58) | in the gateway's process; in the TTS service; Cloud Storage | Decided by measurement. | M3.7 |
 | O-24 | Audio for the test script | recorded by me; synthesised (Kokoro or macOS `say`) | Synthesised for repeatability, plus a few real recordings as a sanity check. | M3.3 |
 | O-25 | Frontend unit tests | Vitest for pure logic (timing maths, message parsing); none | Add Vitest only if the client grows real logic. | M3.2 |
