@@ -88,7 +88,7 @@ A single FastAPI gateway owns each turn: it receives the user's audio over one W
 flowchart LR
     B["Browser (React)<br/>mic, playback,<br/>latency + memory panels"] <-->|WebSocket| G["Voice gateway<br/>FastAPI on Cloud Run"]
     G --> STT["Hosted STT"]
-    G --> LLM["LLM (Groq / Cerebras)"]
+    G --> LLM["LLM (Groq / Claude)"]
     G --> TTS["Kokoro TTS (Cloud Run)"]
     G --> ST["SayTech public API"]
     G --> W["Weather API"]
@@ -103,7 +103,7 @@ The gateway is the only component that talks to providers, so keys stay server-s
 | Transport | One WebSocket per session | Streams audio both ways with little overhead |
 | Turn-taking | Push-to-talk first, voice activity detection next | A reliable demo first; barge-in is on the cut list |
 | STT | Hosted Whisper-class model, e.g. on Groq (confirm day 1) | Fast, and on Sarj's list of preferred providers |
-| LLM | Groq or Cerebras, streaming with tool calls | Fast first token; final pick decided by measurement |
+| LLM | Groq (Qwen 3.8 27B) and Claude (Haiku 5.5), streaming with tool calls, each the other's fallback (D-63) | Fast first token; the order is one setting, decided by measurement |
 | TTS | Kokoro-82M as my own service, with a few selectable voices | Full control over latency and caching |
 | Backend | Python, FastAPI, Pydantic, asyncio | My strongest stack; async fits streaming |
 

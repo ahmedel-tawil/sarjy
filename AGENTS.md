@@ -36,9 +36,10 @@ any task, and treat it as the source of truth for scope.
 - **Backend:** Python, uv, FastAPI, Pydantic v2, asyncio, psycopg 3 with raw SQL (no ORM),
   PostgreSQL. Python 3.14, as Sarj's standards require (D-30 in `docs/DECISIONS.md`).
 - **Frontend:** React + Vite + TypeScript + Tailwind + shadcn/ui, built and served by the gateway (one origin).
-- **Voice:** hosted STT (provider to confirm), LLM on Groq or Cerebras (decided by
-  measurement), TTS with the Kokoro-82M ONNX model on onnxruntime, through our own
-  text front end (no kokoro-onnx, D-38), as a separate service.
+- **Voice:** hosted STT (Groq Whisper, D-51), LLM on Groq (Qwen 3.8 27B) and Claude
+  (Haiku 5.5 through Anthropic's SDK), switchable, each the other's fallback (D-63),
+  TTS with the Kokoro-82M ONNX model on onnxruntime, through our own text front end
+  (no kokoro-onnx, D-38), as a separate service.
 - **Infra:** GCP Cloud Run, Cloud SQL, Artifact Registry, Secret Manager; Terraform;
   GitHub Actions with Workload Identity Federation. DNS stays in DigitalOcean.
 
@@ -146,7 +147,7 @@ Speech to text (needs `SARJY_GROQ_API_KEY` in the git-ignored `.env`):
 uv run python gateway/scripts/transcribe.py clip.webm clip.mp4   # real Groq call, with timings
 uv run python gateway/scripts/chat.py "Is tomorrow good for a safari?"   # LLM time to first word (SARJY_LLM_API_KEY)
 uv run python gateway/scripts/saytech.py   # the real SayTech API: demo questions, timings, result sizes (no key)
-uv run python gateway/scripts/ask.py "How much is the buggy tour?"   # typed turns through the real pipeline and tools
+uv run python gateway/scripts/ask.py "How much is the buggy tour?"   # typed turns through the real pipeline and tools (Groq or Claude key)
 ```
 
 Infrastructure (from `infra/`; needs `gcloud auth application-default login` once).
