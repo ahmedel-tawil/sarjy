@@ -1073,6 +1073,29 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   dropping the rest (needs the model to say which round is last); synthesising sentences
   in parallel (faster on long replies, but order and CPU sharing to manage).
 
+### D-77 The page plays sentence clips back to back; sentence mode by default
+
+- **Decision:** the player schedules each clip on the audio context's clock for the
+  moment the previous one ends, decoding clips in the order they arrived; a turn ends
+  once the gateway's `marks` message has come and the last clip has played. The session
+  reports each clip as it starts through an optional `onSpeak(text, durationMs)`, keeps
+  `onReply` for the whole reply (shown with the first clip, or on arrival once a clip is
+  playing), and offers `inputLevel()` and `outputLevel()` from 0 to 1, read from the
+  microphone's meter and an analyser on the player's output. `sentence` becomes the
+  gateway's default, and Terraform's `pipeline_mode` sets it on Cloud Run (settled 9 Oct
+  in M3.6).
+- **Reason:** scheduling on the audio clock rather than starting each clip when the
+  previous one's "ended" event fires leaves no gap between sentences, and no clip can
+  start while another plays. The UI session asked for the sentence text, its duration and
+  the two levels, to show words as they are spoken and animate the voice; Kokoro gives no
+  word timings, so the page spreads a sentence's words across its duration. With the page
+  ready, there is no reason to keep the slower mode as the default; the switch stays for
+  comparisons.
+- **Alternatives considered:** starting each clip on the previous one's `ended` event
+  (a small gap each time, larger on a busy phone); joining clips into one growing buffer
+  (more code, and a clip arriving late still stalls); word timestamps from TTS (Kokoro
+  has none).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
