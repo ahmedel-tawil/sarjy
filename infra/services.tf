@@ -8,6 +8,12 @@ resource "google_cloud_run_v2_service" "gateway" {
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
+  # A cost guard, and the bound on the in-memory turn limits: a visitor can reach at most
+  # two instances (D-72). Google's own default for a service is 3.
+  scaling {
+    max_instance_count = 2
+  }
+
   template {
     service_account = google_service_account.gateway.email
     # A WebSocket session is one long request, so allow the 60-minute maximum.
@@ -132,22 +138,22 @@ resource "google_cloud_run_v2_service" "tts" {
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
-  # Google gives new services a limit of 3 instances, and Cloud Run checks that limit
-  # times each instance's vCPUs against the region's quota of 20, which 8 vCPU would
-  # exceed; 2 matches the revision's own limit below.
+  # One 8-vCPU instance: during a deploy the old revision's instance and the new one run
+  # side by side, and with two each they needed 24 of the region's 20 vCPU, so the new
+  # revision never started (D-72). Google's own default for a service is 3.
   scaling {
-    max_instance_count = 2
+    max_instance_count = 1
   }
 
   template {
     service_account = google_service_account.tts.email
-    # Synthesis is CPU-bound: past a few at once, requests only slow each other down,
-    # so Cloud Run starts another instance instead.
+    # Synthesis is CPU-bound, so requests beyond the first share the instance's eight
+    # threads; four at once is plenty for a demo.
     max_instance_request_concurrency = 4
 
     scaling {
       min_instance_count = 0
-      max_instance_count = 2
+      max_instance_count = 1
     }
 
     containers {
