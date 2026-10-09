@@ -69,6 +69,7 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
         toolbox,
         system_prompt=SystemPrompt(services.catalogue, lambda: datetime.now(UAE_TIME)).build,
         clock=time.monotonic,
+        sentence_streaming=settings.pipeline_mode == "sentence",
     )
     app = FastAPI(title="Sarjy gateway", lifespan=lifespan)
     app.include_router(HealthRouter(services.database).build())

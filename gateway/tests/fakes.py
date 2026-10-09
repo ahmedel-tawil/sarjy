@@ -137,8 +137,8 @@ class RecordingListener:
         self.events.append(f"reply {text}")
         assert turn_id
 
-    async def audio(self, turn_id: str, wav: bytes) -> None:
-        self.events.append(f"audio {len(wav)} bytes")
+    async def audio(self, turn_id: str, text: str, wav: bytes) -> None:
+        self.events.append(f"audio {len(wav)} bytes: {text}")
         assert turn_id
 
 

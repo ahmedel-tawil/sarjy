@@ -56,9 +56,9 @@ class SocketListener:
     async def reply(self, turn_id: str, text: str) -> None:
         await self._websocket.send_text(Reply(turn_id=turn_id, text=text).model_dump_json())
 
-    async def audio(self, turn_id: str, wav: bytes) -> None:
+    async def audio(self, turn_id: str, text: str, wav: bytes) -> None:
         # A binary frame cannot carry the turn id, so a small JSON message announces it.
-        await self._websocket.send_text(AudioFollows(turn_id=turn_id).model_dump_json())
+        await self._websocket.send_text(AudioFollows(turn_id=turn_id, text=text).model_dump_json())
         await self._websocket.send_bytes(wav)
 
     async def marks(self, turn_id: str, marks: dict[str, float]) -> None:

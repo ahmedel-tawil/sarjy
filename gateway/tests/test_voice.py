@@ -78,7 +78,13 @@ def voice_client(
     tts = tts or FakeTextToSpeech()
     toolbox = Toolbox([], TickingClock(), TOOL_TIMEOUT_SECONDS)
     pipeline = TurnPipeline(
-        stt or FakeSpeechToText(), llm or FakeChatModel(), tts, toolbox, system_prompt=(prompt or FakePrompt()).build, clock=TickingClock()
+        stt or FakeSpeechToText(),
+        llm or FakeChatModel(),
+        tts,
+        toolbox,
+        system_prompt=(prompt or FakePrompt()).build,
+        clock=TickingClock(),
+        sentence_streaming=False,
     )
     app = FastAPI()
     router = VoiceRouter(

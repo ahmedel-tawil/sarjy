@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import suppress
 from dataclasses import dataclass, field
 import logging
 from typing import TYPE_CHECKING, Protocol
@@ -15,6 +16,7 @@ from sarjy_gateway.llm import (
     ToolCallDelta,
     assemble_tool_calls,
 )
+from sarjy_gateway.sentences import SentenceChunker, speakable
 from sarjy_gateway.stt import RateLimitedError, SpeechToTextError
 from sarjy_gateway.timeline import Timeline
 from sarjy_gateway.tools import Tool
@@ -43,7 +45,8 @@ class TurnListener(Protocol):
 
     async def reply(self, turn_id: str, text: str) -> None: ...
 
-    async def audio(self, turn_id: str, wav: bytes) -> None: ...
+    # `text` is what the audio says: the whole reply, or one sentence when streaming.
+    async def audio(self, turn_id: str, text: str, wav: bytes) -> None: ...
 
 
 class TurnError(Exception):
@@ -107,7 +110,79 @@ class ModelRound:
     first_text_at: float | None
 
 
-# Experiment 1's baseline: the whole reply is collected before any of it is spoken.
+# The round that answered in words, and what tools returned on the way.
+@dataclass(frozen=True)
+class Conversed:
+    final: ModelRound
+    tool_results: list[str]
+
+
+@dataclass(frozen=True)
+class SpokenTurn:
+    turn_id: str
+    voice: str | None
+    timeline: Timeline
+
+
+# Speaks a turn's sentences in order while the model is still writing: each complete
+# sentence goes to TTS at once, and its audio is sent as soon as it is ready (D-76). One
+# sentence at a time keeps the order, and Kokoro synthesises faster than it speaks.
+class SentenceSpeaker:
+    def __init__(self, tts: TextToSpeech, listener: TurnListener, turn: SpokenTurn) -> None:
+        self._tts = tts
+        self._listener = listener
+        self._turn = turn
+        self._chunker = SentenceChunker()
+        self._queue: asyncio.Queue[str | None] = asyncio.Queue()
+        self._sentences: list[str] = []
+        self._task = asyncio.ensure_future(self._speak_in_order())
+
+    # A piece of the model's text, as it streams in.
+    def heard(self, piece: str) -> None:
+        if not self._turn.timeline.has("llm_first_token"):
+            self._turn.timeline.mark("llm_first_token")
+        self._say(self._chunker.add(piece))
+
+    # Text left without a final full stop is spoken when the model's round ends, before
+    # any tools run.
+    def round_ended(self) -> None:
+        self._say(self._chunker.flush())
+
+    # Waits for the last sentence to be sent and returns everything spoken.
+    async def finish(self) -> list[str]:
+        self._queue.put_nowait(None)
+        await self._task
+        return list(self._sentences)
+
+    # After a failure elsewhere in the turn, stops speaking.
+    async def stop(self) -> None:
+        self._task.cancel()
+        with suppress(asyncio.CancelledError, TurnError):
+            await self._task
+
+    def _say(self, sentences: list[str]) -> None:
+        for sentence in sentences:
+            text = speakable(sentence)
+            if not text:
+                continue
+            if not self._sentences:
+                self._turn.timeline.mark("first_sentence_ready")
+            self._sentences.append(text)
+            self._queue.put_nowait(text)
+
+    async def _speak_in_order(self) -> None:
+        while (sentence := await self._queue.get()) is not None:
+            try:
+                wav = await self._tts.synthesize(sentence, self._turn.voice)
+            except TextToSpeechError as error:
+                raise TurnError(code="tts_failed", turn_id=self._turn.turn_id) from error
+            if not self._turn.timeline.has("tts_first_byte"):
+                self._turn.timeline.mark("tts_first_byte")
+            await self._listener.audio(self._turn.turn_id, sentence, wav)
+
+
+# One spoken turn. In the baseline the whole reply is collected before any of it is
+# spoken; with `sentence_streaming` each sentence is spoken as soon as it is written.
 class TurnPipeline:
     # `system_prompt` is awaited for every turn, so its date and catalogue are current.
     def __init__(
@@ -119,6 +194,7 @@ class TurnPipeline:
         *,
         system_prompt: Callable[[Mapping[str, str]], Awaitable[str]],
         clock: Callable[[], float],
+        sentence_streaming: bool,
     ) -> None:
         self._stt = stt
         self._llm = llm
@@ -126,6 +202,7 @@ class TurnPipeline:
         self._toolbox = toolbox
         self._system_prompt = system_prompt
         self._clock = clock
+        self._sentence_streaming = sentence_streaming
 
     async def run(self, audio: bytes, conversation: Conversation, listener: TurnListener) -> CompletedTurn:
         turn_id = uuid.uuid7().hex
@@ -142,12 +219,15 @@ class TurnPipeline:
         finally:
             # Only matters when the turn ends early; a finished task ignores it.
             prompt.cancel()
-        answer = await self._answer(system, transcript, conversation, timeline, turn_id)
-        timeline.mark("first_sentence_ready")
-        await listener.reply(turn_id, answer.reply)
-        wav = await self._speak(answer.reply, conversation.voice, turn_id)
-        timeline.mark("tts_first_byte")
-        await listener.audio(turn_id, wav)
+        if self._sentence_streaming:
+            answer = await self._answer_aloud(system, transcript, conversation, SpokenTurn(turn_id, conversation.voice, timeline), listener)
+        else:
+            answer = await self._answer(system, transcript, conversation, timeline, turn_id)
+            timeline.mark("first_sentence_ready")
+            await listener.reply(turn_id, answer.reply)
+            wav = await self._speak(answer.reply, conversation.voice, turn_id)
+            timeline.mark("tts_first_byte")
+            await listener.audio(turn_id, answer.reply, wav)
         conversation.remember(transcript, answer.reply)
         turn = CompletedTurn(turn_id, transcript, answer.reply, timeline.marks, answer.tool_results)
         logger.info("turn %(turn_id)s completed", {"turn_id": turn_id, "marks": turn.marks})
@@ -164,11 +244,42 @@ class TurnPipeline:
             raise TurnError(code="no_speech", turn_id=turn_id)
         return transcript
 
-    # Asks the model, runs any tools it calls and asks again with their results, until it
-    # answers in words. Only this turn's tool messages are sent; history keeps the replies.
+    # The baseline: the answer's words are spoken only once the model has finished.
     async def _answer(
         self, system: str, transcript: str, conversation: Conversation, timeline: Timeline, turn_id: str
     ) -> Answer:
+        conversed = await self._converse(system, transcript, conversation, turn_id, None)
+        return self._spoken(conversed.final, conversed.tool_results, timeline, turn_id)
+
+    # Experiment 2: every sentence is spoken as soon as it is written, including any the
+    # model writes before calling a tool, which plays while the tool runs (D-76). The
+    # reply is everything spoken, sent once the last sentence's audio has gone.
+    async def _answer_aloud(
+        self, system: str, transcript: str, conversation: Conversation, turn: SpokenTurn, listener: TurnListener
+    ) -> Answer:
+        speaker = SentenceSpeaker(self._tts, listener, turn)
+        try:
+            conversed = await self._converse(system, transcript, conversation, turn.turn_id, speaker)
+            sentences = await speaker.finish()
+        finally:
+            await speaker.stop()
+        if not sentences:
+            raise TurnError(code="llm_failed", turn_id=turn.turn_id)
+        reply = " ".join(sentences)
+        await listener.reply(turn.turn_id, reply)
+        return Answer(reply, conversed.tool_results)
+
+    # Asks the model, runs any tools it calls and asks again with their results, until it
+    # answers in words. Only this turn's tool messages are sent; history keeps the replies.
+    # A speaker, when there is one, hears the text of every round as it streams.
+    async def _converse(
+        self,
+        system: str,
+        transcript: str,
+        conversation: Conversation,
+        turn_id: str,
+        speaker: SentenceSpeaker | None,
+    ) -> Conversed:
         messages = [
             ChatMessage(role="system", content=system),
             *conversation.history,
@@ -178,9 +289,11 @@ class TurnPipeline:
         tool_results: list[str] = []
         for round_number in range(MAX_TOOL_ROUNDS + 1):
             tools = toolbox.specs if round_number < MAX_TOOL_ROUNDS else []
-            model_round = await self._ask(messages, tools, turn_id)
+            model_round = await self._ask(messages, tools, turn_id, speaker)
+            if speaker is not None:
+                speaker.round_ended()
             if not model_round.tool_calls:
-                return self._spoken(model_round, tool_results, timeline, turn_id)
+                return Conversed(model_round, tool_results)
             results = await toolbox.run_all(model_round.tool_calls, turn_id)
             messages.append(ChatMessage(role="assistant", content=model_round.text, tool_calls=model_round.tool_calls))
             for call, result in zip(model_round.tool_calls, results, strict=True):
@@ -189,16 +302,18 @@ class TurnPipeline:
         # Still calling tools in the round that offered none.
         raise TurnError(code="llm_failed", turn_id=turn_id)
 
-    async def _ask(self, messages: Sequence[ChatMessage], tools: Sequence[ToolSpec], turn_id: str) -> ModelRound:
+    async def _ask(
+        self, messages: Sequence[ChatMessage], tools: Sequence[ToolSpec], turn_id: str, speaker: SentenceSpeaker | None
+    ) -> ModelRound:
         try:
             async with self._llm.stream(messages, tools) as events:
-                return await self._read(events)
+                return await self._read(events, speaker)
         except ChatRateLimitedError as error:
             raise TurnError(code="rate_limited", turn_id=turn_id) from error
         except ChatModelError as error:
             raise TurnError(code="llm_failed", turn_id=turn_id) from error
 
-    async def _read(self, events: AsyncIterator[ChatEvent]) -> ModelRound:
+    async def _read(self, events: AsyncIterator[ChatEvent], speaker: SentenceSpeaker | None) -> ModelRound:
         parts: list[str] = []
         call_pieces: list[ToolCallDelta] = []
         first_text_at: float | None = None
@@ -206,6 +321,8 @@ class TurnPipeline:
             if isinstance(event, TextDelta):
                 first_text_at = first_text_at if first_text_at is not None else self._clock()
                 parts.append(event.text)
+                if speaker is not None:
+                    speaker.heard(event.text)
             elif isinstance(event, ToolCallDelta):
                 call_pieces.append(event)
         return ModelRound("".join(parts), assemble_tool_calls(call_pieces), first_text_at)

@@ -26,6 +26,9 @@ class Timeline:
             self._start = now
         self._marks[name] = round((now - self._start) * 1000, 1)
 
+    def has(self, name: ServerMark) -> bool:
+        return name in self._marks
+
     @property
     def marks(self) -> dict[str, float]:
         return dict(self._marks)
