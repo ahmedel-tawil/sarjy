@@ -22,6 +22,7 @@ from sarjy_gateway.conversation_store import PastTurn, PastVisit, SessionId, Sto
 from sarjy_gateway.llm import ChatMessage, Finished, TextDelta, ToolSpec
 from sarjy_gateway.memory import Fact
 from sarjy_gateway.messages import TourLink
+from sarjy_gateway.prompts import Prompt
 from sarjy_gateway.tts import Voices
 from sarjy_gateway.weather import DayForecast, Hour
 
@@ -253,7 +254,7 @@ class FakeWeather:
         )
 
 
-FIXED_PROMPT = "You are Sarjy. Today is Friday 9 October 2026."
+FIXED_PROMPT = Prompt(shared="You are Sarjy.", this_turn="Today is Friday 9 October 2026.")
 
 
 # Records the facts each turn's prompt was built with.
@@ -261,7 +262,7 @@ class FakePrompt:
     def __init__(self) -> None:
         self.facts_seen: list[dict[str, str]] = []
 
-    async def build(self, facts: Mapping[str, str]) -> str:
+    async def build(self, facts: Mapping[str, str]) -> Prompt:
         self.facts_seen.append(dict(facts))
         return FIXED_PROMPT
 

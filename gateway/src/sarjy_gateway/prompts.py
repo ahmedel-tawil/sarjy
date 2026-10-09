@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import logging
 from typing import TYPE_CHECKING
 
@@ -68,15 +69,24 @@ Memory:
 NO_CATALOGUE = "The tour catalogue is unavailable right now, so you know nothing about the tours yet."
 
 
+# The system prompt in two parts (D-93). The shared part, the rules and SayTech's
+# catalogue, is the same for every traveller and every turn, so Claude can cache it; the
+# turn's part, the traveller's facts and the time, comes after it so it never spoils it.
+@dataclass(frozen=True)
+class Prompt:
+    shared: str
+    this_turn: str
+
+
 # The model has no clock: without today's date it guesses one from its training (it once
 # said it was April) and refuses or misplaces forecasts. The ISO form is what
 # get_weather takes.
-def system_prompt(now: datetime, context: CatalogueContext | None, facts: Mapping[str, str]) -> str:
+def system_prompt(now: datetime, context: CatalogueContext | None, facts: Mapping[str, str]) -> Prompt:
     today = f"{now:%A} {now.day} {now:%B %Y} ({now:%Y-%m-%d})"
     catalogue = NO_CATALOGUE if context is None else catalogue_section(context)
-    return (
-        f"{SYSTEM_PROMPT}\n{catalogue}\n\n{memory_section(facts)}\n\n"
-        f"Today is {today}, and the time in the UAE is {now:%H:%M}.\n"
+    return Prompt(
+        shared=f"{SYSTEM_PROMPT}\n{catalogue}\n",
+        this_turn=f"{memory_section(facts)}\n\nToday is {today}, and the time in the UAE is {now:%H:%M}.\n",
     )
 
 
@@ -114,7 +124,7 @@ class SystemPrompt:
         self._catalogue = catalogue
         self._now = now
 
-    async def build(self, facts: Mapping[str, str]) -> str:
+    async def build(self, facts: Mapping[str, str]) -> Prompt:
         try:
             context = await self._catalogue.context()
         except (CatalogueUnavailableError, CatalogueQueryError) as error:

@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     claude_model: str = "claude-haiku-5-5"
     # Thinking is off for Claude, which it allows up to "high"; "low" keeps replies short.
     claude_effort: Literal["low", "medium", "high"] = "low"
+    # Claude caches the prompt's shared part, the tools, rules and catalogue (D-93); off
+    # only to measure the difference (experiment 9).
+    claude_prompt_cache: bool = True
     # SayTech's assistant API for Magic Experience; the subdomain picks the operator (D-56).
     saytech_base_url: str = "https://magicexperience.api.saytech.ae/api/v1/public/assistant"
     # SayTech answers in well under a second; a slower answer means a voice turn stalls.

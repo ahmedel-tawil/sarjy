@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
     from sarjy_gateway.llm import ChatEvent, ChatModel, ToolSpec
     from sarjy_gateway.messages import ErrorCode, TourLink
+    from sarjy_gateway.prompts import Prompt
     from sarjy_gateway.stt import SpeechToText
     from sarjy_gateway.tools import Toolbox
     from sarjy_gateway.tts import TextToSpeech
@@ -197,7 +198,7 @@ class TurnPipeline:
         tts: TextToSpeech,
         toolbox: Toolbox,
         *,
-        system_prompt: Callable[[Mapping[str, str]], Awaitable[str]],
+        system_prompt: Callable[[Mapping[str, str]], Awaitable[Prompt]],
         clock: Callable[[], float],
         sentence_streaming: bool,
     ) -> None:
@@ -251,7 +252,7 @@ class TurnPipeline:
 
     # The baseline: the answer's words are spoken only once the model has finished.
     async def _answer(
-        self, system: str, transcript: str, conversation: Conversation, timeline: Timeline, turn_id: str
+        self, system: Prompt, transcript: str, conversation: Conversation, timeline: Timeline, turn_id: str
     ) -> Answer:
         conversed = await self._converse(system, transcript, conversation, turn_id, None)
         return self._spoken(conversed.final, conversed.tool_results, timeline, turn_id)
@@ -260,7 +261,7 @@ class TurnPipeline:
     # model writes before calling a tool, which plays while the tool runs (D-76). The
     # reply is everything spoken, sent once the last sentence's audio has gone.
     async def _answer_aloud(
-        self, system: str, transcript: str, conversation: Conversation, turn: SpokenTurn, listener: TurnListener
+        self, system: Prompt, transcript: str, conversation: Conversation, turn: SpokenTurn, listener: TurnListener
     ) -> Answer:
         speaker = SentenceSpeaker(self._tts, listener, turn)
         try:
@@ -279,14 +280,15 @@ class TurnPipeline:
     # A speaker, when there is one, hears the text of every round as it streams.
     async def _converse(
         self,
-        system: str,
+        system: Prompt,
         transcript: str,
         conversation: Conversation,
         turn_id: str,
         speaker: SentenceSpeaker | None,
     ) -> Conversed:
         messages = [
-            ChatMessage(role="system", content=system),
+            ChatMessage(role="system", content=system.shared, cache_point=True),
+            ChatMessage(role="system", content=system.this_turn),
             *conversation.history,
             ChatMessage(role="user", content=transcript),
         ]
@@ -357,11 +359,14 @@ def log_round(model_round: ModelRound, turn_id: str, round_number: int) -> None:
     if model_round.usage is None:
         return
     logger.info(
-        "turn %(turn_id)s round %(round)s used %(input_tokens)s input tokens",
+        "turn %(turn_id)s round %(round)s used %(input_tokens)s input tokens,"
+        " read %(cache_read_tokens)s from the cache and wrote %(cache_write_tokens)s to it",
         {
             "turn_id": turn_id,
             "round": round_number,
             "input_tokens": model_round.usage.input_tokens,
+            "cache_read_tokens": model_round.usage.cache_read_tokens,
+            "cache_write_tokens": model_round.usage.cache_write_tokens,
             "output_tokens": model_round.usage.output_tokens,
             "tool_calls": len(model_round.tool_calls),
         },
