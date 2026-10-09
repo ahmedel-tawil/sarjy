@@ -876,10 +876,16 @@ the page's queue in M3.6.
 
 ### M3.7 Experiment 3: TTS cache
 
-- [ ] Audio is cached by a hash of text, voice, speed and model version (O-23 decides
-      where it lives).
-- [ ] Common phrases (greetings, confirmations) are warmed at startup.
-- [ ] The hit rate is logged; before/after numbers are in `LATENCY.md`.
+- [x] Audio is cached by text and voice in the gateway's memory, least recently used
+      first out, up to `SARJY_TTS_CACHE_BYTES` (32 MB; 0 turns it off). Speed is always
+      the default, and each deploy restarts the gateway, so the model version can't
+      change under a cached clip (D-97, settling O-23).
+- [x] Common phrases are warmed at startup: the six generic sentences Claude repeated
+      most in the turns of 9 and 10 Oct.
+- [x] The hit rate is logged on every sentence; before/after numbers are in
+      `LATENCY.md`: 6 of 61 sentences were hits, and the five turns that started with
+      one skipped TTS (about 1.3 s) for a TTFA of 1.9 to 2.5 s, while the medians didn't
+      move.
 
 ### M3.8 Experiment 4: model choice
 

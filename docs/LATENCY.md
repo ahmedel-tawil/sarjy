@@ -200,6 +200,43 @@ Medians per question, before and after:
   `tts` 27%, `stt` 20%, `network_and_browser` 8%, `first_sentence` 8%. The model and its
   tool rounds are now the largest part; experiments 4 and 5 address them.
 
+## Experiment 3: TTS cache
+
+A spoken sentence is kept in the gateway's memory by its text and voice, and reused
+when the same words are said again; six common sentences are made when the gateway
+starts (D-97). `SARJY_TTS_CACHE_BYTES=0` turns it off. Before building it, the 160
+replies stored by 10 Oct were split into the sentences TTS speaks: 17% of sentences
+and 26% of first sentences had been said before. Most of those were the script's own
+lines ("Nice to meet you, Sam.", "Your favourite colour is green."); the generic
+ones, "What would you like to know about Magic Experience?" and "Would you like child
+prices for any of these?", became the warmed phrases. Measured on 10 Oct with the
+gateway and TTS on the laptop, two passes of the script each, the cache-on gateway
+started fresh and warmed.
+
+| Gap | Cache off p50 | Cache on p50 | Cache off p95 | Cache on p95 |
+| --- | --- | --- | --- | --- |
+| `tts` | 1,276 ms | 1,404 ms | 2,944 ms | 3,020 ms |
+| `ttfa` | 3,808 ms | 3,854 ms | 5,944 ms | 6,974 ms |
+
+The runs are `tts-cache-off-local.jsonl` and `tts-cache-on-local.jsonl`.
+
+- **One sentence in ten was a hit.** 6 of 61 synthesised sentences: one warmed phrase
+  ("Thanks for telling me, I'll remember that.") and five lines the first pass had
+  already said to an earlier visitor called Sam.
+- **A hit on the first sentence saves the whole TTS step.** Five of the twenty turns
+  started with a hit: their `tts` took 0 to 2 ms instead of about 1.3 s, and their TTFA
+  was 1.9 to 2.5 s, where the same questions took 2.5 to 4.0 s without the cache.
+- **The medians don't move.** Most first sentences name a tour, a price or the
+  traveller, and those differ from turn to turn, so the hits are too few to shift the
+  p50; the other turns differ within the usual noise of the model and the laptop.
+- **Replays and repeated lines are where it pays.** A replay of an answer this gateway
+  has just spoken finds its sentences in the cache (by construction; not timed here),
+  and so does any line a visitor hears again.
+
+The cache stays on: it costs at most 32 MB of the gateway's 512 MiB and never slows a
+miss. Real visitors will hit it less often than the script, which repeats its own
+questions; the hit rate is logged on every sentence to show how much.
+
 ## Experiment 4: model choice
 
 The same ten questions as typed text, so STT and TTS drop out, through the real pipeline
