@@ -786,6 +786,31 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   but slower to the first word; Opus cannot turn thinking off). The API key must belong to
   a workspace: an organisation-level key is refused without a workspace header.
 
+### D-64 Postgres 18 on the smallest Cloud SQL tier, reached through Cloud Run's socket
+
+- **Decision:** one Cloud SQL for PostgreSQL 18 instance, `sarjy`, on `db-f1-micro`
+  (shared core, Enterprise edition, which Postgres 16 and later need asked for by name),
+  zonal, 10 GB, deletion protection on, no backups. The gateway reaches it through Cloud
+  Run's built-in Cloud SQL connection: a Unix socket under `/cloudsql`, through the Cloud
+  SQL Auth Proxy, authorised by the gateway's identity (`roles/cloudsql.client`). The
+  instance has a public address but no authorised networks, so nothing else can
+  connect. The connection URL, password included, sits in the `database-url` secret; the
+  database user and that value are created by hand, so the password never passes
+  through Terraform. Locally, `docker compose up db` runs the same major version. A
+  psycopg pool of up to four connections opens at startup without waiting, so voice
+  works even when the database doesn't, and `GET /ready` proves the connection with
+  `SELECT 1` (settled 9 Oct in M2.2, with O-18).
+- **Reason:** the data is small (facts, sessions, turns, timings), so the cheapest tier
+  is enough, at about $10 a month. Postgres 18 has `uuidv7()` built in, which Sarj's
+  `prefer-uuidv7-default` rule asks for (M2.3). The socket needs no VPC, connector or
+  firewall rules. Keeping voice independent of the database means a database outage
+  costs memory, not the whole demo.
+- **Alternatives considered:** a private IP with a Serverless VPC connector (more
+  infrastructure for no gain here); IAM database login (Cloud Run's socket doesn't do it,
+  and the Python connector that does doesn't support psycopg); a larger tier or
+  backups (cost, for demo data); Terraform-generated passwords (they would sit in the
+  state file).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -793,13 +818,13 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
-| O-18 | Postgres version and ID type | Postgres 18 with `uuidv7()` defaults (code-standards rule `prefer-uuidv7-default`); an older version with IDs generated in Python | Postgres 18, if Cloud SQL offers it. | M2.2, M2.3 |
 | O-19 | Migrations | a small runner over numbered SQL files; a migration tool | A small runner: no dependency, easy to explain. | M2.3 |
 | O-20 | Database tests | real Postgres (Docker locally, a service container in CI); fakes only | Real Postgres: upsert behaviour can only be tested against Postgres. Tests go through repository classes (`no-raw-connection-in-tests`). | M2.3 |
 | O-22 | Where rate-limit state lives | in memory per instance, with max instances capped; Postgres | In memory, with the trade-off written down. | M2.13 |
 | O-23 | Where the TTS cache lives (SayTech's is settled in D-58) | in the gateway's process; in the TTS service; Cloud Storage | Decided by measurement. | M3.7 |
 | O-24 | Audio for the test script | recorded by me; synthesised (Kokoro or macOS `say`) | Synthesised for repeatability, plus a few real recordings as a sanity check. | M3.3 |
 | O-25 | Frontend unit tests | Vitest for pure logic (timing maths, message parsing); none | Add Vitest only if the client grows real logic. | M3.2 |
+| O-29 | Cloud Run or a VM for the deployed services | stay on Cloud Run (D-22: scale to zero, managed HTTPS and WebSockets, keyless deploys, private TTS); a VM or a mix, for a faster always-warm CPU or a GPU for Kokoro | To discuss in detail with Ahmed (asked on 9 Oct): cold starts, CPU speed, the cost of keeping instances warm, GPU options, and what experiments 6 and 8 show. | a session before the review |
 | O-26 | Voice activity detection approach | a browser VAD library (new dependency); a simple energy threshold; server-side VAD | Decide in M4.5, once push-to-talk is solid. | M4.5 |
 
 ## Approved code-standards exceptions
