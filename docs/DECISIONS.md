@@ -1308,6 +1308,27 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   need); a separate visible state label on the orb (says the same thing twice); a
   toggle on the orb itself, such as double-tap to lock (hard to discover).
 
+### D-84 Earlier visits above the conversation, folded by age; replays light up in place
+
+- **Decision:** the visits from `onHistory` (D-92) sit above today's conversation, oldest
+  at the top, each a shadcn Collapsible headed by its start time in the visitor's own
+  time zone and its number of questions; the most recent earlier visit is open and older
+  ones are folded, and a "This visit" label marks where today begins. Earlier exchanges
+  are set a size quieter than today's. Each of Sarjy's earlier answers has a play button
+  that calls `replay(turnId)`; while it runs, the line under the orb says "Getting that
+  answer ready…" then "Sarjy is replaying an earlier answer", the answer's words light up
+  as they are spoken, and the orb and the other play buttons wait. The page sends a
+  replay's `onSpeak` clips to the answer being replayed, never to today's last turn, and
+  drops them when the visit is idle again. A returning visitor's empty conversation says
+  "Welcome back" instead of the three example questions (settled 9 Oct in M4.10, with
+  Ahmed).
+- **Reason:** the history explains why Sarjy remembers what it does, and folding older
+  visits keeps today's conversation in view on a phone. Reading the thread in time order
+  matches how today's turns are already laid out, newest at the bottom by the orb.
+- **Alternatives considered:** every visit open (a long scroll before today's); a separate
+  history panel or page (another place to look, against the one-screen layout of D-80);
+  newest earlier visit at the top (breaks the time order of the thread).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
