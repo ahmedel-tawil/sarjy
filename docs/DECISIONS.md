@@ -1413,6 +1413,28 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   5.5 through the gateway (needs its thinking blocks passed back between tool rounds, for
   a slower model).
 
+### D-97 A TTS cache in the gateway's memory (settles O-23)
+
+- **Decision:** the gateway keeps the audio of each spoken sentence in memory, keyed by
+  its text and voice, and reuses it when the same words are said again in the same
+  voice. The least recently used clips go first once it holds `SARJY_TTS_CACHE_BYTES`
+  (32 MB by default, about 11 minutes of speech; 0 turns it off). When the gateway
+  starts, it makes six common phrases in the default voice in the background. Every
+  lookup logs a hit or a miss with the running counts.
+- **Reason:** a hit skips both the hop to TTS and the synthesis, so a turn that opens
+  with a cached sentence starts speaking about 1.3 s sooner (experiment 3). Speed is
+  always the default, and every deploy starts a new gateway revision, so a cached clip
+  never outlives the TTS model that made it, and neither needs to be in the key.
+  A replay of an answer this gateway has just spoken finds its sentences already there
+  (by construction; not timed). 32 MB is a small share of the gateway's 512 MiB.
+- **Alternatives considered:** in the TTS service (still a network hop, and shared by
+  both gateway instances, but a TTS deploy would have to clear it); Cloud Storage
+  (survives deploys, but adds a bucket and a read of tens of milliseconds for a hit rate
+  this low);
+  warming more phrases (Claude rarely repeats a sentence word for word, so they would
+  mostly sit unused); warming on the first visit instead of at startup (would compete
+  with that visit's first turn for TTS).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
@@ -1420,7 +1442,6 @@ Settled rows move up as D entries and their IDs are not reused, so gaps are expe
 | ID | Open decision | Options | Proposal | Settled in |
 | --- | --- | --- | --- | --- |
 | O-16 | Turn-taking (PRD open question) | push-to-talk first; voice activity detection from the start | Push-to-talk first, as the PRD's architecture table says; VAD in M4.5. | settled unless you object |
-| O-23 | Where the TTS cache lives (SayTech's is settled in D-58) | in the gateway's process; in the TTS service; Cloud Storage | Decided by measurement. | M3.7 |
 | O-25 | Frontend unit tests | Vitest for pure logic (timing maths, message parsing); none | Add Vitest only if the client grows real logic. | M3.2 |
 | O-29 | Cloud Run or a VM for the deployed services | stay on Cloud Run (D-22: scale to zero, managed HTTPS and WebSockets, keyless deploys, private TTS); a VM or a mix, for a faster always-warm CPU or a GPU for Kokoro | To discuss in detail with Ahmed (asked on 9 Oct): cold starts, CPU speed, the cost of keeping instances warm, GPU options, and what experiments 6 and 8 show. | a session before the review |
 | O-26 | Voice activity detection approach | a browser VAD library (new dependency); a simple energy threshold; server-side VAD | Decide in M4.5, once push-to-talk is solid. | M4.5 |
