@@ -934,6 +934,7 @@ beyond the PRD.
 | M4.7 | Custom domain `sarjy.saytech.ae` | 1 h | M1.6 | no (cut list #2) |
 | M4.8 | Accessibility and motion pass | 1 h | M4.1 | no |
 | M4.9 | Voice picker | 1 h | M4.1, M1.11 | no |
+| M4.10 | Earlier visits and replay | 3 h | M2.4, M3.6 | no |
 
 ### M4.1 Visual identity and layout
 
@@ -1031,6 +1032,23 @@ Checked on 9 Oct in the in-app browser at 375 px with `?rehearse`: the list open
 Heart ticked, Bella stayed chosen across a turn, the picker waited while the turn ran, the
 saved fact did not appear in the memory count, and with no gateway the picker stayed
 hidden. A real reply in the new voice needs the gateway and TTS, so it was not heard here.
+
+### M4.10 Earlier visits and replay
+
+Added 9 Oct at Ahmed's request: a returning visitor sees their earlier visits and can hear
+Sarjy's answers again. Not in the PRD; "Forget me" stays facts only for now (D-92).
+
+- [x] When a visit starts, the gateway sends the user's last 3 visits that had a question,
+      newest first, with up to 10 exchanges each; never the current visit or another
+      user's.
+- [x] A `replay` message speaks a stored reply again in the current voice, sentence by
+      sentence, then `replay_done`; only the user's own turns, and it counts against the
+      turn limits. The page gets `onHistory(visits)` and `session.replay(turnId)`.
+- [ ] The page shows the earlier visits above the current conversation, with a replay
+      button on each of Sarjy's answers (UI session).
+
+Checked on 9 Oct against a local gateway with Claude: a second visit opened with the first
+visit's question and answer, and its replay came back as four sentence clips.
 
 ---
 

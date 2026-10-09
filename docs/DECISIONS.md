@@ -1265,6 +1265,25 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   not the provider's count); asking Groq for usage with `stream_options` (it already
   sends it under `x_groq`, and another provider might reject the option).
 
+### D-92 Earlier visits sent with the visit; replays re-synthesised
+
+- **Decision:** after the memory list, every visit gets a `history` message: the user's
+  last 3 visits that had a question, newest first, each with its last 10 exchanges
+  (transcript and reply). A `replay` message names one of the user's own turns; the
+  gateway re-synthesises its stored reply in the visit's current voice, sentence by
+  sentence through the normal `audio` messages, then sends `replay_done`. A replay counts
+  against the turn limits and sends no latency marks. "Forget me" still deletes facts
+  only (settled 9 Oct, at Ahmed's request, as M4.10).
+- **Reason:** returning visitors asked to see what was said before and hear it again. The
+  turns are already stored per session and user (D-66), so the history is one query.
+  Audio isn't stored, so replaying means synthesising again, which costs TTS time like a
+  turn, hence the limits. Every page load is a visit, so visits without a question are
+  skipped; checking the turn's owner in SQL keeps a page from replaying someone else's.
+- **Alternatives considered:** storing the reply audio (storage and cost for something
+  rarely replayed); an HTTP endpoint for the history (the visit's socket already knows the
+  user and opens with the page); deleting history with "Forget me" (Ahmed chose facts only
+  for now).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
