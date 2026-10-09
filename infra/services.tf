@@ -13,6 +13,15 @@ resource "google_cloud_run_v2_service" "gateway" {
     # A WebSocket session is one long request, so allow the 60-minute maximum.
     timeout = "3600s"
 
+    # Cloud Run's built-in Cloud SQL connection: a Unix socket under /cloudsql, through
+    # the Cloud SQL Auth Proxy, authorised by the gateway's identity (D-64).
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [google_sql_database_instance.main.connection_name]
+      }
+    }
+
     scaling {
       min_instance_count = 0
       max_instance_count = 2
@@ -20,6 +29,11 @@ resource "google_cloud_run_v2_service" "gateway" {
 
     containers {
       image = local.placeholder_image
+
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
 
       resources {
         limits = {
@@ -78,6 +92,17 @@ resource "google_cloud_run_v2_service" "gateway" {
         name  = "SARJY_LLM_PRIMARY"
         value = var.llm_primary
       }
+
+      # The database URL, password included, points at the socket above.
+      env {
+        name = "SARJY_DATABASE_URL"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.database_url.secret_id
+            version = "latest"
+          }
+        }
+      }
     }
   }
 
@@ -85,6 +110,8 @@ resource "google_cloud_run_v2_service" "gateway" {
   depends_on = [
     google_secret_manager_secret_iam_member.gateway_reads_groq_api_key,
     google_secret_manager_secret_iam_member.gateway_reads_anthropic_api_key,
+    google_secret_manager_secret_iam_member.gateway_reads_database_url,
+    google_project_iam_member.gateway_connects_to_sql,
   ]
 
   lifecycle {
