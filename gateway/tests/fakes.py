@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+import itertools
 from typing import TYPE_CHECKING
 import uuid
 
@@ -17,17 +18,19 @@ from sarjy_gateway.catalogue import (
     TourQuery,
     TourSearch,
 )
-from sarjy_gateway.conversation_store import StoredUser
+from sarjy_gateway.conversation_store import SessionId, StoredUser
 from sarjy_gateway.llm import ChatMessage, Finished, TextDelta, ToolSpec
+from sarjy_gateway.memory import Fact
 from sarjy_gateway.tts import Voices
 from sarjy_gateway.weather import DayForecast, Hour
 
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, AsyncIterator, Sequence
+    from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
     from datetime import date
 
     from sarjy_gateway.conversation_store import StoredTurn
+    from sarjy_gateway.identity import UserId
     from sarjy_gateway.llm import ChatEvent
     from sarjy_gateway.weather import Place
 
@@ -248,8 +251,13 @@ class FakeWeather:
 FIXED_PROMPT = "You are Sarjy. Today is Friday 9 October 2026."
 
 
+# Records the facts each turn's prompt was built with.
 class FakePrompt:
-    async def build(self) -> str:
+    def __init__(self) -> None:
+        self.facts_seen: list[dict[str, str]] = []
+
+    async def build(self, facts: Mapping[str, str]) -> str:
+        self.facts_seen.append(dict(facts))
         return FIXED_PROMPT
 
 
@@ -270,29 +278,51 @@ SOME_MOMENT = datetime(2026, 10, 9, 12, 0, tzinfo=UTC)
 class FakeConversationStore:
     def __init__(self, error: Exception | None = None) -> None:
         self.error = error
-        self.sessions: list[tuple[uuid.UUID, uuid.UUID]] = []
-        self.saved: dict[uuid.UUID, list[StoredTurn]] = {}
+        self.sessions: list[tuple[UserId, SessionId]] = []
+        self.saved: dict[SessionId, list[StoredTurn]] = {}
 
-    async def start_session(self, user_id: uuid.UUID) -> uuid.UUID:
+    async def start_session(self, user_id: UserId) -> SessionId:
         if self.error is not None:
             raise self.error
-        session_id = uuid.uuid7()
+        session_id = SessionId(uuid.uuid7())
         self.sessions.append((user_id, session_id))
         return session_id
 
-    async def save_turn(self, session_id: uuid.UUID, turn: StoredTurn) -> None:
+    async def save_turn(self, session_id: SessionId, turn: StoredTurn) -> None:
         if self.error is not None:
             raise self.error
         self.saved.setdefault(session_id, []).append(turn)
 
-    async def user(self, user_id: uuid.UUID) -> StoredUser | None:
+    async def user(self, user_id: UserId) -> StoredUser | None:
         if self.error is not None:
             raise self.error
         if all(known != user_id for known, _ in self.sessions):
             return None
         return StoredUser(id=user_id, created_at=SOME_MOMENT, last_seen_at=SOME_MOMENT)
 
-    async def turns(self, session_id: uuid.UUID) -> list[StoredTurn]:
+    async def turns(self, session_id: SessionId) -> list[StoredTurn]:
         if self.error is not None:
             raise self.error
         return self.saved.get(session_id, [])
+
+
+# Keeps facts per user in memory, or raises `error` as an unreachable database would.
+class FakeFactStore:
+    def __init__(self, facts: dict[UserId, dict[str, str]] | None = None, error: Exception | None = None) -> None:
+        self.saved = facts if facts is not None else {}
+        self.error = error
+
+    async def facts(self, user_id: UserId) -> list[Fact]:
+        if self.error is not None:
+            raise self.error
+        return list(itertools.starmap(Fact, sorted(self.saved.get(user_id, {}).items())))
+
+    async def remember(self, user_id: UserId, fact: Fact) -> None:
+        if self.error is not None:
+            raise self.error
+        self.saved.setdefault(user_id, {})[fact.key] = fact.value
+
+    async def forget(self, user_id: UserId, key: str) -> bool:
+        if self.error is not None:
+            raise self.error
+        return self.saved.get(user_id, {}).pop(key, None) is not None

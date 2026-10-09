@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NewType
 import uuid
 
 
@@ -15,14 +15,21 @@ COOKIE_MAX_AGE_SECONDS = 400 * 24 * 60 * 60
 
 type NextHandler = Callable[[Request], Awaitable[Response]]
 
+# A user's id, kept apart from session and turn ids by the type checker.
+UserId = NewType("UserId", uuid.UUID)
+
+
+def new_user_id() -> UserId:
+    return UserId(uuid.uuid7())
+
 
 # The cookie holds the user's id, nothing else. It is random enough to work like a session
 # token (D-66): knowing it is what makes a browser that user.
-def user_id_from(cookie: str | None) -> uuid.UUID | None:
+def user_id_from(cookie: str | None) -> UserId | None:
     if cookie is None:
         return None
     try:
-        return uuid.UUID(cookie)
+        return UserId(uuid.UUID(cookie))
     except ValueError:
         return None
 
@@ -35,7 +42,7 @@ def identity_cookie(*, secure: bool) -> Callable[[Request, NextHandler], Awaitab
         if user_id_from(request.cookies.get(COOKIE_NAME)) is None:
             response.set_cookie(
                 COOKIE_NAME,
-                str(uuid.uuid7()),
+                str(new_user_id()),
                 max_age=COOKIE_MAX_AGE_SECONDS,
                 httponly=True,
                 secure=secure,

@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from sarjy_gateway.conversation_store import StoredTurn
 from sarjy_gateway.database import DatabaseUnavailableError
 from sarjy_gateway.identity import COOKIE_NAME, user_id_from
+from sarjy_gateway.memory import ForgetFactTool, RememberFactTool
 from sarjy_gateway.messages import (
     AudioFollows,
     BrowserMarks,
@@ -27,7 +28,9 @@ from sarjy_gateway.turn_audio import TurnAudio
 
 
 if TYPE_CHECKING:
-    from sarjy_gateway.conversation_store import ConversationStore
+    from sarjy_gateway.conversation_store import ConversationStore, SessionId
+    from sarjy_gateway.identity import UserId
+    from sarjy_gateway.memory import FactStore
     from sarjy_gateway.tts import TextToSpeech
     from sarjy_gateway.turn import CompletedTurn, TurnPipeline
 
@@ -64,6 +67,7 @@ class VoiceRouter:
         pipeline: TurnPipeline,
         tts: TextToSpeech,
         store: ConversationStore,
+        facts: FactStore,
         *,
         max_turn_audio_bytes: int,
         max_history_turns: int,
@@ -71,6 +75,7 @@ class VoiceRouter:
         self._pipeline = pipeline
         self._tts = tts
         self._store = store
+        self._facts = facts
         self._max_turn_audio_bytes = max_turn_audio_bytes
         self._max_history_turns = max_history_turns
 
@@ -94,10 +99,15 @@ class VoiceRouter:
 
         return router
 
-    async def _serve(self, websocket: WebSocket, user_id: uuid.UUID) -> None:
+    async def _serve(self, websocket: WebSocket, user_id: UserId) -> None:
         audio = TurnAudio(self._max_turn_audio_bytes)
-        conversation = Conversation(max_turns=self._max_history_turns)
+        conversation = Conversation(max_turns=self._max_history_turns, user_id=user_id)
         conversation.session_id = await self._start_session(user_id)
+        conversation.facts = await self._load_facts(user_id)
+        conversation.tools = [
+            RememberFactTool(self._facts, conversation),
+            ForgetFactTool(self._facts, conversation),
+        ]
         listener = SocketListener(websocket)
         while True:
             message = await websocket.receive()
@@ -132,12 +142,21 @@ class VoiceRouter:
                 logger.info("turn %(turn_id)s played", {"turn_id": control.turn_id, "ttfa_ms": control.ttfa_ms})
 
     # Without the database the visit goes ahead unrecorded: voice matters more than history.
-    async def _start_session(self, user_id: uuid.UUID) -> uuid.UUID | None:
+    async def _start_session(self, user_id: UserId) -> SessionId | None:
         try:
             return await self._store.start_session(user_id)
         except DatabaseUnavailableError as error:
             logger.warning("session not stored: %(reason)s", {"reason": str(error)})
             return None
+
+    # Saved facts go into every prompt of the visit; without the database Sarjy starts the
+    # visit knowing nothing.
+    async def _load_facts(self, user_id: UserId) -> dict[str, str]:
+        try:
+            return {fact.key: fact.value for fact in await self._facts.facts(user_id)}
+        except DatabaseUnavailableError as error:
+            logger.warning("facts not loaded: %(reason)s", {"reason": str(error)})
+            return {}
 
     async def _set_voice(self, voice: str, conversation: Conversation, listener: SocketListener) -> None:
         try:
@@ -172,7 +191,7 @@ class VoiceRouter:
         if conversation.session_id is not None:
             await self._save(turn, conversation.session_id)
 
-    async def _save(self, turn: CompletedTurn, session_id: uuid.UUID) -> None:
+    async def _save(self, turn: CompletedTurn, session_id: SessionId) -> None:
         stored = StoredTurn(
             id=uuid.UUID(hex=turn.turn_id), transcript=turn.transcript, reply=turn.reply, tool_results=turn.tool_results
         )

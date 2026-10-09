@@ -28,6 +28,7 @@ from sarjy_gateway.llm import (
     MissingChatModel,
     OpenAiCompatibleChatModel,
 )
+from sarjy_gateway.memory import FactStore, MissingFactStore, PostgresFactStore
 from sarjy_gateway.stt import GroqSpeechToText, MissingSpeechToText, SpeechToText
 from sarjy_gateway.tts import (
     REQUEST_TIMEOUT_SECONDS,
@@ -56,6 +57,7 @@ class Services:
     weather: Weather
     database: Database
     conversations: ConversationStore
+    facts: FactStore
     http_client: httpx2.AsyncClient | None
     anthropic_client: anthropic.AsyncAnthropic | None
     # Opened and closed with the app, like the clients.
@@ -78,6 +80,7 @@ def build_services(settings: Settings) -> Services:
         weather=OpenMeteoWeather(client, settings.weather_url, settings.weather_timeout_seconds),
         database=MissingDatabase() if pool is None else PostgresDatabase(pool),
         conversations=MissingConversationStore() if pool is None else PostgresConversationStore(pool),
+        facts=MissingFactStore() if pool is None else PostgresFactStore(pool),
         http_client=client,
         anthropic_client=claude_client,
         database_pool=pool,
