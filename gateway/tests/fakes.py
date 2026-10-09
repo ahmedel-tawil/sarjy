@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 import itertools
 from typing import TYPE_CHECKING
 import uuid
@@ -29,7 +29,6 @@ from sarjy_gateway.weather import DayForecast, Hour
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
-    from datetime import date
 
     from sarjy_gateway.conversation_store import StoredTurn
     from sarjy_gateway.identity import UserId
@@ -136,6 +135,10 @@ class RecordingListener:
 
     async def transcript(self, turn_id: str, text: str) -> None:
         self.events.append(f"transcript {text}")
+        assert turn_id
+
+    async def activity(self, turn_id: str, text: str) -> None:
+        self.events.append(f"activity {text}")
         assert turn_id
 
     async def reply(self, turn_id: str, text: str, links: list[TourLink]) -> None:
@@ -254,7 +257,7 @@ class FakeWeather:
         )
 
 
-FIXED_PROMPT = Prompt(shared="You are Sarjy.", this_turn="Today is Friday 9 October 2026.")
+FIXED_PROMPT = Prompt(shared="You are Sarjy.", this_turn="Today is Friday 9 October 2026.", today=date(2026, 10, 9))
 
 
 # Records the facts each turn's prompt was built with.

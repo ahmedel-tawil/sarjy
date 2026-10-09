@@ -83,6 +83,21 @@ def test_marks_follow_the_turn_in_order_from_audio_received() -> None:
     assert list(turn.marks.values()) == sorted(turn.marks.values())
 
 
+# The prompt's date is 9 October, the day this call asks about (D-94).
+def test_each_tool_call_is_announced_before_the_answer() -> None:
+    llm = FakeChatModel(rounds=[[DUBAI_CALL], [TextDelta("It will be sunny.")]])
+    listener = RecordingListener()
+
+    asyncio.run(pipeline_with(llm, FakeWeatherTool()).run(b"clip", Conversation(max_turns=6), listener))
+
+    assert listener.events == [
+        "transcript What can we do in Abu Dhabi?",
+        "activity Checking today's weather in Dubai",
+        "reply It will be sunny.",
+        f"audio {len(b'RIFFIt will be sunny.')} bytes: It will be sunny.",
+    ]
+
+
 def test_the_llm_sees_the_system_prompt_recent_turns_and_the_new_question() -> None:
     llm = FakeChatModel()
     pipeline = pipeline_with(llm)

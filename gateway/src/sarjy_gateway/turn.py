@@ -5,6 +5,7 @@ import logging
 from typing import TYPE_CHECKING, Protocol
 import uuid
 
+from sarjy_gateway.activity import activity_of
 from sarjy_gateway.conversation_store import SessionId
 from sarjy_gateway.identity import UserId, new_user_id
 from sarjy_gateway.links import tour_links
@@ -45,6 +46,9 @@ MAX_TOOL_ROUNDS = 3
 
 class TurnListener(Protocol):
     async def transcript(self, turn_id: str, text: str) -> None: ...
+
+    # What Sarjy is doing while a tool runs, such as "Looking for tours in Dubai" (D-94).
+    async def activity(self, turn_id: str, text: str) -> None: ...
 
     # `links` are the pages of the tours the reply names (D-90).
     async def reply(self, turn_id: str, text: str, links: list[TourLink]) -> None: ...
@@ -228,7 +232,7 @@ class TurnPipeline:
         if self._sentence_streaming:
             answer = await self._answer_aloud(system, transcript, conversation, SpokenTurn(turn_id, conversation.voice, timeline), listener)
         else:
-            answer = await self._answer(system, transcript, conversation, timeline, turn_id)
+            answer = await self._answer(system, transcript, conversation, timeline, turn_id, listener=listener)
             timeline.mark("first_sentence_ready")
             await listener.reply(turn_id, answer.reply, tour_links(answer.reply, answer.tool_results))
             wav = await self._speak(answer.reply, conversation.voice, turn_id)
@@ -252,9 +256,16 @@ class TurnPipeline:
 
     # The baseline: the answer's words are spoken only once the model has finished.
     async def _answer(
-        self, system: Prompt, transcript: str, conversation: Conversation, timeline: Timeline, turn_id: str
+        self,
+        system: Prompt,
+        transcript: str,
+        conversation: Conversation,
+        timeline: Timeline,
+        turn_id: str,
+        *,
+        listener: TurnListener,
     ) -> Answer:
-        conversed = await self._converse(system, transcript, conversation, turn_id, None)
+        conversed = await self._converse(system, transcript, conversation, turn_id, listener=listener, speaker=None)
         return self._spoken(conversed.final, conversed.tool_results, timeline, turn_id)
 
     # Experiment 2: every sentence is spoken as soon as it is written, including any the
@@ -265,7 +276,9 @@ class TurnPipeline:
     ) -> Answer:
         speaker = SentenceSpeaker(self._tts, listener, turn)
         try:
-            conversed = await self._converse(system, transcript, conversation, turn.turn_id, speaker)
+            conversed = await self._converse(
+                system, transcript, conversation, turn.turn_id, listener=listener, speaker=speaker
+            )
             sentences = await speaker.finish()
         finally:
             await speaker.stop()
@@ -277,13 +290,16 @@ class TurnPipeline:
 
     # Asks the model, runs any tools it calls and asks again with their results, until it
     # answers in words. Only this turn's tool messages are sent; history keeps the replies.
-    # A speaker, when there is one, hears the text of every round as it streams.
+    # The listener hears what each tool call is about to do; a speaker, when there is one,
+    # hears the text of every round as it streams.
     async def _converse(
         self,
         system: Prompt,
         transcript: str,
         conversation: Conversation,
         turn_id: str,
+        *,
+        listener: TurnListener,
         speaker: SentenceSpeaker | None,
     ) -> Conversed:
         messages = [
@@ -302,6 +318,10 @@ class TurnPipeline:
                 speaker.round_ended()
             if not model_round.tool_calls:
                 return Conversed(model_round, tool_results)
+            for call in model_round.tool_calls:
+                activity = activity_of(call, system.today, tool_results)
+                if activity is not None:
+                    await listener.activity(turn_id, activity)
             results = await toolbox.run_all(model_round.tool_calls, turn_id)
             messages.append(ChatMessage(role="assistant", content=model_round.text, tool_calls=model_round.tool_calls))
             for call, result in zip(model_round.tool_calls, results, strict=True):

@@ -92,6 +92,13 @@ class Transcript(BaseModel):
     text: str
 
 
+# What Sarjy is doing while a tool runs, one per tool call, in order (D-94).
+class Activity(BaseModel):
+    type: Literal["activity"] = "activity"
+    turn_id: str
+    text: str
+
+
 # A tour the reply names, with its page on the Magic Experience website (D-90).
 class TourLink(BaseModel):
     name: str

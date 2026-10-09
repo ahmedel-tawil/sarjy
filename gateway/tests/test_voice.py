@@ -15,6 +15,7 @@ from sarjy_gateway.identity import COOKIE_NAME, UserId, new_user_id
 from sarjy_gateway.limits import MAX_KEYS, SlidingWindow, TurnLimits
 from sarjy_gateway.llm import TextDelta, ToolCallDelta
 from sarjy_gateway.messages import (
+    Activity,
     AudioFollows,
     History,
     Memory,
@@ -325,16 +326,18 @@ def test_a_visit_opens_with_the_users_facts_for_the_memory_panel() -> None:
     ]
 
 
-def test_a_fact_saved_mid_turn_reaches_the_page_before_the_reply() -> None:
+def test_a_fact_saved_mid_turn_is_announced_and_reaches_the_page_before_the_reply() -> None:
     save = ToolCallDelta(0, "call-1", "remember_fact", '{"key": "favourite_colour", "value": "green"}')
     llm = FakeChatModel(rounds=[[save], [TextDelta("Noted, green.")]])
     with visit(voice_client(llm=llm)) as socket:
         socket.send_bytes(b"clip")
         socket.send_text(TURN_END)
         Transcript.model_validate_json(socket.receive_text())
+        activity = Activity.model_validate_json(socket.receive_text())
         memory = Memory.model_validate_json(socket.receive_text())
         reply = Reply.model_validate_json(socket.receive_text())
 
+    assert activity.text == "Noting that down"
     assert memory.facts == [RememberedFact(key="favourite_colour", value="green")]
     assert reply.text == "Noted, green."
 

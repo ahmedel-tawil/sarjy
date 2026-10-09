@@ -19,6 +19,9 @@ export type Problem = 'connection_lost' | 'mic_unavailable' | 'playback_failed' 
 export type Connection = 'connecting' | 'offline' | 'online'
 
 export interface VoiceSessionCallbacks {
+  // What Sarjy is doing while a tool runs, such as "Looking for tours in Dubai" (D-94). With
+  // sentence streaming a short filler may already be playing when one arrives.
+  onActivity?: (text: string) => void
   onConnection?: (connection: Connection) => void
   // The user's last few visits with a question, newest first, when a visit starts (D-92).
   onHistory?: (visits: EarlierVisit[]) => void
@@ -269,6 +272,13 @@ export class VoiceSession implements AudioLevels, PushToTalk, Replayer, Visit, V
 
   #receive(message: ServerMessage): void {
     switch (message.type) {
+      case 'activity': {
+        // A turn that already failed or was cancelled is doing nothing any more.
+        if (this.#turn !== null) {
+          this.#callbacks.onActivity?.(message.text)
+        }
+        break
+      }
       case 'audio': {
         if (this.#turn !== null) {
           this.#turn.turnId = message['turn_id']

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import datetime
 import logging
 from typing import TYPE_CHECKING
 
@@ -7,7 +8,6 @@ from sarjy_gateway.catalogue import CatalogueQueryError, CatalogueUnavailableErr
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
-    from datetime import datetime
 
     from sarjy_gateway.catalogue import Catalogue, CatalogueContext
 
@@ -72,21 +72,24 @@ NO_CATALOGUE = "The tour catalogue is unavailable right now, so you know nothing
 # The system prompt in two parts (D-93). The shared part, the rules and SayTech's
 # catalogue, is the same for every traveller and every turn, so Claude can cache it; the
 # turn's part, the traveller's facts and the time, comes after it so it never spoils it.
+# `today` is the UAE date it gives the model, which the activity wording counts from (D-94).
 @dataclass(frozen=True)
 class Prompt:
     shared: str
     this_turn: str
+    today: datetime.date
 
 
 # The model has no clock: without today's date it guesses one from its training (it once
 # said it was April) and refuses or misplaces forecasts. The ISO form is what
 # get_weather takes.
-def system_prompt(now: datetime, context: CatalogueContext | None, facts: Mapping[str, str]) -> Prompt:
-    today = f"{now:%A} {now.day} {now:%B %Y} ({now:%Y-%m-%d})"
+def system_prompt(now: datetime.datetime, context: CatalogueContext | None, facts: Mapping[str, str]) -> Prompt:
+    day = f"{now:%A} {now.day} {now:%B %Y} ({now:%Y-%m-%d})"
     catalogue = NO_CATALOGUE if context is None else catalogue_section(context)
     return Prompt(
         shared=f"{SYSTEM_PROMPT}\n{catalogue}\n",
-        this_turn=f"{memory_section(facts)}\n\nToday is {today}, and the time in the UAE is {now:%H:%M}.\n",
+        this_turn=f"{memory_section(facts)}\n\nToday is {day}, and the time in the UAE is {now:%H:%M}.\n",
+        today=now.date(),
     )
 
 
@@ -120,7 +123,7 @@ def catalogue_section(context: CatalogueContext) -> str:
 # what Sarjy knows about the traveller, and today's date. A turn still goes ahead if the
 # context can't be had.
 class SystemPrompt:
-    def __init__(self, catalogue: Catalogue, now: Callable[[], datetime]) -> None:
+    def __init__(self, catalogue: Catalogue, now: Callable[[], datetime.datetime]) -> None:
         self._catalogue = catalogue
         self._now = now
 
