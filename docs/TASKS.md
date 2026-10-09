@@ -416,6 +416,7 @@ Goal: the four demo scenarios work on the deployed URL.
 | M2.13 | Public URL protection | 1.5 h | M2.4 | no |
 | M2.14 | Demo scenarios 1–4 on the deployed URL | 1 h | M2.7, M2.12, M2.13 | no |
 | M2.15 | Groq and Claude, switchable, each the other's fallback | 2 h | M1.8, a Claude key | no |
+| M2.16 | Image clean-up: deploy TTS only when it changes, keep the last images | 0.5 h | M1.10 | no |
 
 ### M2.1 SayTech API discovery
 
@@ -434,15 +435,19 @@ No code. The PRD makes this the first thing on day one, so it can fill any gap o
 
 ### M2.2 Postgres locally and on Cloud SQL
 
-- [ ] `docker compose up db` starts a local Postgres on the same major version as Cloud SQL
-      (O-18).
-- [ ] Terraform adds a Cloud SQL for PostgreSQL instance on the smallest tier, with deletion
-      protection, a database, a user, and the password in Secret Manager.
+- [x] `docker compose up db` starts a local Postgres on the same major version as Cloud SQL
+      (Postgres 18, D-64, settling O-18).
+- [x] Terraform adds a Cloud SQL for PostgreSQL instance on the smallest tier, with deletion
+      protection, a database, a user, and the password in Secret Manager. The user and the
+      `database-url` value are created by hand, so the password never passes through
+      Terraform.
 - [ ] On Cloud Run the gateway connects through the Cloud SQL socket, with a connection pool
-      opened at startup; a readiness check proves the connection.
-- [ ] `terraform apply` runs only after you approve the plan.
+      opened at startup; a readiness check proves the connection. Locally: `/ready` gave 200
+      against Postgres 18.6, 503 with the reason once Postgres stopped (while `/health`
+      stayed 200), and 200 again after a restart. On Cloud Run: checked after the deploy.
+- [x] `terraform apply` runs only after you approve the plan.
 
-New dependencies: psycopg (binary), psycopg-pool.
+New dependencies: psycopg (binary), psycopg-pool (approved).
 
 ### M2.3 Schema and migrations
 
@@ -629,6 +634,17 @@ second provider became Claude, with Ahmed's API credits (D-63).
 - [x] Checked with real keys: Claude alone answered scenarios 1 and 4 and the safari
       question correctly (first word after 2.7 to 3.5 s, against about 1.5 s on Groq);
       with a broken Groq key and Groq first, Claude took over every request.
+
+### M2.16 Image clean-up
+
+Added 9 Oct: the inventory showed 18 gateway images (1.0 GB) and 14 TTS images (5.9 GB),
+because every merge rebuilds and pushes a 420 MB TTS image even when TTS hasn't changed.
+
+- [ ] CI deploys TTS only when something TTS is built from changed (`tts/`, its
+      Dockerfile, the model file hashes); the gateway still deploys on every merge.
+- [ ] An Artifact Registry clean-up policy in Terraform keeps the last five versions of
+      each image and deletes older ones, so a recent rollback still finds its image.
+- [ ] `terraform apply` runs only after you approve the plan.
 
 ---
 
