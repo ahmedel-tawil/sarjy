@@ -18,7 +18,12 @@ export interface VoiceSessionCallbacks {
   // Everything Sarjy remembers about the user, in full each time it changes.
   onMemory: (facts: RememberedFact[]) => void
   onProblem: (problem: null | Problem) => void
+  // The whole reply, for the record: when its first clip plays, or as soon as it arrives
+  // if that clip is already playing; also when its voice never came.
   onReply: (text: string) => void
+  // Each clip as it starts playing, with the words it speaks and how long it lasts, so the
+  // page can show them as they are spoken: one clip per sentence when streaming (D-77).
+  onSpeak?: (text: string, durationMs: number) => void
   onStatus: (status: Status) => void
   onTranscript: (text: string) => void
   // Time to first audio: from the button release to the first sample of the reply.
@@ -37,18 +42,29 @@ export interface Visit {
   forgetMe(): void
 }
 
+// Live levels for the page to animate, each from 0 to 1 and cheap enough to read every
+// frame: the microphone while the button is held, and Sarjy's voice while it speaks.
+export interface AudioLevels {
+  inputLevel(): number
+  outputLevel(): number
+}
+
 // What the page knows about the turn waiting for its answer, filled in as the gateway's
 // messages arrive.
 interface TurnInFlight {
-  // Held until the audio starts, so the words and the voice appear together.
+  // The words of the clip whose binary frame comes next.
+  nextText: string
+  // Held until the first clip plays, so the words and the voice appear together.
   reply: null | string
   // performance.now() at the release that ended the turn.
   speechEnd: number
-  // The gateway names the turn in a JSON message just before its binary audio frame.
+  // Whether the first clip has started playing.
+  started: boolean
+  // The gateway names the turn in a JSON message just before each binary audio frame.
   turnId: null | string
 }
 
-export class VoiceSession implements PushToTalk, Visit {
+export class VoiceSession implements AudioLevels, PushToTalk, Visit {
   readonly #callbacks: VoiceSessionCallbacks
   readonly #player = new Player()
   readonly #recorder = new Recorder()
@@ -63,15 +79,18 @@ export class VoiceSession implements PushToTalk, Visit {
     this.#callbacks = callbacks
     this.#socket = new VoiceSocket(url, {
       onAudio: (audio) => {
-        this.#speak(audio).catch(() => {
-          this.#report('playback_failed')
-        })
+        this.#play(audio)
       },
       onClose: () => {
         // A phone that sleeps or a deploy closes an idle socket, and the next press opens a
-        // new one, so only a turn still waiting for its answer has lost anything.
+        // new one, so only a turn still waiting for its answer has lost anything; a reply
+        // already playing finishes what it has.
         if (this.#status === 'listening' || this.#status === 'thinking') {
           this.#report('connection_lost')
+        } else if (this.#status === 'speaking') {
+          this.#endTurnWhenPlayed().catch(() => {
+            this.#report('playback_failed')
+          })
         }
       },
       onMessage: (message) => {
@@ -87,6 +106,14 @@ export class VoiceSession implements PushToTalk, Visit {
   forgetMe(): void {
     this.#callbacks.onProblem(null)
     this.#socket.forgetMe()
+  }
+
+  inputLevel(): number {
+    return this.#recorder.level()
+  }
+
+  outputLevel(): number {
+    return this.#player.level()
   }
 
   press(): void {
@@ -105,11 +132,42 @@ export class VoiceSession implements PushToTalk, Visit {
     if (!this.#recorder.recording) {
       return
     }
-    this.#turn = { reply: null, speechEnd: performance.now(), turnId: null }
+    this.#turn = { nextText: '', reply: null, speechEnd: performance.now(), started: false, turnId: null }
     this.#setStatus('thinking')
     this.#endTurn().catch(() => {
       this.#report('connection_lost')
     })
+  }
+
+  // The first clip starts the reply: its moment is `playback_start`, and the held reply
+  // appears with it. Every clip then hands its words to the page.
+  #clipStarted(turn: TurnInFlight, text: string, durationMs: number): void {
+    if (!turn.started) {
+      turn.started = true
+      const playbackStart = performance.now()
+      this.#setStatus('speaking')
+      if (turn.reply !== null) {
+        this.#callbacks.onReply(turn.reply)
+      }
+      if (turn.turnId !== null) {
+        this.#socket.sendMarks(turn.turnId, turn.speechEnd, playbackStart)
+        this.#callbacks.onTtfa(playbackStart - turn.speechEnd)
+      }
+    }
+    this.#callbacks.onSpeak?.(text, durationMs)
+  }
+
+  // The gateway has sent every clip of the turn; it ends once the last one has played.
+  async #endTurnWhenPlayed(): Promise<void> {
+    const turn = this.#turn
+    if (turn === null) {
+      return
+    }
+    await this.#player.finished()
+    if (this.#turn === turn) {
+      this.#turn = null
+      this.#setStatus('idle')
+    }
   }
 
   async #endTurn(): Promise<void> {
@@ -122,11 +180,28 @@ export class VoiceSession implements PushToTalk, Visit {
     }
   }
 
+  #play(audio: ArrayBuffer): void {
+    const turn = this.#turn
+    // Audio for a turn that already failed has nothing left to say.
+    if (turn === null) {
+      return
+    }
+    const text = turn.nextText
+    this.#player
+      .enqueue(audio, (durationMs) => {
+        this.#clipStarted(turn, text, durationMs)
+      })
+      .catch(() => {
+        this.#report('playback_failed')
+      })
+  }
+
   #receive(message: ServerMessage): void {
     switch (message.type) {
       case 'audio': {
         if (this.#turn !== null) {
           this.#turn.turnId = message['turn_id']
+          this.#turn.nextText = message.text
         }
         break
       }
@@ -135,7 +210,11 @@ export class VoiceSession implements PushToTalk, Visit {
         break
       }
       case 'marks': {
-        // The latency waterfall (M3.2) draws these; the gateway already logs them.
+        // The last message of a turn: every clip has arrived. The latency waterfall (M3.2)
+        // draws the marks; the gateway already logs them.
+        this.#endTurnWhenPlayed().catch(() => {
+          this.#report('playback_failed')
+        })
         break
       }
       case 'memory': {
@@ -143,8 +222,12 @@ export class VoiceSession implements PushToTalk, Visit {
         break
       }
       case 'reply': {
-        if (this.#turn !== null) {
-          this.#turn.reply = message.text
+        const turn = this.#turn
+        if (turn !== null) {
+          turn.reply = message.text
+          if (turn.started) {
+            this.#callbacks.onReply(message.text)
+          }
         }
         break
       }
@@ -157,9 +240,9 @@ export class VoiceSession implements PushToTalk, Visit {
 
   #report(problem: Problem): void {
     // A reply whose voice never came is still worth reading.
-    const reply = this.#turn?.reply ?? null
-    if (reply !== null) {
-      this.#callbacks.onReply(reply)
+    const turn = this.#turn
+    if (turn !== null && !turn.started && turn.reply !== null) {
+      this.#callbacks.onReply(turn.reply)
     }
     this.#turn = null
     this.#setStatus('idle')
@@ -169,26 +252,6 @@ export class VoiceSession implements PushToTalk, Visit {
   #setStatus(status: Status): void {
     this.#status = status
     this.#callbacks.onStatus(status)
-  }
-
-  async #speak(audio: ArrayBuffer): Promise<void> {
-    await this.#player.play(audio, () => {
-      const playbackStart = performance.now()
-      const turn = this.#turn
-      this.#turn = null
-      this.#setStatus('speaking')
-      if (turn === null) {
-        return
-      }
-      if (turn.reply !== null) {
-        this.#callbacks.onReply(turn.reply)
-      }
-      if (turn.turnId !== null) {
-        this.#socket.sendMarks(turn.turnId, turn.speechEnd, playbackStart)
-        this.#callbacks.onTtfa(playbackStart - turn.speechEnd)
-      }
-    })
-    this.#setStatus('idle')
   }
 
   async #startRecording(): Promise<void> {

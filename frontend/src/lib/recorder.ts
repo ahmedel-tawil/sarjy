@@ -7,6 +7,8 @@ const MIME_TYPES = ['audio/webm;codecs=opus', 'audio/mp4'] as const
 const CHUNK_MS = 250
 
 export interface AudioRecorder {
+  // The microphone's level right now while recording, from 0 to 1; 0 otherwise.
+  level(): number
   prepare(context: AudioContext): Promise<void>
   readonly recording: boolean
   start(onChunk: (chunk: Blob) => void): void
@@ -27,6 +29,10 @@ export class Recorder implements AudioRecorder {
 
   get recording(): boolean {
     return this.#recorder !== null
+  }
+
+  level(): number {
+    return this.#recorder === null || this.#meter === null ? 0 : this.#meter.current()
   }
 
   // The first call shows the permission prompt; later turns reuse the stream. The meter
