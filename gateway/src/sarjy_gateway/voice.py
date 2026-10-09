@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 import uuid
@@ -93,6 +94,8 @@ class VoiceRouter:
         self._max_turn_audio_bytes = max_turn_audio_bytes
         self._max_history_turns = max_history_turns
         self._max_turns_per_visit = max_turns_per_visit
+        # Wake-up calls in flight; asyncio keeps only weak references to its tasks.
+        self._wake_ups: set[asyncio.Task[None]] = set()
 
     def build(self) -> APIRouter:
         router = APIRouter()
@@ -105,6 +108,7 @@ class VoiceRouter:
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                 return
             await websocket.accept()
+            self._wake_tts()
             peer = websocket.client.host if websocket.client is not None else None
             ip = client_ip(websocket.headers.get("x-forwarded-for"), peer)
             try:
@@ -162,6 +166,20 @@ class VoiceRouter:
                 logger.info("turn %(turn_id)s played", {"turn_id": control.turn_id, "ttfa_ms": control.ttfa_ms})
                 if conversation.session_id is not None:
                     await self._save_browser_marks(control, conversation.session_id)
+
+    # TTS scales to zero and needs about 6 s to start and load its model (M3.10). The page
+    # opens its socket as it loads, so asking TTS for its voices now starts an instance
+    # while the traveller reads and speaks, instead of during their first turn (D-78).
+    def _wake_tts(self) -> None:
+        task = asyncio.create_task(self._ask_tts_for_voices())
+        self._wake_ups.add(task)
+        task.add_done_callback(self._wake_ups.discard)
+
+    async def _ask_tts_for_voices(self) -> None:
+        try:
+            await self._tts.voices()
+        except TextToSpeechError as error:
+            logger.info("tts wake-up failed: %(reason)s", {"reason": str(error)})
 
     # Without the database the visit goes ahead unrecorded: voice matters more than history.
     async def _start_session(self, user_id: UserId) -> SessionId | None:
