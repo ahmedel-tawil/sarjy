@@ -45,11 +45,13 @@ class Settings(BaseSettings):
     # can point the LLM elsewhere while STT stays on Groq.
     llm_base_url: str = "https://api.groq.com/openai/v1"
     llm_api_key: SecretStr | None = None
-    # Fastest first word and the shortest spoken replies in the first comparison (D-52).
-    llm_model: str = "qwen/qwen3.8-27b"
+    # Claude's fallback, so being right matters more than its first word: the Groq model
+    # that called the right tools most often in experiment 4, where Qwen 3.8 made up a
+    # price and a forecast (D-96).
+    llm_model: str = "openai/gpt-oss-120b"
     # Reasoning models think before answering, which delays the first spoken word; the
     # allowed values depend on the model (gpt-oss: low/medium/high, Qwen 3.8: none and up).
-    llm_reasoning_effort: str | None = "none"
+    llm_reasoning_effort: str | None = "low"
     llm_temperature: float = Field(default=0.5, ge=0.0, le=2.0)
     # Spoken replies are short; this caps cost and runaway answers.
     llm_max_tokens: int = Field(default=300, gt=0)
