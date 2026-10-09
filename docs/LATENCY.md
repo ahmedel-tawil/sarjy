@@ -45,11 +45,40 @@ Percentiles use the nearest rank, so every reported number is one that was measu
 
 A labelled run is a JSON Lines file in `docs/latency/runs/`, one turn per line (`run`,
 `turn_id`, the gateway's marks and the client's), written by the experiment harness
-(M3.3). To summarise one or more runs:
+(D-74, D-75). To summarise one or more runs:
 
 ```bash
 uv run python gateway/scripts/latency.py docs/latency/runs/baseline.jsonl
 ```
+
+### The script and the harness
+
+The script is ten questions in `docs/latency/script/`: the four demo scenarios, the
+general "what can I do in Dubai?", a name, a weather-only question and a short "thanks",
+so tool turns and quick turns are both in every run. Each is a WAV spoken by Kokoro's
+`am_michael` voice, which makes every run hear exactly the same audio.
+
+The harness plays the whole script in one visit, as many times as asked, each visit with a
+fresh identity that forgets its facts at the end, and records the run:
+
+```bash
+uv run python gateway/scripts/harness.py https://gateway-fvbd3h4ngq-ww.a.run.app baseline 3
+```
+
+It stands in for the browser, with these differences:
+
+- **`speech_end`:** the harness streams each clip at the pace it was spoken, as the
+  browser does while the button is held, and marks `speech_end` when the clip ends,
+  just before `turn_end`. The browser marks it on release, when its recorder still has
+  one last chunk to hand over, so the browser's TTFA includes a little more upload.
+- **`playback_start`:** the harness takes the first byte of the reply's audio. The
+  browser starts playing after decoding the WAV and scheduling it, typically tens of
+  milliseconds later, so the harness's TTFA is slightly shorter.
+- **Audio format:** the script is WAV at 24 kHz, about 48 KB per second of speech; Chrome
+  sends WebM with Opus, roughly a tenth of that. The gateway uploads more to Groq, so
+  `stt` is slightly longer than a browser's.
+- **Network:** the harness runs from the same laptop and connection as a browser would,
+  and reports the gateway's own marks unchanged.
 
 ## Before the deep dive
 

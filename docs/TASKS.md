@@ -788,14 +788,20 @@ configuration (environment variables), not code branches.
 
 ### M3.3 Test script and experiment harness
 
-- [ ] A fixed script of about ten questions covers the four demo scenarios, stored as audio
-      files (O-24).
-- [ ] A Python command plays the script against a URL as a WebSocket client, N times, under
-      a run label.
-- [ ] The harness records its own client marks: `speech_end` when the last audio chunk is
+- [x] A fixed script of about ten questions covers the four demo scenarios, stored as audio
+      files (O-24): ten WAV clips in `docs/latency/script/`, spoken by Kokoro (D-75).
+- [x] A Python command plays the script against a URL as a WebSocket client, N times, under
+      a run label: `gateway/scripts/harness.py URL LABEL N`, one visit per
+      repetition with a fresh identity that forgets its facts at the end.
+- [x] The harness records its own client marks: `speech_end` when the last audio chunk is
       sent, and `playback_start` approximated by the first audio byte received.
-      `LATENCY.md` states how this differs from a real browser.
-- [ ] It prints the p50/p95 table from M3.1.
+      `LATENCY.md` states how this differs from a real browser. It streams each clip at
+      its spoken pace and sends `browser_marks`, so the gateway stores its turns too.
+- [x] It prints the p50/p95 table from M3.1. A one-pass trial on the deployed URL on 9 Oct
+      heard all ten questions correctly; the baseline itself is M3.4.
+
+New dependency: websockets, as a development dependency for the harness (approved; it was
+already installed through uvicorn).
 
 ### M3.4 Experiment 1: baseline
 
