@@ -820,15 +820,26 @@ was deleted on Ahmed's word and recorded again.
 
 ### M3.5 Sentence chunker and per-sentence pipeline
 
-- [ ] A sentence chunker splits streamed text into speakable sentences. Unit tests cover
+- [x] A sentence chunker splits streamed text into speakable sentences. Unit tests cover
       abbreviations, decimals, prices such as "AED 1,250.50", ellipses and very short
-      fragments.
-- [ ] A per-sentence step sits between the LLM and TTS, where the optional grounding check
-      would run later.
-- [ ] In `sentence` pipeline mode, each sentence goes to TTS as soon as it is complete, and
-      audio is sent in order.
-- [ ] `first_sentence_ready` now marks the first complete sentence.
-- [ ] Tests with fakes check ordering and marks.
+      fragments (`sentences.py`; fragments under 12 characters join the next sentence).
+- [x] A per-sentence step sits between the LLM and TTS, where the optional grounding check
+      would run later: `speakable()`, which today drops markdown and list markers.
+- [x] In `sentence` pipeline mode, each sentence goes to TTS as soon as it is complete, and
+      audio is sent in order: `SARJY_PIPELINE_MODE=sentence`, one sentence at a time, each
+      `audio` message carrying the words its clip speaks; the full reply follows last.
+      The default stays `baseline` until the page can queue clips (M3.6).
+- [x] `first_sentence_ready` now marks the first complete sentence, and `tts_first_byte`
+      that sentence's audio.
+- [x] Tests with fakes check ordering and marks, text before a tool call, a TTS failure
+      and an empty answer.
+
+Tried locally with Claude and a local TTS (D-76): every sentence written was spoken,
+including text written before a tool call, and once that text named tours before any
+search. A prompt rule now asks for tools first; after it, only short fillers such as
+"I'll check tomorrow's weather" came before a tool. The UI session asked for the sentence
+text on each `audio` message, which this adds; `onSpeak` and the audio levels come with
+the page's queue in M3.6.
 
 ### M3.6 Experiment 2: sentence streaming end to end
 

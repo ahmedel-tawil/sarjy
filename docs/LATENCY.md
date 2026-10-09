@@ -14,9 +14,9 @@ Every turn has a `turn_id` (a UUIDv7 in hex) and seven marks (D-04).
 | `speech_end` | browser | the user lets go of the talk button |
 | `audio_received` | gateway | the turn's audio is complete and the pipeline starts; the gateway's other marks count from it |
 | `stt_done` | gateway | the transcript is back |
-| `llm_first_token` | gateway | the first word of the spoken answer arrives, after any tool rounds (D-57) |
-| `first_sentence_ready` | gateway | the text TTS speaks first is ready; until sentence streaming (M3.5), the whole reply |
-| `tts_first_byte` | gateway | TTS has audio to send; until sentence streaming, the whole WAV |
+| `llm_first_token` | gateway | the first word that is spoken arrives: after any tool rounds (D-57), or in `sentence` mode a filler the model writes before a tool, which is spoken while the tool runs (D-76) |
+| `first_sentence_ready` | gateway | the text TTS speaks first is ready: in `baseline` mode the whole reply, in `sentence` mode the first complete sentence (D-76) |
+| `tts_first_byte` | gateway | TTS has audio to send: in `baseline` mode the whole WAV, in `sentence` mode the first sentence's |
 | `playback_start` | browser | the first sample of the reply plays |
 
 The gateway sends its five in the `marks` message and logs them on the turn's
