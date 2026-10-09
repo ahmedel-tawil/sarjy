@@ -1228,6 +1228,26 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   something the browser's own prompt already asks); retrying failed turns automatically
   (a second wait the traveller did not ask for).
 
+### D-82 The voice picker sits under the orb; the voice fact stays out of memory
+
+- **Decision:** a shadcn Select under the talk control lists the voices `GET /voices`
+  returns (D-90), named by the last part of Kokoro's id (af_heart is "Heart", am_adam is
+  "Adam"), preselected from the user's `voice` fact if TTS still offers it, else the
+  list's default. Choosing one shows at once and sends `set_voice`; the gateway applies it
+  to the next reply and saves it as the `voice` fact for the next visit, and a bad id
+  comes back as `unknown_voice`, which puts the picker back. The picker is disabled while
+  a turn runs and hidden when TTS cannot list its voices. "What Sarjy remembers" leaves the
+  `voice` fact out, and its count with it, since the picker already shows the choice
+  (settled 9 Oct in M4.9, with Ahmed).
+- **Reason:** the voice is a setting, not something Sarjy learned about the traveller, so
+  it belongs next to the control it changes; naming voices by their first names avoids
+  showing Kokoro's codes. Hiding the picker without a voice list is honest: Sarjy keeps
+  the voice it has.
+- **Alternatives considered:** the picker in the header beside the colour swatches (far
+  from the voice it changes); showing the voice as a fact in the memory panel too (said
+  twice); names with accents and genders ("Heart, American, female"), more than five
+  voices need.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
