@@ -1,6 +1,15 @@
 import type { VoiceCatalogue, VoiceList } from '@/clients/voices-client'
-import type { RememberedFact, TourLink } from '@/lib/protocol'
-import type { AudioLevels, Problem, PushToTalk, Status, Visit, VoicePicker, VoiceSessionCallbacks } from '@/lib/voice-session'
+import type { EarlierVisit, RememberedFact, TourLink } from '@/lib/protocol'
+import type {
+  AudioLevels,
+  Problem,
+  PushToTalk,
+  Replayer,
+  Status,
+  Visit,
+  VoicePicker,
+  VoiceSessionCallbacks,
+} from '@/lib/voice-session'
 
 // A stand-in for VoiceSession that plays scripted turns, so the screen's motion and its
 // problem states can be reviewed without a gateway or a microphone. Development only:
@@ -59,16 +68,36 @@ const SCRIPT: readonly ScriptedTurn[] = [
 // Kokoro's voices that the deployed TTS carries (D-49).
 const VOICES: VoiceList = { default: 'af_heart', voices: ['af_heart', 'af_bella', 'af_sarah', 'am_michael', 'am_adam'] }
 
+const HOUR_MS = 3_600_000
+
+// Two example earlier visits, newest first as the gateway sends them (D-92).
+function earlierVisits(): EarlierVisit[] {
+  return [
+    {
+      'started_at': hoursAgo(26),
+      turns: [
+        { reply: 'Here are two family picks in Abu Dhabi. Both are under 400 dirhams.', 'turn_id': 'earlier-1', transcript: 'What can we do in Abu Dhabi with kids?' },
+        { reply: 'Tomorrow will be warm, so the evening is the cooler choice.', 'turn_id': 'earlier-2', transcript: 'Is tomorrow good for a desert safari?' },
+      ],
+    },
+    {
+      'started_at': hoursAgo(75),
+      turns: [{ reply: 'The price for that tour is on request. I can share its page.', 'turn_id': 'earlier-3', transcript: 'How much is the buggy tour?' }],
+    },
+  ]
+}
+
 const HEARD_AFTER_MS = 900
 const RECONNECTS_AFTER_MS = 2000
 const SPEAKS_AFTER_MS = 2200
 // Roughly Kokoro's pace, so each scripted sentence lasts about as long as a real one.
 const MS_PER_WORD = 380
 
-export class RehearsalSession implements AudioLevels, PushToTalk, Visit, VoiceCatalogue, VoicePicker {
+export class RehearsalSession implements AudioLevels, PushToTalk, Replayer, Visit, VoiceCatalogue, VoicePicker {
   readonly #callbacks: VoiceSessionCallbacks
   #connected = false
   #facts: RememberedFact[] = []
+  readonly #history = earlierVisits()
   #status: Status = 'idle'
   #turn = 0
   readonly #withProblems: boolean
@@ -87,11 +116,26 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit, VoiceCa
     this.#callbacks.onConnection?.('connecting')
     this.#callbacks.onConnection?.('online')
     this.#callbacks.onMemory(this.#facts)
+    this.#callbacks.onHistory?.(this.#history)
   }
 
   forgetMe(): void {
     this.#facts = []
     this.#callbacks.onMemory(this.#facts)
+  }
+
+  // Speaks an earlier answer again, sentence by sentence, as the gateway does (D-92).
+  replay(turnId: string): void {
+    if (this.#status !== 'idle') {
+      return
+    }
+    const reply = this.#history.flatMap((visit) => visit.turns).find((turn) => turn['turn_id'] === turnId)?.reply
+    if (reply === undefined) {
+      this.#callbacks.onProblem('replay_failed')
+      return
+    }
+    this.#setStatus('thinking')
+    this.#speak(reply, HEARD_AFTER_MS)
   }
 
   list(): Promise<VoiceList> {
@@ -197,6 +241,24 @@ export class RehearsalSession implements AudioLevels, PushToTalk, Visit, VoiceCa
     return PROBLEM_SCRIPT[this.#turn % PROBLEM_SCRIPT.length]
   }
 
+  // One clip per sentence, back to back, as the gateway streams them (D-77), then idle.
+  #speak(text: string, startsAt: number): void {
+    window.setTimeout(() => {
+      this.#setStatus('speaking')
+    }, startsAt)
+    let at = startsAt
+    for (const sentence of sentencesOf(text)) {
+      const durationMs = sentence.split(' ').length * MS_PER_WORD
+      window.setTimeout(() => {
+        this.#callbacks.onSpeak?.(sentence, durationMs)
+      }, at)
+      at += durationMs
+    }
+    window.setTimeout(() => {
+      this.#setStatus('idle')
+    }, at)
+  }
+
   #setStatus(status: Status): void {
     this.#status = status
     this.#callbacks.onStatus(status)
@@ -212,4 +274,8 @@ function speechRhythm(time: number): number {
   const syllables = Math.max(0, Math.sin(time * 8.5)) ** 0.6
   const phrase = Math.sin(time * 0.8) > -0.7 ? 1 : 0.1
   return Math.min(1, syllables * (0.6 + 0.4 * Math.sin(time * 2.1 + 1.3)) * phrase)
+}
+
+function hoursAgo(hours: number): string {
+  return new Date(Date.now() - hours * HOUR_MS).toISOString()
 }
