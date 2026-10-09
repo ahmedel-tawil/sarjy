@@ -1329,6 +1329,27 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   history panel or page (another place to look, against the one-screen layout of D-80);
   newest earlier visit at the top (breaks the time order of the thread).
 
+### D-93 Claude caches the shared part of the prompt
+
+- **Decision:** the system prompt is two blocks. The shared part is the rules and
+  SayTech's catalogue, the same for every traveller and every turn. The turn's part, the
+  traveller's facts and the date and time, comes after it. The Claude adapter puts a
+  5-minute cache mark (`cache_control`) on the shared block, so Claude caches the tools
+  and the shared prompt together. `SARJY_CLAUDE_PROMPT_CACHE` (default true) turns it off
+  for measuring. Each round logs its fresh, cached and written input tokens. There is no
+  pre-warming and no second mark on the history.
+- **Reason:** M3.9 showed the system prompt, about 3,050 tokens with the tools, is most
+  of what every round reads. With the cache, every round after the first read those tokens
+  from it, across visitors, and a round's input bills about a third as much (experiment
+  9). The first word came no sooner, timed through the pipeline and directly, so caching
+  is a cost decision, not a latency one. That is also why there is no pre-warming: a
+  cold cache costs no time.
+- **Alternatives considered:** leaving the prompt whole (the date, time and facts at its
+  end would change the cached bytes every minute and for every traveller); a second mark
+  after the history (the facts and time would have to move after it, and the fresh part
+  is under 2,000 tokens a round); reading Groq's cache counts too (Claude is the primary
+  model, D-69).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.

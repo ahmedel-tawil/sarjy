@@ -235,7 +235,7 @@ Input tokens of the round after the tools, median per question:
 - **The prompt is what the model reads.** A turn with no tool reads about 3,550 input
   tokens, nearly all of it the system prompt with SayTech's catalogue context, and a tool
   turn reads it twice, about 7,000 to 9,000 in all. That is the next lever: caching the
-  prompt's stable part with Claude's prompt caching.
+  prompt's stable part with Claude's prompt caching (experiment 9).
 
 Lean stays the default: it never adds fields the model doesn't use, and a future change
 to SayTech's responses can't swell it.
@@ -271,6 +271,60 @@ Abu Dhabi, whose warm median is 4.7 s (experiment 2). One pass of the script eac
 
 The review week runs with one warm instance of each, set back to 0 afterwards; the
 wake-up stays as the safety net when nothing is warm.
+
+## Experiment 9: prompt caching
+
+Every round sends the tools and the system prompt again, about 3,050 tokens that are the
+same for every traveller and every turn (experiment 5). The prompt is now two system
+blocks: the shared part (rules and SayTech's catalogue) and the turn's part (the
+traveller's facts and the time). Claude caches the tools and the shared block for five
+minutes after each use (D-93). `SARJY_CLAUDE_PROMPT_CACHE=false` turns it off for the
+comparison. Measured on 9 Oct with the gateway and TTS on the laptop, Claude Haiku 5.5,
+two passes of the script each.
+
+| Gap | Cache off p50 | Cache on p50 | Cache off p95 | Cache on p95 |
+| --- | --- | --- | --- | --- |
+| `llm_first_word` | 1,060 ms | 1,105 ms | 2,654 ms | 2,981 ms |
+| `ttfa` | 2,912 ms | 3,560 ms | 4,695 ms | 5,892 ms |
+
+The runs are `cache-off-local.jsonl` and `cache-on-local.jsonl`. TTFA differs mostly in
+`tts` (783 against 1,114 ms p50), the laptop's CPU, which caching doesn't touch.
+
+To take STT, TTS and the tools out, the same request was sent to Claude 20 times each way,
+interleaved: the real prompt, tools and catalogue, and the script's "thanks", timed to the
+first word.
+
+| Same request, 20 each | p50 | p90 | Fastest | Slowest |
+| --- | --- | --- | --- | --- |
+| Cached (3,054 read from the cache, 137 fresh) | 869 ms | 1,175 ms | 716 ms | 1,670 ms |
+| Uncached (3,191 fresh) | 813 ms | 993 ms | 684 ms | 1,178 ms |
+
+| Input tokens, from Claude's usage | Cache off | Cache on |
+| --- | --- | --- |
+| Model rounds | 36 | 34 |
+| Read per round, on average | 3,926 | 3,931 |
+| Read fresh | 141,345 | 29,831 |
+| Read from the cache | 0 | 100,782 |
+| Written to the cache | 0 | 3,054 (the first round only) |
+| Billed per round, in full-price input tokens | 3,926 | 1,286 |
+
+- **The cache works for every visitor.** The first round wrote 3,054 tokens; every later
+  round read them, including the second pass's new identity with different facts,
+  because nothing about the traveller comes before the cache point.
+- **It doesn't make Sarjy answer sooner.** The first word came no sooner, in the voice
+  runs or the direct requests; the differences are within the noise and lean the other
+  way. At about 3,000 tokens, reading the prompt is a small part of Haiku's time to the
+  first word.
+- **It cuts the cost of what the model reads by two thirds.** Cache reads cost a tenth of
+  the input price and the one write 1.25 times, so a round bills 1,286 full-price tokens
+  instead of 3,926.
+- **The fresh part grows with the visit.** From 158 tokens on a first question to about
+  1,700 late in a visit: the recent turns and the tool results. Caching the history as well
+  would mean moving the facts and the time after it; at under 2,000 tokens it isn't worth
+  the change yet.
+
+Caching stays on, since it lowers the cost without slowing anything. No pre-warming,
+because a cold cache costs no time.
 
 ## Before the deep dive
 

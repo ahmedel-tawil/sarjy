@@ -762,6 +762,7 @@ configuration (environment variables), not code branches.
 | M3.10 | Experiment 6: warm vs cold | 1 h | M3.4 | no |
 | M3.11 | Experiment 7: region | 2 h | M3.4 | no |
 | M3.12 | Experiment 8 (stretch): Kokoro on GPU | 2 h | M3.4, GPU quota | no (cut list #3) |
+| M3.13 | Experiment 9: prompt caching | 1 h | M3.9 | no |
 
 ### M3.1 Store timings and summarise p50/p95
 
@@ -915,6 +916,18 @@ Needs API keys for each provider.
 
 - [ ] Runs only if GPU quota was granted (requested in M1.1).
 - [ ] TTS runs on a Cloud Run GPU; synthesis time, TTFA and cost are compared with CPU.
+
+### M3.13 Experiment 9: prompt caching
+
+Added on 9 Oct: M3.9 showed the system prompt is most of what the model reads.
+
+- [x] The system prompt is sent as a shared part (rules and catalogue), which Claude
+      caches with the tools, and the turn's part (facts and time) after it;
+      `SARJY_CLAUDE_PROMPT_CACHE=true|false` switches the cache mark (D-93).
+- [x] Each round logs the tokens read fresh, read from the cache and written to it.
+- [x] Cache on and off are compared in `LATENCY.md`: every round after the first read the
+      3,054 shared tokens from the cache, for every visitor; the first word came no
+      sooner, and a round's input bills about a third as much.
 
 ---
 
