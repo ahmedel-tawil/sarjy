@@ -535,7 +535,8 @@ showed after a reload, and Forget me asked first, emptied the panel and left no 
 Over the socket with Claude answering, "My favourite colour is green, and I don't like
 heights" pushed each fact before the reply. Groq's Qwen, though, said "I've noted that"
 without calling `remember_fact` in all 7 tries with the current prompt (two firmer
-wordings saved in 1 of 6), which the panel makes visible: see O-30.
+wordings saved in 1 of 6), which the panel makes visible, so Claude now answers first
+(D-69).
 
 No new dependencies: the shadcn alert dialog and card use radix-ui, already installed.
 
@@ -769,7 +770,8 @@ configuration (environment variables), not code branches.
 
 - [ ] Groq, Cerebras and Gemini, with at least two model sizes, are compared on first-token
       time using the same script.
-- [ ] Tool calls are checked for correctness, not just speed.
+- [ ] Tool calls are checked for correctness, not just speed, including saving a fact from
+      a casual remark such as scenario 2's, which Groq's Qwen misses (D-69).
 - [ ] The final provider and model are recorded in `DECISIONS.md` with the numbers.
 
 Needs API keys for each provider.
