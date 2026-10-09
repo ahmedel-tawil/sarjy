@@ -15,11 +15,12 @@ from sarjy_gateway.llm import (
 from sarjy_gateway.stt import RateLimitedError, SpeechToTextError
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox, ToolFailure
 from sarjy_gateway.tts import TextToSpeechError
-from sarjy_gateway.turn import MAX_TOOL_ROUNDS, CompletedTurn, Conversation, TurnError, TurnPipeline
+from sarjy_gateway.turn import MAX_TOOL_ROUNDS, CompletedTurn, Conversation, TurnError, TurnPipeline, already_heard
 
 from gateway.tests.fakes import (
     FIXED_PROMPT,
     FakeChatModel,
+    FakeFactTool,
     FakePrompt,
     FakeSpeechToText,
     FakeTextToSpeech,
@@ -32,6 +33,7 @@ from gateway.tests.fakes import (
 
 
 DUBAI_CALL = ToolCallDelta(0, "call-1", "get_weather", '{"city": "Dubai", "date": "2026-10-09"}')
+SAVE_NAME = ToolCallDelta(0, "call-1", "remember_fact", '{"key": "name", "value": "Ahmed"}')
 
 
 def pipeline_with(
@@ -39,11 +41,13 @@ def pipeline_with(
     tool: FakeWeatherTool | None = None,
     tts: FakeTextToSpeech | None = None,
     *,
+    fact_tool: FakeFactTool | None = None,
     sentence_streaming: bool = False,
 ) -> TurnPipeline:
     # The toolbox's own clock only times tools for the logs, so it is kept apart from the
     # pipeline's, whose readings the mark tests count.
-    toolbox = Toolbox([] if tool is None else [tool], TickingClock(), TOOL_TIMEOUT_SECONDS)
+    tools = [found for found in (tool, fact_tool) if found is not None]
+    toolbox = Toolbox(tools, TickingClock(), TOOL_TIMEOUT_SECONDS)
     return TurnPipeline(
         FakeSpeechToText(),
         llm,
@@ -96,6 +100,49 @@ def test_each_tool_call_is_announced_before_the_answer() -> None:
         "reply It will be sunny.",
         f"audio {len(b'RIFFIt will be sunny.')} bytes: It will be sunny.",
     ]
+
+
+# The chat of 10 Oct: Claude greeted, saved the name in the same round, and greeted again
+# when asked with the result (D-95).
+@pytest.mark.parametrize("sentence_streaming", [False, True], ids=["baseline", "sentence streaming"])
+def test_an_answer_written_while_saving_a_fact_is_the_whole_answer(sentence_streaming: bool) -> None:
+    llm = FakeChatModel(rounds=[[TextDelta("Hello Ahmed, lovely to meet you."), SAVE_NAME], [TextDelta("Hello again.")]])
+    fact_tool = FakeFactTool()
+    pipeline = pipeline_with(llm, fact_tool=fact_tool, sentence_streaming=sentence_streaming)
+
+    turn = asyncio.run(pipeline.run(b"clip", Conversation(max_turns=6), RecordingListener()))
+
+    assert turn.reply == "Hello Ahmed, lovely to meet you."
+    assert (len(llm.requests), len(fact_tool.calls)) == (1, 1)
+
+
+def test_a_fact_that_failed_to_save_goes_back_to_the_model() -> None:
+    llm = FakeChatModel(rounds=[[TextDelta("Noted, Ahmed."), SAVE_NAME], [TextDelta("Sorry, I couldn't save that.")]])
+    unavailable = ToolFailure(error="Memory is unavailable right now.").model_dump_json()
+
+    turn = run(pipeline_with(llm, fact_tool=FakeFactTool(result=unavailable)))
+
+    assert turn.reply == "Sorry, I couldn't save that."
+    assert len(llm.requests) == 2
+
+
+def test_words_spoken_before_a_tool_are_quoted_to_the_next_round() -> None:
+    llm = FakeChatModel(rounds=[[TextDelta("Let me check."), DUBAI_CALL], [TextDelta("It will be sunny.")]])
+
+    turn = run(pipeline_with(llm, FakeWeatherTool(), sentence_streaming=True))
+
+    assert llm.requests[1][-1] == already_heard("Let me check.")
+    assert turn.reply == "Let me check. It will be sunny."
+
+
+# Without sentence streaming only the last round's words are kept, so nothing was heard.
+def test_the_baseline_quotes_nothing_back() -> None:
+    llm = FakeChatModel(rounds=[[TextDelta("Let me check."), DUBAI_CALL], [TextDelta("It will be sunny.")]])
+
+    turn = run(pipeline_with(llm, FakeWeatherTool()))
+
+    assert llm.requests[1][-1].role == "tool"
+    assert turn.reply == "It will be sunny."
 
 
 def test_the_llm_sees_the_system_prompt_recent_turns_and_the_new_question() -> None:

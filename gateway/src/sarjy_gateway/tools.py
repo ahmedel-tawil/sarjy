@@ -87,6 +87,14 @@ def failure(message: str) -> str:
     return ToolFailure(error=message).model_dump_json()
 
 
+def failed(result: str) -> bool:
+    try:
+        ToolFailure.model_validate_json(result)
+    except ValidationError:
+        return False
+    return True
+
+
 # "date: Field required; city: Input should be a valid string", short enough for the model
 # to read and correct its next call.
 def describe(error: ValidationError) -> str:
