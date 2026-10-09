@@ -147,6 +147,59 @@ Set from these numbers, for the experiments that follow:
 | 5, tool payload size (M3.9) | `llm_first_word` on tool turns down by at least 10% |
 | 6, warm vs cold (M3.10) | the first turn after an idle period measured with no warm instance and with one, and its cost |
 
+## Experiment 2: sentence streaming
+
+One change against the baseline: `SARJY_PIPELINE_MODE=sentence` (D-76, D-77). Each
+sentence goes to TTS as soon as the model has written it, and the page plays the clips
+back to back. Everything else as in the baseline, including the prompt's new "tools
+first" rule, which came with this mode. Same script, three passes, from the laptop, 12:46
+to 12:53 UTC on 9 Oct, after a warm-up (TTS had scaled to zero; its first request took
+7.8 s). All 30 turns finished and every question was transcribed correctly. Run:
+`docs/latency/runs/sentence-streaming.jsonl`.
+
+| Gap | Baseline p50 | Sentence p50 | Baseline p95 | Sentence p95 |
+| --- | --- | --- | --- | --- |
+| `stt` | 731 ms | 742 ms | 897 ms | 913 ms |
+| `llm_first_word` | 2,276 ms | 1,010 ms | 3,570 ms | 2,789 ms |
+| `first_sentence` | 375 ms | 224 ms | 534 ms | 659 ms |
+| `tts` | 3,478 ms | 810 ms | 5,879 ms | 2,662 ms |
+| `server_total` | 7,287 ms | 3,119 ms | 10,116 ms | 6,102 ms |
+| `network_and_browser` | 496 ms | 230 ms | 970 ms | 625 ms |
+| **`ttfa`** | **7,894 ms** | **3,369 ms** | **10,674 ms** | **6,548 ms** |
+
+TTFA fell by 57% at p50 and 39% at p95. All three targets are met: `tts` p50 under 1.5 s,
+TTFA p50 under 5 s and p95 under 7 s.
+
+### Where the gain comes from
+
+Medians per question, before and after:
+
+| Question | TTFA | LLM to first word | TTS |
+| --- | --- | --- | --- |
+| 01 kids under 400 in Abu Dhabi | 9.8 → 4.7 s | 2.5 → 2.4 s | 5.2 → 1.1 s |
+| 02 colour and heights | 7.9 → 2.9 s | 2.7 → 1.0 s | 3.5 → 0.7 s |
+| 03 what's my colour (no tool) | 3.0 → 2.8 s | 1.0 → 1.0 s | 0.8 → 0.7 s |
+| 04 Dubai this weekend | 8.8 → 3.4 s | 2.3 → 1.1 s | 4.9 → 0.9 s |
+| 05 safari tomorrow | 10.4 → 3.6 s | 3.5 → 1.0 s | 4.3 → 1.0 s |
+| 06 buggy price | 6.4 → 3.2 s | 1.9 → 0.9 s | 2.8 → 1.0 s |
+| 07 what can I do in Dubai | 8.0 → 3.2 s | 1.8 → 1.1 s | 4.6 → 0.8 s |
+| 08 my name | 5.5 → 3.8 s | 2.3 → 2.2 s | 1.6 → 0.6 s |
+| 09 Abu Dhabi weather on Saturday | 9.0 → 5.6 s | 3.4 → 2.7 s | 4.1 → 1.5 s |
+| 10 thanks (no tool) | 4.0 → 2.8 s | 1.0 → 1.0 s | 1.5 → 0.6 s |
+
+- **Streaming TTS is the main gain.** TTS now covers one sentence, 0.6 to 1.5 s whatever
+  the reply's length, against 0.8 to 5.2 s for the whole reply. Questions 01, 08 and 09
+  kept their tool rounds before the first word (2.2 to 2.7 s) and still lost 1.7 to 5.1 s
+  of TTFA from this alone.
+- **Fillers before a tool add to it.** In questions 02 and 04 to 07, the first word now
+  comes after about a second, as with no tool at all: the model said a short sentence
+  such as "I'll check tomorrow's weather" before calling its tool, which plays while the
+  tool runs (D-76). For those, TTFA counts the filler, which is what the user hears
+  first; the answer itself starts about 1 to 2.5 s later, as the old tool rounds show.
+- **The wait is now spread out.** Shares of the mean TTFA (3.9 s): `llm_first_word` 37%,
+  `tts` 27%, `stt` 20%, `network_and_browser` 8%, `first_sentence` 8%. The model and its
+  tool rounds are now the largest part; experiments 4 and 5 address them.
+
 ## Before the deep dive
 
 Measured while building the voice loop, and kept as the earliest points.

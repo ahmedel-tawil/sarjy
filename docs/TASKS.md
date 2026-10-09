@@ -849,7 +849,10 @@ the page's queue in M3.6.
       reply's clips were scheduled at 9.173, 17.173 and 27.498 s for durations of 8.0,
       10.325 and 2.775 s, each well before its turn; the page went back to idle after the
       last. Sentence mode is now the default, and `pipeline_mode` in Terraform switches it.
-- [ ] Before/after numbers against the baseline are in `LATENCY.md`.
+- [x] Before/after numbers against the baseline are in `LATENCY.md`: TTFA p50 7.9 → 3.4 s
+      and p95 10.7 → 6.5 s over 30 turns on the deployed URL, with TTS 3.5 → 0.8 s; the
+      breakdown per question separates streaming TTS from the fillers spoken before a
+      tool.
 
 ### M3.7 Experiment 3: TTS cache
 
