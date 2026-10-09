@@ -1350,6 +1350,26 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   is under 2,000 tokens a round); reading Groq's cache counts too (Claude is the primary
   model, D-69).
 
+### D-94 Activity status from fixed templates, sent before each tool runs
+
+- **Decision:** when the model's tool calls are about to run, the gateway sends one
+  `{"type": "activity", "turn_id", "text"}` per call, in order. The words come from
+  fixed templates and the call's arguments, in `activity.py`: the search's city, the
+  tour's name when this turn's search returned it, the weather's day counted from the
+  date the prompt gave the model (today's, tomorrow's, a weekday within the week, else
+  the date), and fixed words for the memory tools. A call whose arguments don't parse,
+  or an unknown tool, has none. No latency mark is added.
+- **Reason:** the UI session asked, at Ahmed's request, for the line under the orb to
+  say what is really happening instead of "Thinking…" while tools run. The line is
+  aria-live, so it also tells screen-reader users. Templates are instant, can't
+  invent anything, and are tested; counting from the prompt's date keeps "tomorrow" the
+  model's tomorrow.
+- **Alternatives considered:** asking the model to narrate (slower, and its words could
+  promise what the tools then don't find); each tool describing itself (spreads the
+  wording over seven classes and their test fakes, and get_tour can't see this turn's
+  search); a `tool_start` mark (marks are one per turn, D-04, and each tool's time is
+  already logged).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.

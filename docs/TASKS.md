@@ -948,6 +948,7 @@ beyond the PRD.
 | M4.8 | Accessibility and motion pass | 1 h | M4.1 | no |
 | M4.9 | Voice picker | 1 h | M4.1, M1.11 | no |
 | M4.10 | Earlier visits and replay | 3 h | M2.4, M3.6 | no |
+| M4.11 | Live activity status | 1.5 h | M2.5, M4.2 | no |
 
 ### M4.1 Visual identity and layout
 
@@ -1077,6 +1078,19 @@ Sarjy's answers again. Not in the PRD; "Forget me" stays facts only for now (D-9
 
 Checked on 9 Oct against a local gateway with Claude: a second visit opened with the first
 visit's question and answer, and its replay came back as four sentence clips.
+
+### M4.11 Live activity status
+
+Added 10 Oct at Ahmed's request, proposed by the UI session: the line under the orb says
+what Sarjy is really doing during a turn, and, being aria-live, tells screen readers too.
+
+- [x] Before a round's tools run, the gateway sends one `activity` message per call, in
+      order, worded from fixed templates and the call's arguments, never by the model:
+      "Looking for tours in Abu Dhabi", "Reading about Buggy Dune Bashing", "Checking
+      tomorrow's weather in Dubai", "Noting that down", "Forgetting that" (D-94).
+- [x] The page gets `onActivity(text)`; no latency mark is added.
+- [ ] The line under the orb shows the latest activity until Sarjy speaks or the turn ends
+      (UI session).
 
 ---
 
