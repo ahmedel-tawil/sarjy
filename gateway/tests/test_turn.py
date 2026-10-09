@@ -289,3 +289,17 @@ def test_streaming_without_any_words_is_a_failed_answer() -> None:
         run(pipeline_with(FakeChatModel(deltas=("  ",)), sentence_streaming=True))
 
     assert failure.value.code == "llm_failed"
+
+
+def test_a_reply_carries_the_links_of_the_tours_it_names() -> None:
+    found = (
+        '{"tours": [{"name": "Louvre Abu Dhabi Ticket", "type": "ticket", "slug": "louvre", '
+        '"price": "from AED 70", "accessible": false, "link": "https://me.example/louvre"}], "total": 1}'
+    )
+    tool = FakeWeatherTool(result=found)
+    llm = FakeChatModel(rounds=[[DUBAI_CALL], [TextDelta("Visit the Louvre, from 70 dirhams.")]])
+    listener = RecordingListener()
+
+    asyncio.run(pipeline_with(llm, tool, sentence_streaming=True).run(b"clip", Conversation(max_turns=6), listener))
+
+    assert [(link.name, link.url) for link in listener.links] == [("Louvre Abu Dhabi Ticket", "https://me.example/louvre")]

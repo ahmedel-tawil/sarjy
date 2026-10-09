@@ -21,6 +21,7 @@ from sarjy_gateway.catalogue import (
 from sarjy_gateway.conversation_store import SessionId, StoredUser, TurnId
 from sarjy_gateway.llm import ChatMessage, Finished, TextDelta, ToolSpec
 from sarjy_gateway.memory import Fact
+from sarjy_gateway.messages import TourLink
 from sarjy_gateway.tts import Voices
 from sarjy_gateway.weather import DayForecast, Hour
 
@@ -130,13 +131,15 @@ class FakeTextToSpeech:
 @dataclass
 class RecordingListener:
     events: list[str] = field(default_factory=list[str])
+    links: list[TourLink] = field(default_factory=list[TourLink])
 
     async def transcript(self, turn_id: str, text: str) -> None:
         self.events.append(f"transcript {text}")
         assert turn_id
 
-    async def reply(self, turn_id: str, text: str) -> None:
+    async def reply(self, turn_id: str, text: str, links: list[TourLink]) -> None:
         self.events.append(f"reply {text}")
+        self.links += links
         assert turn_id
 
     async def audio(self, turn_id: str, text: str, wav: bytes) -> None:

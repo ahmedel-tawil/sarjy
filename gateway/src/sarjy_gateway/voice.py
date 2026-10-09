@@ -10,7 +10,7 @@ from sarjy_gateway.conversation_store import StoredTurn, TurnId
 from sarjy_gateway.database import DatabaseUnavailableError
 from sarjy_gateway.identity import COOKIE_NAME, user_id_from
 from sarjy_gateway.limits import client_ip
-from sarjy_gateway.memory import ForgetFactTool, RememberFactTool
+from sarjy_gateway.memory import Fact, ForgetFactTool, RememberFactTool
 from sarjy_gateway.messages import (
     AudioFollows,
     BrowserMarks,
@@ -39,11 +39,15 @@ if TYPE_CHECKING:
     from sarjy_gateway.identity import UserId
     from sarjy_gateway.limits import TurnLimits
     from sarjy_gateway.memory import FactStore
+    from sarjy_gateway.messages import TourLink
     from sarjy_gateway.tts import TextToSpeech
     from sarjy_gateway.turn import CompletedTurn, TurnPipeline
 
 
 logger = logging.getLogger(__name__)
+
+# The fact that keeps the voice a user picked, so their next visit speaks with it (M4.9).
+VOICE_FACT = "voice"
 
 
 # Sends each part of a turn to the browser as soon as the pipeline has it.
@@ -54,8 +58,8 @@ class SocketListener:
     async def transcript(self, turn_id: str, text: str) -> None:
         await self._websocket.send_text(Transcript(turn_id=turn_id, text=text).model_dump_json())
 
-    async def reply(self, turn_id: str, text: str) -> None:
-        await self._websocket.send_text(Reply(turn_id=turn_id, text=text).model_dump_json())
+    async def reply(self, turn_id: str, text: str, links: list[TourLink]) -> None:
+        await self._websocket.send_text(Reply(turn_id=turn_id, text=text, links=links).model_dump_json())
 
     async def audio(self, turn_id: str, text: str, wav: bytes) -> None:
         # A binary frame cannot carry the turn id, so a small JSON message announces it.
@@ -125,6 +129,7 @@ class VoiceRouter:
         conversation = Conversation(max_turns=self._max_history_turns, user_id=user_id, client_ip=ip)
         conversation.session_id = await self._start_session(user_id)
         conversation.facts = await self._load_facts(user_id)
+        conversation.voice = conversation.facts.get(VOICE_FACT)
         listener = SocketListener(websocket)
         conversation.tools = [
             RememberFactTool(self._facts, conversation, listener),
@@ -219,6 +224,17 @@ class VoiceRouter:
             await listener.error("unknown_voice")
             return
         conversation.voice = voice
+        await self._remember_voice(voice, conversation, listener)
+
+    # Without the database the voice still changes for this visit, just not the next.
+    async def _remember_voice(self, voice: str, conversation: Conversation, listener: SocketListener) -> None:
+        try:
+            await self._facts.remember(conversation.user_id, Fact(VOICE_FACT, voice))
+        except DatabaseUnavailableError as error:
+            logger.warning("voice not remembered: %(reason)s", {"reason": str(error)})
+            return
+        conversation.facts[VOICE_FACT] = voice
+        await listener.memory(conversation.facts)
 
     async def _end_turn(self, audio: TurnAudio, conversation: Conversation, listener: SocketListener) -> None:
         too_long = audio.too_long
