@@ -210,15 +210,24 @@
     background-color: var(--primary);
 }
 
+/* A word of Sarjy's reply waits for its moment in the audio (--word-at), appears in the
+   accent colour, and settles into ink over about the time it takes to say (--word-ms). */
 @keyframes spoken-word {
-    from {
+    0% {
         opacity: 0;
         filter: blur(3px);
+        color: var(--primary);
+    }
+
+    20% {
+        opacity: 1;
+        filter: none;
+        color: var(--primary);
     }
 }
 
 @utility spoken-word {
-    animation: spoken-word 240ms ease-out both;
+    animation: spoken-word var(--word-ms, 240ms) ease-out var(--word-at, 0ms) backwards;
 }
 
 /* A new exchange rises from the orb's side of the screen into the conversation. */

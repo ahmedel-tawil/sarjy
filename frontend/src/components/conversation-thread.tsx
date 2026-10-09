@@ -1,32 +1,27 @@
 import { useEffect, useRef } from 'react'
 
-import { SpokenWords } from '@/components/spoken-words'
+import { type SpokenClip, SpokenWords } from '@/components/spoken-words'
 
 export interface Turn {
+  // Sarjy's voice, clip by clip, as each one started playing.
+  clips: SpokenClip[]
   heard: string
   id: number
+  // The whole reply, shown as text only if its voice never played.
   reply: null | string
   ttfaMs: null | number
 }
 
-interface ConversationThreadProps {
-  // True while Sarjy speaks the newest turn's reply.
-  speaking: boolean
-  turns: Turn[]
-}
-
 // The visit's conversation, set like a script: who speaks, then their words. Newest at
 // the bottom, next to the orb the words come from.
-export function ConversationThread({ speaking, turns }: ConversationThreadProps) {
+export function ConversationThread({ turns }: { turns: Turn[] }) {
   const endRef = useRef<HTMLDivElement>(null)
   const last = turns.at(-1)
-  // Only the newest reply can be the one being spoken.
-  const speakingId = speaking ? last?.id : undefined
 
   // Keep the newest words in view as they appear.
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: 'end' })
-  }, [turns.length, last?.reply, speaking])
+  }, [turns.length, last?.clips.length, last?.reply])
 
   if (turns.length === 0) {
     return (
@@ -40,23 +35,27 @@ export function ConversationThread({ speaking, turns }: ConversationThreadProps)
   return (
     <>
       <ol aria-label="Conversation" className="flex flex-col gap-8 pb-6">
-      {turns.map((turn) => (
-        <li className="turn-in flex flex-col gap-3" key={turn.id}>
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-muted-foreground">You</span>
-            <p className="text-muted-foreground">{turn.heard}</p>
-          </div>
-          {turn.reply !== null && (
+        {turns.map((turn) => (
+          <li className="turn-in flex flex-col gap-3" key={turn.id}>
             <div className="flex flex-col gap-1">
-              <span className="text-xs font-medium text-primary">Sarjy</span>
-              <SpokenWords speaking={turn.id === speakingId} text={turn.reply} />
-              {turn.ttfaMs !== null && (
-                <span className="text-xs text-muted-foreground tabular-nums">First audio after {(turn.ttfaMs / 1000).toFixed(1)} s</span>
-              )}
+              <span className="text-xs font-medium text-muted-foreground">You</span>
+              <p className="text-muted-foreground">{turn.heard}</p>
             </div>
-          )}
-        </li>
-      ))}
+            {turn.clips.length > 0 || turn.reply !== null ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-primary">Sarjy</span>
+                {turn.clips.length > 0 ? (
+                  <SpokenWords clips={turn.clips} />
+                ) : (
+                  <p className="text-lg/relaxed text-pretty md:text-xl/relaxed">{turn.reply}</p>
+                )}
+                {turn.ttfaMs === null ? null : (
+                  <span className="text-xs text-muted-foreground tabular-nums">First audio after {(turn.ttfaMs / 1000).toFixed(1)} s</span>
+                )}
+              </div>
+            ) : null}
+          </li>
+        ))}
       </ol>
       <div ref={endRef} />
     </>

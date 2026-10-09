@@ -1,6 +1,5 @@
-import { speechRhythm } from '@/components/orb-renderer'
 import type { RememberedFact } from '@/lib/protocol'
-import type { PushToTalk, Visit, VoiceSessionCallbacks } from '@/lib/voice-session'
+import type { AudioLevels, PushToTalk, Status, Visit, VoiceSessionCallbacks } from '@/lib/voice-session'
 
 // A stand-in for VoiceSession that plays scripted turns, so the screen's motion can
 // be reviewed without a gateway or a microphone. Development only, opened with ?rehearse;
@@ -32,19 +31,15 @@ const SCRIPT: readonly ScriptedTurn[] = [
   },
 ]
 
-// Stands in for the microphone, so the dunes ripple during a rehearsed question.
-export function rehearsedMicLevel(): number {
-  return speechRhythm(performance.now() / 1000)
-}
-
 const HEARD_AFTER_MS = 900
 const SPEAKS_AFTER_MS = 2200
-const MS_PER_WORD = 260
+// Roughly Kokoro's pace, so each scripted sentence lasts about as long as a real one.
+const MS_PER_WORD = 380
 
-export class RehearsalSession implements PushToTalk, Visit {
+export class RehearsalSession implements AudioLevels, PushToTalk, Visit {
   readonly #callbacks: VoiceSessionCallbacks
   #facts: RememberedFact[] = []
-  #listening = false
+  #status: Status = 'idle'
   #turn = 0
 
   constructor(callbacks: VoiceSessionCallbacks) {
@@ -60,20 +55,27 @@ export class RehearsalSession implements PushToTalk, Visit {
     this.#callbacks.onMemory(this.#facts)
   }
 
+  // With no microphone or voice, both levels follow a speech-like rhythm while they apply.
+  inputLevel(): number {
+    return this.#status === 'listening' ? speechRhythm(performance.now() / 1000) : 0
+  }
+
+  outputLevel(): number {
+    return this.#status === 'speaking' ? speechRhythm(performance.now() / 1000) : 0
+  }
+
   press(): void {
-    this.#listening = true
     this.#callbacks.onProblem(null)
-    this.#callbacks.onStatus('listening')
+    this.#setStatus('listening')
   }
 
   release(): void {
-    if (!this.#listening) {
+    if (this.#status !== 'listening') {
       return
     }
-    this.#listening = false
     const turn = SCRIPT[this.#turn % SCRIPT.length]
     this.#turn += 1
-    this.#callbacks.onStatus('thinking')
+    this.#setStatus('thinking')
     window.setTimeout(() => {
       this.#callbacks.onTranscript(turn.question)
       if (turn.fact !== undefined) {
@@ -82,15 +84,37 @@ export class RehearsalSession implements PushToTalk, Visit {
       }
     }, HEARD_AFTER_MS)
     window.setTimeout(() => {
-      this.#callbacks.onStatus('speaking')
+      this.#setStatus('speaking')
       this.#callbacks.onReply(turn.reply)
       this.#callbacks.onTtfa(SPEAKS_AFTER_MS)
     }, SPEAKS_AFTER_MS)
-    window.setTimeout(
-      () => {
-        this.#callbacks.onStatus('idle')
-      },
-      SPEAKS_AFTER_MS + turn.reply.split(' ').length * MS_PER_WORD,
-    )
+    // One clip per sentence, back to back, as the gateway streams them (D-77).
+    let startsAt = SPEAKS_AFTER_MS
+    for (const sentence of sentencesOf(turn.reply)) {
+      const durationMs = sentence.split(' ').length * MS_PER_WORD
+      window.setTimeout(() => {
+        this.#callbacks.onSpeak?.(sentence, durationMs)
+      }, startsAt)
+      startsAt += durationMs
+    }
+    window.setTimeout(() => {
+      this.#setStatus('idle')
+    }, startsAt)
   }
+
+  #setStatus(status: Status): void {
+    this.#status = status
+    this.#callbacks.onStatus(status)
+  }
+}
+
+function sentencesOf(text: string): string[] {
+  return text.match(/[^.!?]+[.!?]+/g)?.map((sentence) => sentence.trim()) ?? [text]
+}
+
+// Syllable-like bursts with short pauses, between 0 and 1.
+function speechRhythm(time: number): number {
+  const syllables = Math.max(0, Math.sin(time * 8.5)) ** 0.6
+  const phrase = Math.sin(time * 0.8) > -0.7 ? 1 : 0.1
+  return Math.min(1, syllables * (0.6 + 0.4 * Math.sin(time * 2.1 + 1.3)) * phrase)
 }

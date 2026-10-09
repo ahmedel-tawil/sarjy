@@ -6,13 +6,13 @@ import { LatencyPanel } from '@/components/latency-panel'
 import { MemoryPanel } from '@/components/memory-panel'
 import type { OrbPhase } from '@/components/orb-renderer'
 import { applyPalette, initialPalette, type Palette, PaletteSwitcher } from '@/components/palette-switcher'
-import { RehearsalSession, rehearsedMicLevel } from '@/components/rehearsal-session'
+import { RehearsalSession } from '@/components/rehearsal-session'
 import { SarjyMark } from '@/components/sarjy-mark'
 import { TalkOrb } from '@/components/talk-orb'
 import { Button } from '@/components/ui/button'
-import { useMicLevel } from '@/components/use-mic-level'
 import type { RememberedFact } from '@/lib/protocol'
 import {
+  type AudioLevels,
   type Problem,
   type PushToTalk,
   type Status,
@@ -67,13 +67,11 @@ function App() {
   const [welcoming, setWelcoming] = useState(welcomed)
   const [orbRevealed, setOrbRevealed] = useState(!welcomed)
   const orbRef = useRef<HTMLButtonElement>(null)
-  const liveMicLevel = useMicLevel(status === 'listening' && !REHEARSE)
-  const micLevel = REHEARSE ? rehearsedMicLevel : liveMicLevel
 
-  const [session] = useState<PushToTalk & Visit>(() => {
+  const [session] = useState<AudioLevels & PushToTalk & Visit>(() => {
     // Each change lands on the newest turn, the one being answered.
-    const updateLast = (change: Partial<Turn>): void => {
-      setTurns((all) => all.map((turn, index) => (index === all.length - 1 ? { ...turn, ...change } : turn)))
+    const updateLast = (change: (turn: Turn) => Partial<Turn>): void => {
+      setTurns((all) => all.map((turn, index) => (index === all.length - 1 ? { ...turn, ...change(turn) } : turn)))
     }
     const callbacks: VoiceSessionCallbacks = {
       onMemory: setFacts,
@@ -84,7 +82,10 @@ function App() {
         }
       },
       onReply: (reply) => {
-        updateLast({ reply })
+        updateLast(() => ({ reply }))
+      },
+      onSpeak: (text, durationMs) => {
+        updateLast((turn) => ({ clips: [...turn.clips, { durationMs, text }] }))
       },
       onStatus: (next) => {
         if (next === 'thinking') {
@@ -94,10 +95,10 @@ function App() {
       },
       onTranscript: (heard) => {
         setWaitingForWords(false)
-        setTurns((all) => [...all, { heard, id: all.length, reply: null, ttfaMs: null }])
+        setTurns((all) => [...all, { clips: [], heard, id: all.length, reply: null, ttfaMs: null }])
       },
       onTtfa: (ttfaMs) => {
-        updateLast({ ttfaMs })
+        updateLast(() => ({ ttfaMs }))
       },
     }
     return REHEARSE ? new RehearsalSession(callbacks) : new VoiceSession(SOCKET_URL, callbacks)
@@ -188,14 +189,14 @@ function App() {
           ) : null}
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-6">
             <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-end">
-              <ConversationThread speaking={status === 'speaking'} turns={turns} />
+              <ConversationThread turns={turns} />
             </div>
           </div>
           <div className="pb-safe flex flex-col items-center gap-1 pt-2">
             <TalkOrb
               animateIn={welcomed}
               disabled={status === 'thinking' || status === 'speaking'}
-              micLevel={micLevel}
+              levels={session}
               onPress={() => {
                 session.press()
               }}
