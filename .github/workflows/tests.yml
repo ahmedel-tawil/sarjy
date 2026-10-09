@@ -23,7 +23,9 @@ jobs:
     # The password only guards this throwaway container.
     services:
       postgres:
-        image: postgres:18
+        # Docker Hub's official image through Google's mirror: on 9 Oct the runners timed
+        # out reaching Docker Hub's login server for over an hour (same digest either way).
+        image: mirror.gcr.io/library/postgres:18
         env:
           POSTGRES_USER: sarjy
           POSTGRES_PASSWORD: sarjy
