@@ -1,0 +1,8 @@
+# Runs scripts/hops.sh inside a Google Cloud region (M3.11), so the hops are timed from
+# where a gateway there would be. Nothing is deployed; the build only prints the table:
+#   gcloud builds submit scripts --region=me-central1 --config=docs/latency/hops/cloudbuild.yaml
+steps:
+  # The gcloud builder has bash and curl.
+  - name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args: ["hops.sh"]
