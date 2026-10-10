@@ -1595,6 +1595,40 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   deploying docs-only merges less often (CI deploys every merge, D-35, and splitting that
   adds rules to remember).
 
+### D-87 Every visit opens in voice mode; the full view sits behind its close button
+
+- **Decision:** at every screen size the page opens in voice mode.
+  - **The orb** sits large in the middle, up to about a third of a laptop screen. The line
+    under it says what Sarjy is doing.
+  - **Captions:** Sarjy's current sentence is a centred caption of about 40 characters a
+    line. The whole sentence shows dimmed and each word lights up as it is said, with the
+    sentence before it faded above. While Sarjy thinks, the traveller's own words show in
+    quotes. Tour links appear once the answer is over.
+  - **The glow** rises from the bottom edge in the orb's colour and follows the voice level.
+  - **The top bar** has "Remembers N" (the facts and Forget me) and the last time to first
+    audio, which opens the latency waterfall. Both are the full view's panel bodies in a
+    popover.
+  - **The bottom controls** are settings, now with the colours too, the microphone (tap or
+    hold, and Space) and a close button. On a phone they sit as in a chat app's voice mode;
+    on wider screens they gather under the orb.
+  - **The full view** is behind the close button, as before: the conversation, earlier visits
+    and replay, and both panels. It has a button back to voice mode.
+  - **Timing:** each spoken clip keeps the moment it started, so switching views mid-answer
+    shows the words where the voice is.
+  - **Reduced motion** holds the orb and the glow still and shows words whole.
+
+  Approved by Ahmed on 10 Oct, from a concept modelled on Claude's mobile voice mode; D-80's
+  rules for tokens, icons and motion are unchanged.
+- **Reason:** Sarjy is a voice concierge, so the first screen is for talking: one large place
+  to press, and the words as they are spoken, readable at arm's length on a phone. The
+  latency waterfall, the deep dive, stays one tap away at every size, and the memory that
+  scenario 2 shows is in the top bar.
+- **Alternatives considered:** voice mode on phones only, keeping the full view on larger
+  screens (Ahmed preferred the same experience everywhere); a side sheet for the panels (a
+  new generated component the day before submission, where the popover already exists);
+  captions revealed word by word as in the thread (a centred line then looks left-aligned
+  until its sentence is finished).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
