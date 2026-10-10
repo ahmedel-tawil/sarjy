@@ -35,8 +35,9 @@ import {
   type VoiceSessionCallbacks,
 } from '@/lib/voice-session'
 
-// One screen: the visit's conversation, Sarjy as a sphere of dots you hold to talk to, and
-// what Sarjy remembers and how fast it answered beside them (D-80).
+// One screen, in two views (D-87): voice mode first, Sarjy's orb in the middle with its words
+// as captions, and behind its close button the full view, with the visit's conversation,
+// earlier visits, and what Sarjy remembers and how fast it answered beside them (D-80).
 
 const SOCKET_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
 
@@ -65,10 +66,6 @@ const RESTING: Readonly<Record<TalkMode, string>> = HAS_KEYBOARD
 
 const REHEARSE_AS = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('rehearse') : null
 
-// In development, ?concept=voice opens concept two, a full-screen voice mode for phones; it
-// works with ?rehearse too. Production builds never show it.
-const VOICE_CONCEPT = import.meta.env.DEV && new URLSearchParams(window.location.search).get('concept') === 'voice'
-
 function App() {
   const [status, setStatus] = useState<Status>('idle')
   const [problem, setProblem] = useState<null | Problem>(null)
@@ -94,7 +91,8 @@ function App() {
   // Dubai" (D-94). Cleared when it starts speaking again and when the turn ends.
   const [activity, setActivity] = useState<null | string>(null)
   const [talkMode, setTalkMode] = useState<TalkMode>(initialTalkMode)
-  const [voiceMode, setVoiceMode] = useState(VOICE_CONCEPT)
+  // Every visit opens in voice mode; the full view is one tap away and back (D-87).
+  const [voiceMode, setVoiceMode] = useState(true)
   const orbRef = useRef<HTMLButtonElement>(null)
 
   const [{ catalogue, session, startReplay }] = useState<{
@@ -305,19 +303,17 @@ function App() {
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex items-center gap-1">
-            {VOICE_CONCEPT ? (
-              <Button
-                aria-label="Voice mode"
-                onClick={() => {
-                  setVoiceMode(true)
-                }}
-                size="icon-sm"
-                title="Voice mode"
-                variant="ghost"
-              >
-                <HugeiconsIcon icon={AiVoiceIcon} />
-              </Button>
-            ) : null}
+            <Button
+              aria-label="Voice mode"
+              onClick={() => {
+                setVoiceMode(true)
+              }}
+              size="icon-sm"
+              title="Voice mode"
+              variant="ghost"
+            >
+              <HugeiconsIcon icon={AiVoiceIcon} />
+            </Button>
             <PaletteSwitcher onChange={setPalette} palette={palette} />
             <SettingsMenu
               busy={status !== 'idle'}

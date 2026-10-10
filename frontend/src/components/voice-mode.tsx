@@ -51,10 +51,11 @@ interface VoiceModeProps {
   turn: Turn | undefined
 }
 
-// Concept two: a screen for talking and little else, after the voice mode of chat apps.
-// Sarjy's orb fills the middle and takes turns with the traveller; its words appear under
-// it as they are spoken; what it remembers and how fast it answered open from the top bar;
-// the full page, with the conversation and earlier visits, is one tap away.
+// Voice mode, the view every visit opens in (D-87): a screen for talking and little else,
+// after the voice mode of chat apps. Sarjy's orb fills the middle and takes turns with the
+// traveller; its words appear under it as they are spoken; what it remembers and how fast it
+// answered open from the top bar; the full view, with the conversation and earlier visits,
+// is one tap away.
 export function VoiceMode({ cards, levels, line, memory, onClose, orb, settings, talk, timed, turn }: VoiceModeProps) {
   const glowRef = useRef<HTMLDivElement>(null)
   useGlow(glowRef, levels, talk.status)
