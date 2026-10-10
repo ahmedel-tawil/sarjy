@@ -63,6 +63,13 @@ def test_serves_the_built_frontend_without_hiding_the_api(tmp_path: Path) -> Non
     assert health.status_code == 200
 
 
+def test_the_api_page_points_to_the_websocket_it_cannot_show() -> None:
+    response = TestClient(create_app(Settings(), services_with(MissingTextToSpeech()))).get("/openapi.json")
+
+    assert "`/ws`" in response.text
+    assert "docs/code/02-api.md" in response.text
+
+
 def test_voices_come_from_the_tts_service() -> None:
     response = TestClient(create_app(Settings(), services_with(FakeTextToSpeech()))).get("/voices")
 
