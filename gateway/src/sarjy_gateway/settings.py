@@ -8,7 +8,11 @@ class Settings(BaseSettings):
     """Gateway configuration, read from environment variables once at startup."""
 
     # .env is for local development only; Cloud Run sets real environment variables.
-    model_config = SettingsConfigDict(env_prefix="SARJY_", env_file=".env", extra="ignore", frozen=True)
+    # An empty value is unset, so a .env copied from .env.example works with only the keys
+    # filled in.
+    model_config = SettingsConfigDict(
+        env_prefix="SARJY_", env_file=".env", env_ignore_empty=True, extra="ignore", frozen=True
+    )
 
     host: str = "127.0.0.1"
     # Cloud Run injects PORT without our prefix.

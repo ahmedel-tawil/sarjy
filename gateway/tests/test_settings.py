@@ -19,3 +19,13 @@ def test_invalid_setting_fails_at_startup(monkeypatch: pytest.MonkeyPatch, varia
 
     with pytest.raises(ValidationError):
         Settings()
+
+
+# A .env copied from .env.example leaves the names it doesn't fill empty.
+def test_an_empty_setting_keeps_its_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SARJY_TTS_AUTH", "")
+    monkeypatch.setenv("SARJY_PIPELINE_MODE", "")
+
+    settings = Settings()
+
+    assert (settings.tts_auth, settings.pipeline_mode) == ("none", "sentence")
