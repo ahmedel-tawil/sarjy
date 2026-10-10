@@ -1435,6 +1435,23 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   mostly sit unused); warming on the first visit instead of at startup (would compete
   with that visit's first turn for TTS).
 
+### D-98 The services stay in Doha (`me-central1`) for the submission
+
+- **Decision:** the gateway, TTS and Cloud SQL stay in `me-central1`. A US region is
+  recorded as the option to revisit after the submission, once the hop from the Gulf can
+  be measured from the Gulf.
+- **Reason:** experiment 7 timed the hops from inside each region. From Doha, Groq and
+  Anthropic answer their first byte in about 254 and 192 ms; from US East in 84 and
+  48 ms, which would save roughly 0.3 s on a turn without a tool and 0.45 s on a turn with
+  one. A Gulf visitor would pay part of that back on the longer hop to a US gateway,
+  estimated at 0.2 s a turn. A net gain of 0.1 to 0.25 s isn't worth moving the database,
+  the registry, the secrets and both services a day before the submission, and the bigger
+  levers (sentence streaming, warm instances) are already in.
+- **Alternatives considered:** moving everything to `us-east1` (the gain above, plus GPUs
+  for TTS, but a full migration and a longer hop for Gulf visitors); splitting the gateway
+  and TTS across regions (Google's path between Doha and US East took about a second);
+  `me-central2` (Dammam, nearer Saudi visitors, but the project has no access to it).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.

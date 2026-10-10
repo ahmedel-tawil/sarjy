@@ -173,6 +173,13 @@ terraform apply plan.tfplan
 terraform output                  # gateway_url, tts_url, image_repository
 ```
 
+Network hops to the providers (experiment 7), from here or from inside a region:
+
+```
+scripts/hops.sh
+gcloud builds submit scripts --region=me-central1 --config=docs/latency/hops/cloudbuild.yaml
+```
+
 Deploys run in CI on every push to `main` (`.github/workflows/deploy.yml` calls
 `scripts/deploy.sh <service>`); there is no manual deploy path.
 
