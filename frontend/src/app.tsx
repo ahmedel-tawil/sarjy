@@ -15,7 +15,7 @@ import { PROBLEMS, statusLine } from '@/components/problems'
 import { RehearsalSession } from '@/components/rehearsal-session'
 import { SarjyMark } from '@/components/sarjy-mark'
 import { SettingsMenu } from '@/components/settings-menu'
-import { initialTalkMode, saveTalkMode, type TalkMode } from '@/components/talk-mode'
+import { HAS_KEYBOARD, initialTalkMode, saveTalkMode, type TalkMode } from '@/components/talk-mode'
 import { TalkOrb } from '@/components/talk-orb'
 import { Button } from '@/components/ui/button'
 import { useTalkControls } from '@/components/use-talk-controls'
@@ -56,6 +56,11 @@ const VOICE_FACT = 'voice'
 
 // How long "Back online" shows after a dropped connection recovers.
 const BACK_ONLINE_MS = 2500
+
+// The line under the orb at rest, with Space only where there is a keyboard.
+const RESTING: Readonly<Record<TalkMode, string>> = HAS_KEYBOARD
+  ? { hold: 'Hold to talk, or hold Space', tap: 'Tap to talk, or press Space' }
+  : { hold: 'Hold to talk', tap: 'Tap to talk' }
 
 const REHEARSE_AS = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('rehearse') : null
 
@@ -371,7 +376,7 @@ function orbLabel(talkMode: TalkMode, status: Status): string {
 function describe(status: Status, waitingForWords: boolean, talkMode: TalkMode): string {
   switch (status) {
     case 'idle': {
-      return talkMode === 'hold' ? 'Hold to talk, or hold Space' : 'Tap to talk, or press Space'
+      return RESTING[talkMode]
     }
     case 'listening': {
       return talkMode === 'hold' ? 'Listening… let go to send' : 'Listening… tap again to send'

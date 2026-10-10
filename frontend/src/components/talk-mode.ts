@@ -5,6 +5,10 @@ export const TALK_MODES = ['hold', 'tap'] as const
 
 export type TalkMode = (typeof TALK_MODES)[number]
 
+// Space only helps with a keyboard, so the hints mention it only where a mouse or trackpad
+// is the main pointer: a phone or tablet in the hand has no Space bar.
+export const HAS_KEYBOARD = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+
 const STORAGE_KEY = 'sarjy.talk'
 
 export function initialTalkMode(): TalkMode {

@@ -1,7 +1,7 @@
 import { Settings02Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 
-import type { TalkMode } from '@/components/talk-mode'
+import { HAS_KEYBOARD, type TalkMode } from '@/components/talk-mode'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
@@ -18,9 +18,18 @@ interface SettingsMenuProps {
   voices: null | string[]
 }
 
+// Space is mentioned only where there is a keyboard.
 const TALK_CHOICES: readonly { description: string; label: string; mode: TalkMode }[] = [
-  { description: 'Hold the orb, or Space, while you speak.', label: 'Hold to talk', mode: 'hold' },
-  { description: 'Tap once to start and again to send. Space works the same way.', label: 'Tap to talk', mode: 'tap' },
+  {
+    description: HAS_KEYBOARD ? 'Hold the orb, or Space, while you speak.' : 'Hold the orb while you speak.',
+    label: 'Hold to talk',
+    mode: 'hold',
+  },
+  {
+    description: HAS_KEYBOARD ? 'Tap once to start and again to send. Space works the same way.' : 'Tap once to start and again to send.',
+    label: 'Tap to talk',
+    mode: 'tap',
+  },
 ]
 
 // A gear beside the colour swatches opens Sarjy's settings: its voice, and how you talk to

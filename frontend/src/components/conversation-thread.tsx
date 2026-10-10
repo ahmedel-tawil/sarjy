@@ -3,7 +3,7 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { useEffect, useRef } from 'react'
 
 import { type SpokenClip, SpokenWords } from '@/components/spoken-words'
-import type { TalkMode } from '@/components/talk-mode'
+import { HAS_KEYBOARD, type TalkMode } from '@/components/talk-mode'
 import { Button } from '@/components/ui/button'
 import type { TourLink } from '@/lib/protocol'
 import type { TurnStages } from '@/lib/stages-of'
@@ -33,11 +33,16 @@ const EXAMPLES = [
 
 // The visit's conversation, set like a script: who speaks, then their words. Newest at
 // the bottom, next to the orb the words come from.
-// How to ask, for the talk mode in use (D-83).
-const HOW_TO_ASK: Record<TalkMode, string> = {
-  hold: 'Hold the orb, or hold Space, and ask Sarjy. Let go when you’re done.',
-  tap: 'Tap the orb, or press Space, and ask Sarjy. Tap again when you’re done.',
-}
+// How to ask, for the talk mode in use (D-83), with Space only where there is a keyboard.
+const HOW_TO_ASK: Readonly<Record<TalkMode, string>> = HAS_KEYBOARD
+  ? {
+      hold: 'Hold the orb, or hold Space, and ask Sarjy. Let go when you’re done.',
+      tap: 'Tap the orb, or press Space, and ask Sarjy. Tap again when you’re done.',
+    }
+  : {
+      hold: 'Hold the orb and ask Sarjy. Let go when you’re done.',
+      tap: 'Tap the orb and ask Sarjy. Tap again when you’re done.',
+    }
 
 interface ConversationThreadProps {
   // A visitor with earlier visits is welcomed back rather than shown example questions.
