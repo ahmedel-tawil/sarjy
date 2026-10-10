@@ -5,6 +5,8 @@ const SAMPLE_EVERY_MS = 50
 const LEVEL_GAIN = 4
 
 export interface LoudnessMeter {
+  // Stops reading and lets go of the microphone's stream.
+  close(): void
   // The microphone's level right now, from 0 (silent) to 1.
   current(): number
   start(): void
@@ -33,13 +35,21 @@ export class LevelMeter implements LoudnessMeter {
   // Null until a reading is taken, which needs a running audio context.
   #loudest: null | number = null
   readonly #samples: Float32Array<ArrayBuffer>
+  readonly #source: MediaStreamAudioSourceNode
   #timer: null | number = null
 
   constructor(context: AudioContext, stream: MediaStream) {
     this.#context = context
     this.#analyser = context.createAnalyser()
-    context.createMediaStreamSource(stream).connect(this.#analyser)
+    this.#source = context.createMediaStreamSource(stream)
+    this.#source.connect(this.#analyser)
     this.#samples = new Float32Array(this.#analyser.fftSize)
+  }
+
+  // Each question opens a new stream and a new meter, so the old one leaves the audio graph.
+  close(): void {
+    this.stop()
+    this.#source.disconnect()
   }
 
   current(): number {
