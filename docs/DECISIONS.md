@@ -1157,6 +1157,9 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   billed at the idle rate, in Tier 2 about $0.0000035 per vCPU-second and per GiB-second,
   so about $0.45 a day for the gateway and $3.60 a day for TTS (D-70's $17 used the
   active rate). Variables make the review-week setting one value to set and to undo.
+  **Corrected 11 Oct:** the idle rate applies only when CPU is allocated during requests;
+  until D-103 both services had it always allocated and were billed at the instance rate,
+  about $18 a day for the two.
 - **Alternatives considered:** a scheduled ping every few minutes (another service, and
   Cloud Run may still retire an idle instance); warm instances all the time (about $120 a
   month, mostly TTS); a faster gateway start (smaller image, lazier imports; worth doing,
@@ -1639,6 +1642,30 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   new generated component the day before submission, where the popover already exists);
   captions revealed word by word as in the thread (a centred line then looks left-aligned
   until its sentence is finished).
+
+### D-103 Warm instances get CPU only while a request is open
+
+- **Decision:** both Cloud Run services set `cpu_idle = true`, so CPU is allocated only
+  while a request is open and a warm instance waiting for a visit is billed at the idle
+  rate. A visit's WebSocket is one long request, and each TTS call is a request, so every
+  turn still runs on the full vCPUs; only work between requests slows down, which is the
+  gateway warming its TTS cache as it starts (D-97). Applied 11 Oct (revisions
+  `gateway-00078` and `tts-00032`).
+- **Reason:** once a `resources` block is set, Terraform's `cpu_idle` defaults to false,
+  so from 8 Oct both services ran with CPU always allocated, billed by the instance at
+  $0.0000216 per vCPU-second and $0.0000024 per GiB-second all day. With one warm instance
+  each (D-78), that is about $15.80 a day for TTS's 8 vCPU and 4 GiB and $2 for the
+  gateway, against the $3.63 and $0.45 D-78 expected at the idle rate of $0.0000035.
+  Cloud Monitoring counted 24.0 billable hours of TTS and 28.5 of the gateway on 10 Oct,
+  about $18, and the console showed $24.18 for Cloud Run from 8 to 10 Oct. The ten latency
+  questions played after the change (`docs/latency/runs/cpu-idle.jsonl`, 10 turns) had a
+  median time to first audio of 3.7 s and TTS of 1.0 s, against 4.1 s and 1.2 s in the
+  final run: no slower.
+- **Alternatives considered:** no warm instances (idle costs nothing, but the cold starts
+  come back for the review: 11.8 s for a first answer and about 9.5 s for the page, D-78);
+  fewer TTS vCPUs (a 60-word reply took 6.3 s on 8 and 9.0 s on 4, D-70); CPU always
+  allocated for the gateway only (it would speed up only the cache warm-up, for about $2 a
+  day).
 
 ## Open decisions
 

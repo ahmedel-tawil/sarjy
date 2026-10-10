@@ -49,6 +49,11 @@ Both services keep one warm instance for the review week, about $28 in all, then
 to scaling to zero, where idle costs nothing and the first turn after a quiet spell waits
 for TTS to start (experiment 6).
 
+These idle figures hold from 11 Oct. Until then both services had CPU always allocated by
+mistake (D-103), which bills a warm instance at $0.0000216 per vCPU-second and $0.0000024
+per GiB-second all day: about $15.80 a day for TTS and $2 for the gateway, and about $35
+of Cloud Run from 8 to 10 Oct before the free tier.
+
 ## Self-hosted TTS against a per-character bill
 
 The same 1,840 characters from hosted voices, at their list prices:
