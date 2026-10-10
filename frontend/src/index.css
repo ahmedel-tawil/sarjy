@@ -180,10 +180,10 @@
 /* The orb is the talk button; a hairline ring shows where to press. */
 @utility talk-orb {
     display: block;
-    width: --spacing(28);
-    height: --spacing(28);
+    width: var(--orb-size, --spacing(28));
+    height: var(--orb-size, --spacing(28));
     border-radius: calc(infinity * 1px);
-    box-shadow: inset 0 0 0 1px var(--border);
+    box-shadow: inset 0 0 0 1px var(--orb-ring, var(--border));
     cursor: pointer;
 
     &:focus-visible {
@@ -194,6 +194,26 @@
     &:disabled {
         cursor: default;
     }
+}
+
+/* Voice mode's orb fills most of a phone's width. */
+@utility orb-large {
+    --orb-size: min(64vw, --spacing(64));
+    --orb-ring: transparent;
+}
+
+/* Voice mode's glow rises from the bottom edge in the orb's light; --glow, from 0 to 1, is
+   the voice level, so it brightens as someone speaks and holds still otherwise. */
+@utility voice-glow {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 55%;
+    pointer-events: none;
+    background: radial-gradient(ellipse 85% 75% at 50% 100%, color-mix(in oklch, var(--orb-lit) 50%, transparent), transparent 75%);
+    opacity: calc(0.5 + var(--glow, 0) * 0.5);
+    transform: scaleY(calc(0.9 + var(--glow, 0) * 0.25));
+    transform-origin: 50% 100%;
 }
 
 /* Keeps the orb above an iPhone's home indicator. */
