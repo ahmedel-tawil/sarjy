@@ -419,6 +419,7 @@ Goal: the four demo scenarios work on the deployed URL.
 | M2.16 | Image clean-up: deploy TTS only when it changes, keep the last images | 0.5 h | M1.10 | no |
 | M2.17 | TTS instance size | 0.5 h | M1.10 | no |
 | M2.18 | Prompt v1.1: names, no unsourced weather, shorter replies | 0.5 h | M2.6, M2.12 | no |
+| M2.19 | Availability check | 1.5 h | M2.2, SayTech's availability endpoint | no |
 
 ### M2.1 SayTech API discovery
 
@@ -738,6 +739,23 @@ clear skies" without calling `get_weather`, and spoke 60 words.
 - [x] Checked with Claude through the real pipeline (D-71): the name was saved in 5 of 5
       runs (0 of 2 before); scenario 2 still saved both facts in 3 of 3; replies were 36
       to 55 words (56 to 89 before).
+
+### M2.19 Availability check
+
+Added 10 Oct at Ahmed's request; not in the PRD. SayTech's assistant API gained an
+availability endpoint the same day (built in the SayTech session, contract §14).
+
+- [x] A `check_availability` tool takes a slug from a search, a date or up to seven days,
+      and the party, and asks SayTech live, past the catalogue's cache: each ticket's
+      status, departures and places left, and for one day the price with SayTech's own
+      total for the party (D-99).
+- [x] Prompt v1.2: any question about a date or booking is checked first; "unknown" is
+      said as "I can't check live availability", never as unavailable.
+- [x] The activity line says "Checking availability for <tour>", and the tour's page goes
+      beside the reply.
+- [x] Checked live on 10 Oct with Claude: Ferrari World on Saturday for two adults and two
+      children ("1,380 dirhams for your party"), the Louvre closed on a Monday, the buggy
+      and the helicopter answered as unknown.
 
 ---
 

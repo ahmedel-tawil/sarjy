@@ -1452,6 +1452,32 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   and TTS across regions (Google's path between Doha and US East took about a second);
   `me-central2` (Dammam, nearer Saudi visitors, but the project has no access to it).
 
+### D-99 Live availability from SayTech, never cached, "unknown" said honestly
+
+- **Decision:** a `check_availability` tool calls SayTech's new
+  `products/{type}/{slug}/availability/` endpoint for one day or up to seven, with the
+  party when known. It goes straight to SayTech, past the 5-minute catalogue cache, since
+  availability changes as people book (SayTech marks it cacheable for 30 seconds). The
+  model gets each day's and ticket's status, the places left, departure times for a
+  single day, and for a single day the price and SayTech's own total for the party, never
+  one worked out by Sarjy. A range leaves out times and prices to stay short. Prompt v1.2
+  says to check before answering any question about a date or booking, and to say
+  "unknown" as "I can't check live availability", never as unavailable.
+- **Reason:** Ahmed asked for it on 10 Oct; until then Sarjy could only send travellers to
+  the website for dates. SayTech knows availability per ticket and departure, and when it
+  has no data it says `unknown`, which today covers the buggy, the desert safari, Dubai
+  Parks, Warner Bros. World and the helicopter. In the first live run the model dodged a
+  date question rather than checking ("I can't confirm Monday"), so the rule asks for the
+  check whenever a date comes up, not only before claiming one.
+- **Alternatives considered:** caching availability like the catalogue (a stale
+  "available" is worse than a slower answer, and SayTech answers in about 85 ms); adding it
+  to `get_tour` (one more call on every detail question, and a date the model often
+  doesn't have yet); working out the party's total in Sarjy (SayTech's checkout already
+  does it, with its own rules for children and infants).
+- **Found on the way:** the helicopter's tracked tickets have no capacity set in SayTech, so
+  SayTech's own booking engine and website calendar treat it as sold out on every day.
+  That is a data fix in SayTech, flagged to Ahmed.
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
