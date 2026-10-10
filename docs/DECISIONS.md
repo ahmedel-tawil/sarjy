@@ -1577,6 +1577,24 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   fits the product); Certificate Manager with DNS authorisation (the certificate could be
   issued before the A records change, at the cost of more resources and DNS records).
 
+### D-102 A deploy drops the visits in progress, so merges wait for quiet times
+
+- **Decision:** a merge to `main` deploys a new gateway revision (D-35), and Cloud Run
+  retires the old one within about a minute, closing every open WebSocket on it. The page
+  reconnects by itself, but a question asked at that moment is lost ("The connection
+  dropped before Sarjy answered"). Until the review is over, merges happen only at quiet
+  times, batched, and never while Ahmed, Sarj or a reviewer may be using Sarjy; from the
+  day before the deadline, only what's essential is merged.
+- **Reason:** on 10 Oct two merges two minutes apart (revisions 00073 at 09:22 and 00074
+  at 09:23) cut Ahmed's first tries on the new domain: both sockets were accepted, then
+  closed with no question handled. With no deploy in between, the same domain carried a
+  99-second socket, spoken turns, and audio both ways from Chrome.
+- **Alternatives considered:** a smoother hand-over, for another week: gradual traffic
+  migration with the old revision kept until its sockets end, or resuming a turn on a new
+  socket (the turn id exists, but the audio and the reply in flight would need storing);
+  deploying docs-only merges less often (CI deploys every merge, D-35, and splitting that
+  adds rules to remember).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
