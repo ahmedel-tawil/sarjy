@@ -60,8 +60,8 @@ variable "tts_min_instances" {
   }
 }
 
-variable "custom_domain" {
-  type        = string
-  description = "The gateway's own domain (M4.7); its A record in DigitalOcean points at the load balancer."
-  default     = "sarjy.saytech.ae"
+variable "custom_domains" {
+  type        = list(string)
+  description = "The gateway's own domains (M4.7); their A records, at Etisalat, point at the load balancer."
+  default     = ["concierge.magicexperience.ae", "sarjy.magicexperience.ae"]
 }
