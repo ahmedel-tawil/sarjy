@@ -42,11 +42,15 @@ resource "google_cloud_run_v2_service" "gateway" {
         mount_path = "/cloudsql"
       }
 
+      # CPU only while a request is open, so a warm instance waiting for a visit is billed
+      # at the idle rate (D-103). A visit's WebSocket is one long request, so every turn
+      # still gets the full vCPU. Setting `resources` makes this default to false.
       resources {
         limits = {
           cpu    = "1"
           memory = "512Mi"
         }
+        cpu_idle          = true
         startup_cpu_boost = true
       }
 
@@ -168,11 +172,14 @@ resource "google_cloud_run_v2_service" "tts" {
 
       # Kokoro speeds up with every vCPU: a 60-word reply took 14.0 s on 2, 9.0 s on 4
       # and 6.3 s on 8 (D-70). Cloud Run needs at least 4 GiB with 8 vCPU.
+      # CPU only while synthesising, so the warm instance between requests is billed at
+      # the idle rate, not as eight busy vCPUs (D-103).
       resources {
         limits = {
           cpu    = "8"
           memory = "4Gi"
         }
+        cpu_idle          = true
         startup_cpu_boost = true
       }
 
