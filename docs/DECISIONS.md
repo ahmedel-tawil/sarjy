@@ -1227,6 +1227,17 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   read, and need a new component); a modal for the microphone (blocks the page for
   something the browser's own prompt already asks); retrying failed turns automatically
   (a second wait the traveller did not ask for).
+- **Corrected 11 Oct:** a reply whose voice failed is shown in writing only in the
+  `baseline` mode (D-05's experiment 1), where the whole reply is sent before any of it is
+  spoken. With sentence streaming (D-76), the default since D-77 and what production runs,
+  each sentence's words reach the page with its audio, so a voice failure part-way through
+  ends the turn with `tts_failed` before the reply is sent: the sentences already spoken
+  stay on screen, the rest is never shown, and the turn's note ("here is the answer in
+  writing") promises text that doesn't come. Sending the unspoken rest in writing is a
+  later enhancement. And since voice mode became the first view (D-87), a dropped
+  connection shows there only as "Waiting for the connection…" under the orb;
+  "Reconnecting…" and "Back online" are in the full view's header. Found while writing the
+  code book.
 
 ### D-82 The voice picker sits under the orb; the voice fact stays out of memory
 
