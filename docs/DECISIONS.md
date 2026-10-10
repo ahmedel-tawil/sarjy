@@ -1478,6 +1478,28 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   SayTech's own booking engine and website calendar treat it as sold out on every day.
   That is a data fix in SayTech, flagged to Ahmed.
 
+### D-85 Sarjy's audio wakes on every gesture; a microphone iOS silenced is asked for again
+
+- **Decision:** the player starts its audio context whenever it is not running, not only
+  when it is `suspended`: on the press, on every later key press, pointer lift or touch
+  end (the gestures a browser accepts for starting audio), and when the page comes back
+  into view. Nothing waits for that resume, so a recording never waits on the audio. The
+  recorder reuses the microphone only while its track is live and unmuted; otherwise it
+  stops it, asks again and rebuilds the level meter on the new stream. The microphone
+  card tells iPhone users to reload and tap Allow. Clip scheduling on the audio clock,
+  `finished()` and `level()` are unchanged (D-77). (M4.3, 10 Oct.)
+- **Reason:** on a touchscreen only lifting a finger counts as a gesture that may start
+  audio, and the orb presses as the finger goes down, so the press alone may not start
+  Sarjy's voice on an iPhone. iOS puts the context in an `interrupted` state for a locked
+  screen, a call or Siri, which the old check missed; and presses are ignored while Sarjy
+  speaks, so a reply cut off by the lock could never finish. While the page is hidden iOS
+  ends or mutes the microphone, which would record silence and report that no words were
+  heard.
+- **Alternatives considered:** pressing on the finger's lift (holding to talk would start
+  late, and a mouse or keyboard does not need it); playing a silent clip to unlock (not
+  needed once `resume()` runs in a gesture; to add only if a real iPhone stays silent);
+  releasing the microphone after every question (each press would wait for it again).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
