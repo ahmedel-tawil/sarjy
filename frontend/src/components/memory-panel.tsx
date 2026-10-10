@@ -61,54 +61,80 @@ export function MemoryPanel({ busy, facts, onForgetMe, orbRef }: MemoryPanelProp
       <CardHeader>
         <CardTitle>What Sarjy remembers</CardTitle>
         <CardAction>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button disabled={busy || facts.length === 0} size="sm" variant="ghost">
-                Forget me
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Forget what Sarjy knows about you?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Sarjy deletes everything it remembers about you. This can’t be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Keep</AlertDialogCancel>
-                <AlertDialogAction onClick={onForgetMe} variant="destructive">
-                  Forget me
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <ForgetMe busy={busy} empty={facts.length === 0} onForgetMe={onForgetMe} />
         </CardAction>
       </CardHeader>
       <CardContent>
-        {facts.length === 0 ? (
-          <p className="text-muted-foreground">Nothing yet. Tell Sarjy what you like, and it will remember.</p>
-        ) : (
-          <ul className="flex flex-wrap gap-2">
-            {facts.map((fact) => (
-              <li
-                className="flex flex-col rounded-xl bg-muted px-3 py-2"
-                key={fact.key}
-                ref={(element) => {
-                  if (element === null) {
-                    chipRefs.current.delete(fact.key)
-                  } else {
-                    chipRefs.current.set(fact.key, element)
-                  }
-                }}
-              >
-                <span className="text-xs text-muted-foreground">{label(fact.key)}</span>
-                <span className="font-medium">{fact.value}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <FactList chipRefs={chipRefs} facts={facts} />
       </CardContent>
     </Card>
+  )
+}
+
+interface ForgetMeProps {
+  busy: boolean
+  // Nothing remembered, so nothing to forget.
+  empty: boolean
+  onForgetMe: () => void
+}
+
+// Forget me, behind a confirmation, since it can't be undone.
+export function ForgetMe({ busy, empty, onForgetMe }: ForgetMeProps) {
+  return (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button disabled={busy || empty} size="sm" variant="ghost">
+          Forget me
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Forget what Sarjy knows about you?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Sarjy deletes everything it remembers about you. This can’t be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep</AlertDialogCancel>
+          <AlertDialogAction onClick={onForgetMe} variant="destructive">
+            Forget me
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
+interface FactListProps {
+  // Where each chip is, for the panel's fly-in; voice mode's list has no fly-in.
+  chipRefs?: RefObject<Map<string, HTMLLIElement>>
+  facts: RememberedFact[]
+}
+
+// What Sarjy remembers, one chip per fact.
+export function FactList({ chipRefs, facts }: FactListProps) {
+  if (facts.length === 0) {
+    return <p className="text-muted-foreground">Nothing yet. Tell Sarjy what you like, and it will remember.</p>
+  }
+  return (
+    <ul className="flex flex-wrap gap-2">
+      {facts.map((fact) => (
+        <li
+          className="flex flex-col rounded-xl bg-muted px-3 py-2"
+          key={fact.key}
+          ref={(element) => {
+            if (element === null) {
+              chipRefs?.current.delete(fact.key)
+            } else {
+              chipRefs?.current.set(fact.key, element)
+            }
+          }}
+        >
+          <span className="text-xs text-muted-foreground">{label(fact.key)}</span>
+          <span className="font-medium">{fact.value}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 

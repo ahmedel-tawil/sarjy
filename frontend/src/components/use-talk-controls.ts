@@ -36,7 +36,7 @@ export function useTalkControls({ orbRef, paused, session, status, talkMode }: T
 
   useEffect(() => {
     const ownsKey = (event: KeyboardEvent): boolean =>
-      !paused && event.code === 'Space' && (event.target === document.body || event.target === orbRef.current)
+      !paused && event.code === 'Space' && (event.target === document.body || event.target === orbRef.current || isTalkButton(event.target))
     const down = (event: KeyboardEvent): void => {
       if (ownsKey(event)) {
         event.preventDefault()
@@ -59,4 +59,9 @@ export function useTalkControls({ orbRef, paused, session, status, talkMode }: T
   }, [onPress, onRelease, orbRef, paused])
 
   return { onPress, onRelease }
+}
+
+// Voice mode's microphone button talks with Space too; it carries data-talk.
+function isTalkButton(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.dataset.talk !== undefined
 }

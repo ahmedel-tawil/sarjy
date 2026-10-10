@@ -196,10 +196,24 @@
     }
 }
 
-/* Voice mode's orb fills most of a phone's width. */
+/* Voice mode's orb fills most of a phone's width, up to about a third of a laptop screen. */
 @utility orb-large {
-    --orb-size: min(64vw, --spacing(64));
+    --orb-size: min(64vw, 40svh, --spacing(84));
     --orb-ring: transparent;
+}
+
+/* Voice mode's captions read like subtitles: centred, about 40 characters a line. */
+@utility caption-measure {
+    max-inline-size: 40ch;
+    margin-inline: auto;
+    text-align: center;
+}
+
+/* The sentence before the one being spoken, kept to two lines. Not line-clamp: Safari's
+   clamped box ignores the centring. */
+@utility caption-before {
+    max-block-size: 2lh;
+    overflow: hidden;
 }
 
 /* Voice mode's glow rises from the bottom edge in the orb's light; --glow, from 0 to 1, is
@@ -256,6 +270,23 @@
 
 @utility spoken-word {
     animation: spoken-word var(--word-ms, 240ms) ease-out var(--word-at, 0ms) backwards;
+}
+
+/* A caption's words are all there from the start, dimmed, and light up as they are said:
+   centred lines keep their shape, as subtitles do. */
+@keyframes caption-word {
+    0% {
+        opacity: 0.3;
+    }
+
+    20% {
+        opacity: 1;
+        color: var(--primary);
+    }
+}
+
+@utility caption-word {
+    animation: caption-word var(--word-ms, 240ms) ease-out var(--word-at, 0ms) backwards;
 }
 
 /* A new exchange rises from the orb's side of the screen into the conversation. */

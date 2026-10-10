@@ -37,7 +37,7 @@ export function SpokenWords({ clips, size = 'reply' }: { clips: SpokenClip[]; si
           // Clips and their words only append, so their positions are stable keys.
           <Fragment key={`${String(clipIndex)}-${String(index)}-${word.text}`}>
             <span
-              className="spoken-word"
+              className={size === 'caption' ? 'caption-word' : 'spoken-word'}
               ref={(span) => {
                 // Timed once, from when the clip started: words drawn after it began, as when
                 // the page switches layout, reveal on time, and ones already said simply show.
