@@ -30,6 +30,10 @@ def chunk(*pieces: str) -> list[str]:
             ["Bring water, e.g. two bottles each.", "Ask Dr. Amal at the desk."],
         ),
         (
+            ("Ferrari World and Warner Bros. World start at 345 dirhams. Both suit kids."),
+            ["Ferrari World and Warner Bros. World start at 345 dirhams.", "Both suit kids."],
+        ),
+        (
             ("Prices are in U.S. dollars on the site. Pay in dirhams here."),
             ["Prices are in U.S. dollars on the site.", "Pay in dirhams here."],
         ),
@@ -55,6 +59,7 @@ def chunk(*pieces: str) -> list[str]:
         "a price with a decimal",
         "a decimal arriving in pieces",
         "abbreviations",
+        "a tour named with an abbreviation",
         "initials",
         "an ellipsis",
         "very short fragments join the next",

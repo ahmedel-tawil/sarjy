@@ -5,8 +5,9 @@ import re
 # for half a second of audio, and Kokoro reads short fragments with odd prosody.
 MIN_SENTENCE_CHARS = 12
 
-# Words that end in a full stop without ending the sentence.
-ABBREVIATIONS = frozenset({"approx", "dr", "e.g", "etc", "i.e", "jr", "mr", "mrs", "ms", "sr", "st", "vs"})
+# Words that end in a full stop without ending the sentence. "Bros." is in a tour's name,
+# Warner Bros. World, which was spoken as two sentences with a pause in the middle.
+ABBREVIATIONS = frozenset({"approx", "bros", "dr", "e.g", "etc", "i.e", "jr", "mr", "mrs", "ms", "sr", "st", "vs"})
 
 ENDINGS = ".!?…"
 # What may follow the punctuation inside the same sentence, such as a closing quote.
