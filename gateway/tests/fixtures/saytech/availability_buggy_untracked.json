@@ -1,0 +1,38 @@
+{
+  "product": {
+    "id": "698870f7f20cfbc570686c72",
+    "type": "tour",
+    "slug": "DUNE- BUGGY",
+    "name": "Buggy Dune Bashing Tour",
+    "url": "https://magicexperience.ae/tours/DUNE-%20BUGGY"
+  },
+  "party": {
+    "adults": 2,
+    "children": 2,
+    "infants": 0
+  },
+  "tracked": false,
+  "days": [
+    {
+      "date": "2026-10-17",
+      "weekday": "Saturday",
+      "status": "unknown",
+      "tickets": [
+        {
+          "name": "1-Hour 4-Seater Buggy Adventure",
+          "status": "unknown",
+          "times": [],
+          "left": null,
+          "left_unit": "seats",
+          "price": {
+            "currency": "AED",
+            "from_amount": null,
+            "on_request": true,
+            "lines": [],
+            "party_total": null
+          }
+        }
+      ]
+    }
+  ]
+}

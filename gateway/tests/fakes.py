@@ -8,12 +8,14 @@ import uuid
 
 from pydantic import BaseModel
 from sarjy_gateway.catalogue import (
+    AvailabilityQuery,
     CatalogueContext,
     City,
     Faq,
     ProductType,
     TicketDetails,
     Tour,
+    TourAvailability,
     TourDetails,
     TourQuery,
     TourSearch,
@@ -89,7 +91,9 @@ class WeatherArguments(BaseModel):
 class FakeWeatherTool:
     spec = ToolSpec("get_weather", "The forecast for a UAE city.", WeatherArguments.model_json_schema())
 
-    def __init__(self, result: str = '{"temperature_c": 31}', error: Exception | None = None, seconds: float = 0) -> None:
+    def __init__(
+        self, result: str = '{"temperature_c": 31}', error: Exception | None = None, seconds: float = 0
+    ) -> None:
         self.result = result
         self.error = error
         self.seconds = seconds
@@ -101,6 +105,17 @@ class FakeWeatherTool:
         if self.error is not None:
             raise self.error
         return self.result
+
+
+# Answers every query with `answer` and keeps what it was asked.
+class FakeAvailability:
+    def __init__(self, answer: TourAvailability) -> None:
+        self.answer = answer
+        self.queries: list[AvailabilityQuery] = []
+
+    async def availability(self, query: AvailabilityQuery) -> TourAvailability:
+        self.queries.append(query)
+        return self.answer
 
 
 # Stands in for remember_fact: answers every call with `result`, a saved fact by default.

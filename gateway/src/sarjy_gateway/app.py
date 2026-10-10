@@ -15,7 +15,13 @@ from sarjy_gateway.limits import MAX_KEYS, SlidingWindow, TurnLimits
 from sarjy_gateway.migrate import MIGRATIONS_FOLDER, MigrationError, MigrationRunner, Migrations
 from sarjy_gateway.prompts import SystemPrompt
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox
-from sarjy_gateway.tour_tools import GetTourTool, RawGetTourTool, RawSearchToursTool, SearchToursTool
+from sarjy_gateway.tour_tools import (
+    CheckAvailabilityTool,
+    GetTourTool,
+    RawGetTourTool,
+    RawSearchToursTool,
+    SearchToursTool,
+)
 from sarjy_gateway.tts_cache import WARM_PHRASES
 from sarjy_gateway.turn import TurnPipeline
 from sarjy_gateway.voice import VoiceRouter
@@ -109,8 +115,12 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
 
 # Experiment 5 (M3.9): raw payloads come straight from SayTech, uncached, so only what the
 # model reads differs from the lean tools. Without an HTTP client (tests) they stay lean.
+# Availability asks SayTech directly, past the catalogue's cache (D-99); without an HTTP
+# client, as in tests, there is no SayTech to ask.
 def tour_tools(settings: Settings, services: Services) -> list[Tool]:
-    if settings.tool_payload == "raw" and services.http_client is not None:
-        saytech = SayTechCatalogue(services.http_client, settings.saytech_base_url, settings.saytech_timeout_seconds)
-        return [RawSearchToursTool(saytech), RawGetTourTool(saytech)]
-    return [SearchToursTool(services.catalogue), GetTourTool(services.catalogue)]
+    if services.http_client is None:
+        return [SearchToursTool(services.catalogue), GetTourTool(services.catalogue)]
+    saytech = SayTechCatalogue(services.http_client, settings.saytech_base_url, settings.saytech_timeout_seconds)
+    if settings.tool_payload == "raw":
+        return [RawSearchToursTool(saytech), RawGetTourTool(saytech), CheckAvailabilityTool(saytech)]
+    return [SearchToursTool(services.catalogue), GetTourTool(services.catalogue), CheckAvailabilityTool(saytech)]

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Final
 from pydantic import ValidationError
 
 from sarjy_gateway.links import tours_in
-from sarjy_gateway.tour_tools import GetTourArguments, SearchToursArguments
+from sarjy_gateway.tour_tools import CheckAvailabilityArguments, GetTourArguments, SearchToursArguments
 from sarjy_gateway.weather_tool import GetWeatherArguments
 
 
@@ -29,17 +29,24 @@ def activity_of(call: ToolCall, today: datetime.date, tool_results: Sequence[str
     if call.name in FIXED_ACTIVITIES:
         return FIXED_ACTIVITIES[call.name]
     try:
-        match call.name:
-            case "search_tours":
-                return search_activity(SearchToursArguments.model_validate_json(call.arguments))
-            case "get_tour":
-                return tour_activity(GetTourArguments.model_validate_json(call.arguments), tool_results)
-            case "get_weather":
-                return weather_activity(GetWeatherArguments.model_validate_json(call.arguments), today)
-            case _:
-                return None
+        return described(call, today, tool_results)
     except ValidationError:
         return None
+
+
+# The words for a call whose wording depends on its arguments.
+def described(call: ToolCall, today: datetime.date, tool_results: Sequence[str]) -> str | None:
+    match call.name:
+        case "search_tours":
+            return search_activity(SearchToursArguments.model_validate_json(call.arguments))
+        case "get_tour":
+            return tour_activity(GetTourArguments.model_validate_json(call.arguments), tool_results)
+        case "check_availability":
+            return availability_activity(CheckAvailabilityArguments.model_validate_json(call.arguments), tool_results)
+        case "get_weather":
+            return weather_activity(GetWeatherArguments.model_validate_json(call.arguments), today)
+        case _:
+            return None
 
 
 def search_activity(search: SearchToursArguments) -> str:
@@ -50,6 +57,11 @@ def search_activity(search: SearchToursArguments) -> str:
 def tour_activity(tour: GetTourArguments, tool_results: Sequence[str]) -> str:
     names = {found.slug: found.name for found in tours_in(tool_results) if found.slug is not None}
     return f"Reading about {names[tour.slug]}" if tour.slug in names else "Reading about that tour"
+
+
+def availability_activity(check: CheckAvailabilityArguments, tool_results: Sequence[str]) -> str:
+    names = {found.slug: found.name for found in tours_in(tool_results) if found.slug is not None}
+    return f"Checking availability for {names[check.slug]}" if check.slug in names else "Checking availability"
 
 
 def weather_activity(weather: GetWeatherArguments, today: datetime.date) -> str:
