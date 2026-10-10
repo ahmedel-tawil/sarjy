@@ -390,8 +390,9 @@ Added on 8 Oct after testing the deployed loop on a laptop and a phone.
       question after them was answered; an idle close showed nothing and the next press
       worked; a close while thinking showed the error and the gateway logged "browser
       left mid-turn".
-- [ ] On the deployed URL, with real microphones on the laptop and the phone: a tap and a
-      silent hold are cancelled, and soft speech still goes through (checks -45 dBFS).
+- Carried to M5.5 on 10 Oct: on the deployed URL, with real microphones on the laptop and
+  the phone, a tap and a silent hold are cancelled, and soft speech still goes through
+  (checks -45 dBFS).
 
 ---
 
@@ -654,15 +655,15 @@ No new dependencies: the shadcn alert dialog and card use radix-ui, already inst
 
 ### M2.14 Demo scenarios 1–4 on the deployed URL
 
-- [ ] All four PRD scenarios pass end to end on the deployed URL in desktop Chrome. Over
+- [x] All four PRD scenarios pass end to end on the deployed URL in desktop Chrome. Over
       the deployed socket, with each question spoken by Kokoro, all four pass (below);
-      the pass by voice in desktop Chrome is yours.
+      the pass by voice in desktop Chrome is yours: done on 10 Oct (M4.4).
 - [x] A general "what can I do in Dubai?" names only tours from `search_tours`: on 9 Oct
       Groq's model once named the Dubai Frame and a dhow cruise without searching, and
       once called the weekend hot without calling `get_weather`. With Claude first
       (D-69), 3 of 3 runs searched and named the Aquarium (209), the Museum of the
       Future (169) and the helicopter flight (715), each as SayTech has it.
-- [ ] Results go into the 9 Oct update: drafted for you to send.
+- [x] Results go into the update to Sarj: sent with the 10 Oct update.
 
 Run on 9 Oct against the deployed URL (Claude first, prompt v1.1, TTS on 8 vCPU), one
 fresh cookie per scenario. Every name, price and detail was checked against SayTech's
@@ -712,8 +713,9 @@ because every merge rebuilds and pushes a 420 MB TTS image even when TTS hasn't 
       already serves does nothing, and one already in the registry is not rebuilt.
 - [x] An Artifact Registry clean-up policy in Terraform keeps the last five versions of
       each image and deletes older ones, so a recent rollback still finds its image.
-- [ ] `terraform apply` runs only after you approve the plan: it lets Google delete 38 of
-      the 48 images stored on 9 Oct (21 gateway, 17 TTS).
+- [x] `terraform apply` runs only after you approve the plan: it lets Google delete 38 of
+      the 48 images stored on 9 Oct (21 gateway, 17 TTS). Applied by you; on 10 Oct the
+      plan showed no changes against the cloud.
 
 ### M2.17 TTS instance size
 
@@ -795,7 +797,7 @@ configuration (environment variables), not code branches.
 | M3.9 | Experiment 5: tool payload size | 1 h | M3.4 | no |
 | M3.10 | Experiment 6: warm vs cold | 1 h | M3.4 | no |
 | M3.11 | Experiment 7: region | 2 h | M3.4 | no |
-| M3.12 | Experiment 8 (stretch): Kokoro on GPU | 2 h | M3.4, GPU quota | no (cut list #3) |
+| ~~M3.12~~ | ~~Experiment 8 (stretch): Kokoro on GPU~~ | 2 h | M3.4, GPU quota | later enhancement |
 | M3.13 | Experiment 9: prompt caching | 1 h | M3.9 | no |
 
 ### M3.1 Store timings and summarise p50/p95
@@ -964,10 +966,15 @@ the page's queue in M3.6.
 - [x] Results and the final region choice are in `LATENCY.md` and `DECISIONS.md`: stay in
       `me-central1` for the submission, with a US region the option to revisit (D-98).
 
-### M3.12 Experiment 8 (stretch, cut list #3): Kokoro on GPU
+### ~~M3.12 Experiment 8 (stretch, cut list #3): Kokoro on GPU~~ (later enhancement)
 
-- [ ] Runs only if GPU quota was granted (requested in M1.1).
-- [ ] TTS runs on a Cloud Run GPU; synthesis time, TTFA and cost are compared with CPU.
+**Later enhancement, set aside on 10 Oct** (Ahmed's call): Cloud Run has no GPUs in `me-central1` (D-44), and a
+second region for TTS alone would cross Google's slow path between Doha and the US East
+coast (experiment 7). It stays the first idea for another week, together with a US region
+(D-98).
+
+- Runs only if GPU quota was granted (requested in M1.1).
+- TTS runs on a Cloud Run GPU; synthesis time, TTFA and cost are compared with CPU.
 
 ### M3.13 Experiment 9: prompt caching
 
@@ -994,8 +1001,8 @@ beyond the PRD.
 | M4.2 | Conversation states and errors | 1.5 h | M4.1 | no |
 | M4.3 | Safari and iOS audio | 2 h | M1.12 | no |
 | M4.4 | Device test matrix | 1 h | M4.3, M2.14 | no |
-| M4.5 | Voice activity detection | 2 h | M1.12 | no |
-| M4.6 | Barge-in | 1.5 h | M4.5, M3.5 | no (cut list #1) |
+| ~~M4.5~~ | ~~Voice activity detection~~ | 2 h | M1.12 | later enhancement |
+| ~~M4.6~~ | ~~Barge-in~~ | 1.5 h | M4.5, M3.5 | later enhancement |
 | M4.7 | Custom domain on `magicexperience.ae` | 1 h | M1.6 | no (cut list #2) |
 | M4.8 | Accessibility and motion pass | 1 h | M4.1 | no |
 | M4.9 | Voice picker | 1 h | M4.1, M1.11 | no |
@@ -1031,9 +1038,9 @@ one by one over its four seconds.
       (D-81); the socket reconnects by itself (D-90).
 - [x] Product links in Sarjy's replies are clickable in the conversation: the tours a
       reply named, as buttons that open their pages in a new tab.
-- [ ] One person who hasn't seen the app before understands what to do within seconds.
-      The empty conversation now shows how to talk and three example questions; this
-      needs one real person's try.
+- Carried to M5.5 on 10 Oct: one person who hasn't seen the app before understands what
+  to do within seconds. The empty conversation now shows how to talk and three example
+  questions; this needs one real person's try.
 
 Checked on 9 Oct in the in-app browser at 375 px and 1024 px with `?rehearse` and
 `?rehearse=problems` (microphone denied, no speech, no answer, voice failed, a dropped
@@ -1058,23 +1065,33 @@ where there is a keyboard.
 
 ### M4.4 Device test matrix
 
-- [ ] The four demo scenarios pass in Chrome and Safari on a laptop, in iOS Safari, and in
-      Android Chrome if a device is available.
-- [ ] A results table is ready for the README.
+- [x] The four demo scenarios pass in Chrome and Safari on a laptop, in iOS Safari, and in
+      Android Chrome if a device is available. Done by you on 10 Oct on the deployed URL:
+      Chrome and Safari on the Mac and Safari on the iPhone; no Android device.
+- [x] A results table is ready for the README (Tested devices).
 
-### M4.5 Voice activity detection
+### ~~M4.5 Voice activity detection~~ (later enhancement)
 
-- [ ] A hands-free mode ends the turn when the user stops speaking; push-to-talk stays
+**Later enhancement, set aside on 10 Oct** (Ahmed's call): new turn-taking the day before the submission is a risk
+to the demo, and the time went to the voice mode layout. The UI session's plan (an energy
+threshold on the existing level meter, one tap per question, D-55) is recorded for
+another week; O-26 stays open.
+
+- A hands-free mode ends the turn when the user stops speaking; push-to-talk stays
       available.
-- [ ] In this mode `speech_end` is when speech actually stopped, not when VAD noticed; the
+- In this mode `speech_end` is when speech actually stopped, not when VAD noticed; the
       detection delay is measured and noted in `LATENCY.md`.
-- [ ] The approach follows O-26.
+- The approach follows O-26.
 
-### M4.6 Barge-in (cut list #1)
+### ~~M4.6 Barge-in (cut list #1)~~ (later enhancement)
 
-- [ ] Speaking while Sarjy talks stops playback at once and cancels the turn in flight on
+**Later enhancement, set aside on 10 Oct** (Ahmed's call), first on the cut list: interrupting Sarjy needs voice
+activity detection (M4.5) and cancelling the LLM and TTS mid-turn, too much to add safely
+before the submission.
+
+- Speaking while Sarjy talks stops playback at once and cancels the turn in flight on
       the server; LLM and TTS tasks are cancelled cleanly.
-- [ ] Tests cover cancellation without leaked tasks.
+- Tests cover cancellation without leaked tasks.
 
 ### M4.7 Custom domain (cut list #2)
 
@@ -1086,7 +1103,9 @@ Planned as `sarjy.saytech.ae`; moved on 10 Oct to Magic Experience's own domain 
       (D-101): applied in `infra/domain.tf`, address `8.233.3.163`, one Google-managed
       certificate per domain and http redirected to https; the run.app URL keeps working.
 - [x] You add the DNS records: `concierge` and `sarjy` on `magicexperience.ae`, at Etisalat.
-- [ ] The mic and the WebSocket work on the custom domains.
+- [x] The mic and the WebSocket work on the custom domains: a spoken turn over the secure
+      socket on both names, binary audio both ways from Chrome, and your own try on
+      10 Oct. Your first tries failed during two back-to-back deploys (D-102).
 
 ### M4.8 Accessibility and motion pass
 
@@ -1097,10 +1116,10 @@ Planned as `sarjy.saytech.ae`; moved on 10 Oct to Magic Experience's own domain 
       AA in all three palettes; the focus ring was darkened in Pearl and Coral to pass
       3:1 (D-83). Tabbing reaches the swatches, Settings, "Remembers" and the orb, each
       with a visible ring.
-- [ ] Nothing moves under `prefers-reduced-motion`. In the code: the welcome is skipped,
-      the orb holds a still pose, words appear at once, and every CSS animation and
-      transition is off. The in-app browser cannot simulate the setting, so this needs
-      one look with macOS Reduce motion on.
+- Carried to M5.5 on 10 Oct: nothing moves under `prefers-reduced-motion`. In the code:
+  the welcome is skipped, the orb holds a still pose, words appear at once, and every CSS
+  animation and transition is off. The in-app browser cannot simulate the setting, so this
+  needs one look with macOS Reduce motion on.
 
 Checked on 9 Oct in the in-app browser at 375 px and 1024 px with `?rehearse`: the
 settings popover, both talk modes with a tap on the orb and with Space, the page staying
@@ -1210,6 +1229,11 @@ Goal: submitted by 11 Oct, 5 PM, with docs a reviewer can follow without me.
 - [ ] The four scenarios pass on the deployed URL across the M4.4 device matrix.
 - [ ] Rate limits and the budget alert are confirmed, minimum instances are set for review
       week, and provider keys have headroom.
+- [ ] Nothing is merged during the acceptance run or while reviewers may be using Sarjy: a
+      deploy drops the visits in progress (D-102).
+- [ ] The checks carried from M1–M4: a tap and a silent hold are cancelled and soft speech
+      goes through (M1.14); one first-time user understands what to do (M4.2); nothing
+      moves with macOS Reduce motion on (M4.8).
 
 ### M5.6 Loom walkthrough
 
@@ -1227,6 +1251,19 @@ Goal: submitted by 11 Oct, 5 PM, with docs a reviewer can follow without me.
 - [ ] If the repo is private, the reviewer's GitHub account has access.
 - [ ] The repository URL is submitted through Ashby.
 - [ ] Final update to Sarj with the demo URL, repo, Loom and PDF.
+
+---
+
+## Later enhancements
+
+Set aside on 10 Oct to keep the submission safe; each has its reasons in its own section and
+in `docs/LATENCY.md` ("What I'd do with another week").
+
+- **Hands-free turns** (~~M4.5~~) and **barge-in** (~~M4.6~~).
+- **Kokoro on a GPU** (~~M3.12~~), with a US region for the gateway and TTS (D-98).
+- **A short first sentence** and **a cached filler while tools run** (latency summary).
+- **Streaming speech to text.**
+- **Deploys that hand visits over instead of dropping them** (D-102).
 
 ---
 
