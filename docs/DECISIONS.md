@@ -1548,24 +1548,34 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** a prompt rule alone; the calls with a stand-in result (both
   tried, both still retracted); summarising the results (another model call per turn).
 
-### D-101 `sarjy.saytech.ae` through a global load balancer
+### D-101 Magic Experience's own domains through a global load balancer
 
-- **Decision:** a global external Application Load Balancer fronts the gateway's Cloud Run
-  service through a serverless network endpoint group, with a static address, a
-  Google-managed certificate for `sarjy.saytech.ae` and a redirect from http to https.
-  Ahmed points the domain's A record in DigitalOcean at the address. The `run.app` URL
-  keeps working, and the services, region and deploys don't change.
-- **Reason:** a domain of our own reads better in the submission than a generated Cloud Run
-  URL, and the microphone needs HTTPS. Cloud Run's domain mapping isn't offered in
-  `me-central1` (D-44), so a load balancer is the supported way. It costs about $0.025 an
-  hour, roughly $18 a month or $4 for the review week, plus about a cent per GB.
-  WebSockets pass through it, and a visit's socket keeps Cloud Run's own 3600-second
-  request timeout, since a serverless backend takes no timeout of its own.
+- **Decision:** `concierge.magicexperience.ae` and `sarjy.magicexperience.ae` serve the gateway
+  over HTTPS. A global external Application Load Balancer fronts the gateway's Cloud Run
+  service through a serverless network endpoint group, with a static address
+  (`8.233.3.163`), one Google-managed certificate per domain and a redirect from http to
+  https. Ahmed points each name's A record at the address in the domain's DNS, at Etisalat.
+  The `run.app` URL keeps working, and the services, region and deploys don't change.
+- **Reason:** Sarjy is Magic Experience's concierge, so its own domain tells that story,
+  next to the website whose catalogue Sarjy speaks from. Magic Experience is run by Ahmed's
+  brother, who is happy for it to be used, and the write-up says so. The microphone
+  needs HTTPS. Cloud Run's domain mapping isn't offered in `me-central1` (D-44), so a load
+  balancer is the supported way; it costs about $0.025 an hour, roughly $18 a month or $4
+  for the review week, plus about a cent per GB. WebSockets pass through it, and a visit's
+  socket keeps Cloud Run's own 3600-second request timeout, since a serverless backend
+  takes no timeout of its own. One certificate per domain means a late DNS record holds up
+  only its own name.
+- **On the way:** `sarjy.saytech.ae` came first and was dropped the same morning for the
+  operator's own domain. Switching from one certificate to one per domain, Terraform tried
+  to delete the old certificate while the proxy still used it; the proxy was pointed at the
+  new ones with `gcloud`, exactly as the configuration says, and the next plan only deleted
+  the old one and then showed no changes.
 - **Alternatives considered:** Firebase Hosting in front of Cloud Run (free certificates, but
   it doesn't carry WebSockets); a reverse proxy on a DigitalOcean server (another machine to
   run and another hop); moving the gateway to a region with domain mapping (D-98 keeps it in
-  Doha); Certificate Manager with DNS authorisation (the certificate could be issued before
-  the A record changes, at the cost of more resources and another DNS record).
+  Doha); a SayTech address (`sarjy.saytech.ae`, tried first; Magic Experience's own domain
+  fits the product); Certificate Manager with DNS authorisation (the certificate could be
+  issued before the A records change, at the cost of more resources and DNS records).
 
 ## Open decisions
 

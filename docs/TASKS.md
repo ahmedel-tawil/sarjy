@@ -996,7 +996,7 @@ beyond the PRD.
 | M4.4 | Device test matrix | 1 h | M4.3, M2.14 | no |
 | M4.5 | Voice activity detection | 2 h | M1.12 | no |
 | M4.6 | Barge-in | 1.5 h | M4.5, M3.5 | no (cut list #1) |
-| M4.7 | Custom domain `sarjy.saytech.ae` | 1 h | M1.6 | no (cut list #2) |
+| M4.7 | Custom domain on `magicexperience.ae` | 1 h | M1.6 | no (cut list #2) |
 | M4.8 | Accessibility and motion pass | 1 h | M4.1 | no |
 | M4.9 | Voice picker | 1 h | M4.1, M1.11 | no |
 | M4.10 | Earlier visits and replay | 3 h | M2.4, M3.6 | no |
@@ -1069,15 +1069,17 @@ Do this on 9 Oct (PRD: "Test Safari on day 2, not day 4").
       the server; LLM and TTS tasks are cancelled cleanly.
 - [ ] Tests cover cancellation without leaked tasks.
 
-### M4.7 Custom domain `sarjy.saytech.ae` (cut list #2)
+### M4.7 Custom domain (cut list #2)
+
+Planned as `sarjy.saytech.ae`; moved on 10 Oct to Magic Experience's own domain (D-101).
 
 - [x] The domain serves the app over HTTPS. Cloud Run domain mapping is not available in
       `me-central1` (D-44), so this needs a global external load balancer: decide whether
       it is worth the cost before starting. Decided on 10 Oct, for about $18 a month
-      (D-101): applied in `infra/domain.tf`, address `8.233.3.163`, with a Google-managed
-      certificate and http redirected to https; the run.app URL keeps working.
-- [ ] You add the DNS record in DigitalOcean.
-- [ ] The mic and the WebSocket work on the custom domain.
+      (D-101): applied in `infra/domain.tf`, address `8.233.3.163`, one Google-managed
+      certificate per domain and http redirected to https; the run.app URL keeps working.
+- [x] You add the DNS records: `concierge` and `sarjy` on `magicexperience.ae`, at Etisalat.
+- [ ] The mic and the WebSocket work on the custom domains.
 
 ### M4.8 Accessibility and motion pass
 
