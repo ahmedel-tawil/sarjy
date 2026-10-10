@@ -1,6 +1,7 @@
-# The gateway on its own domain over HTTPS (M4.7, D-101). Cloud Run can't map a domain in
-# me-central1 (D-44), so a global external Application Load Balancer sits in front of the
-# same service, with a Google-managed certificate. The run.app URL keeps working.
+# The gateway on Magic Experience's own domain over HTTPS (M4.7, D-101). Cloud Run can't
+# map a domain in me-central1 (D-44), so a global external Application Load Balancer sits
+# in front of the same service, with Google-managed certificates. The run.app URL keeps
+# working.
 
 resource "google_compute_global_address" "gateway" {
   name = "gateway"
@@ -33,19 +34,21 @@ resource "google_compute_url_map" "gateway" {
   default_service = google_compute_backend_service.gateway.id
 }
 
-# Issued once the domain's A record points at the address above; usually within an hour.
+# One certificate per domain, each issued once its A record points at the address above
+# (usually within an hour), so a domain whose record is late doesn't hold up the others.
 resource "google_compute_managed_ssl_certificate" "gateway" {
-  name = "gateway"
+  for_each = toset(var.custom_domains)
+  name     = "gateway-${replace(each.value, ".", "-")}"
 
   managed {
-    domains = [var.custom_domain]
+    domains = [each.value]
   }
 }
 
 resource "google_compute_target_https_proxy" "gateway" {
   name             = "gateway"
   url_map          = google_compute_url_map.gateway.id
-  ssl_certificates = [google_compute_managed_ssl_certificate.gateway.id]
+  ssl_certificates = [for certificate in google_compute_managed_ssl_certificate.gateway : certificate.id]
 }
 
 resource "google_compute_global_forwarding_rule" "gateway_https" {

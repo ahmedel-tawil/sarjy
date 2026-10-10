@@ -29,6 +29,6 @@ output "database_connection_name" {
 }
 
 output "custom_domain_address" {
-  description = "The IP address the custom domain's A record points to."
+  description = "The IP address the custom domains' A records point to."
   value       = google_compute_global_address.gateway.address
 }
