@@ -40,6 +40,15 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# OpenAPI can't describe a WebSocket, so /docs would otherwise show only the three small
+# HTTP endpoints and none of the conversation.
+API_DESCRIPTION = (
+    "A conversation with Sarjy runs over one WebSocket, `/ws`. The question's audio goes up as "
+    "binary frames; the transcript, what Sarjy is doing, each sentence's words and its WAV, the "
+    "reply and the turn's timings come back. Every message is listed in "
+    "[the API chapter of the code book](https://github.com/ahmedel-tawil/sarjy/blob/main/docs/code/02-api.md)."
+)
+
 
 def create_app(settings: Settings, services: Services) -> FastAPI:
     @asynccontextmanager
@@ -84,7 +93,7 @@ def create_app(settings: Settings, services: Services) -> FastAPI:
         clock=time.monotonic,
         sentence_streaming=settings.pipeline_mode == "sentence",
     )
-    app = FastAPI(title="Sarjy gateway", lifespan=lifespan)
+    app = FastAPI(title="Sarjy gateway", description=API_DESCRIPTION, lifespan=lifespan)
     app.include_router(HealthRouter(services.database).build())
     app.include_router(VoicesRouter(services.tts).build())
     app.middleware("http")(identity_cookie(secure=settings.cookie_secure))
