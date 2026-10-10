@@ -1526,6 +1526,28 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   stays open, so the indicators can stay on); closing it after some idle seconds (quicker
   follow-ups, but the indicator stays on after every question).
 
+### D-100 A turn's history keeps its tool calls and results
+
+- **Decision:** each of the recent turns sent to the model (6, D-15) keeps its question,
+  the tool calls it made with their results, and the reply, instead of the question and
+  reply alone. Turns are dropped whole. Prompt v1.3 lets earlier results count for
+  follow-ups, asks for a named tour to be searched by name without a city, and keeps web
+  addresses out of the "unknown availability" answer.
+- **Reason:** on production, the third question of a visit took back the first two answers
+  as made up: the prompt says to name prices only from a search, and the history showed
+  the prices with no search behind them. A prompt rule saying earlier replies were checked
+  didn't stop it, nor did keeping the calls with a short stand-in for each result; Claude
+  read the stand-in as proof the results were never returned. With the real results kept,
+  two passes of the same four questions had no retraction, and a follow-up reused an
+  earlier search instead of repeating it. A tour SayTech listed under its starting city
+  was missed by a search by city, hence the search-by-name rule.
+- **Cost:** a lean result is 0.5 to 5 KB, so six turns add about 2,000 to 3,000 tokens
+  in a typical visit and up to about 8,000 at most. They sit after the cache point, read
+  fresh on each round; experiment 9 found a few thousand prompt tokens don't move the
+  first word.
+- **Alternatives considered:** a prompt rule alone; the calls with a stand-in result (both
+  tried, both still retracted); summarising the results (another model call per turn).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.

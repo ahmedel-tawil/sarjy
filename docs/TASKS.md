@@ -420,6 +420,7 @@ Goal: the four demo scenarios work on the deployed URL.
 | M2.17 | TTS instance size | 0.5 h | M1.10 | no |
 | M2.18 | Prompt v1.1: names, no unsourced weather, shorter replies | 0.5 h | M2.6, M2.12 | no |
 | M2.19 | Availability check | 1.5 h | M2.2, SayTech's availability endpoint | no |
+| M2.20 | History keeps tool results; prompt v1.3 | 0.5 h | M2.19 | no |
 
 ### M2.1 SayTech API discovery
 
@@ -756,6 +757,21 @@ availability endpoint the same day (built in the SayTech session, contract §14)
 - [x] Checked live on 10 Oct with Claude: Ferrari World on Saturday for two adults and two
       children ("1,380 dirhams for your party"), the Louvre closed on a Monday, the buggy
       and the helicopter answered as unknown.
+
+### M2.20 History keeps tool results; prompt v1.3
+
+Added 10 Oct, from production: in a visit's third question Sarjy took back its two earlier
+answers ("I didn't search before answering… may be wrong"), because the history kept only
+its replies, not the searches behind them.
+
+- [x] Each remembered turn keeps its tool calls and their results; whole turns are dropped
+      past the limit, so a call never loses its result (D-100).
+- [x] Prompt v1.3: tool results from earlier turns count, so follow-ups are answered from
+      them; a named tour is searched by its name, without a city; an unknown availability
+      is answered without reading out a web address.
+- [x] Checked with Claude on a local gateway, two passes of four spoken questions in one
+      visit: no reply took back an earlier one, where a prompt rule alone (twice) and the
+      calls with a stand-in result (twice) still did.
 
 ---
 
