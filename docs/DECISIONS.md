@@ -1465,8 +1465,8 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   "unknown" as "I can't check live availability", never as unavailable.
 - **Reason:** Ahmed asked for it on 10 Oct; until then Sarjy could only send travellers to
   the website for dates. SayTech knows availability per ticket and departure, and when it
-  has no data it says `unknown`, which today covers the buggy, the desert safari, Dubai
-  Parks, Warner Bros. World and the helicopter. In the first live run the model dodged a
+  has no data it says `unknown`, which on 10 Oct covers the buggy, the desert safari, Dubai
+  Parks, Warner Bros. World and the helicopter's longer flights. In the first live run the model dodged a
   date question rather than checking ("I can't confirm Monday"), so the rule asks for the
   check whenever a date comes up, not only before claiming one.
 - **Alternatives considered:** caching availability like the catalogue (a stale
@@ -1474,9 +1474,12 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   to `get_tour` (one more call on every detail question, and a date the model often
   doesn't have yet); working out the party's total in Sarjy (SayTech's checkout already
   does it, with its own rules for children and infants).
-- **Found on the way:** the helicopter's tracked tickets have no capacity set in SayTech, so
-  SayTech's own booking engine and website calendar treat it as sold out on every day.
-  That is a data fix in SayTech, flagged to Ahmed.
+- **Found on the way:** the helicopter's tracked tickets had no capacity set in SayTech, so
+  SayTech's own booking engine and website calendar treated them as sold out on every day;
+  the Museum of the Future had the same problem. Fixed in SayTech's production data on
+  10 Oct at 07:46 UTC, on Ahmed's instruction, with 30 places a departure until Magic
+  Experience loads its real allotments; checked live, the 12- and 15-minute flights now
+  answer `available` with 30 left and a party total.
 
 ### D-85 Sarjy's audio wakes on every gesture; a microphone iOS silenced is asked for again
 
