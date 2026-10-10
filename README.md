@@ -17,11 +17,11 @@ https://github.com/user-attachments/assets/17d66582-cc63-4d73-a3ed-cc4f994d5378
 _The 60-second teaser: real recordings of the live app, narrated by Sarjy's own voice._
 
 **Try it:** <https://sarjy.magicexperience.ae>, in Chrome or Safari, on a laptop or a phone.
-No login and nothing to install: allow the microphone, tap the microphone and speak, then
-tap again to send (or switch to holding it in the settings). The page opens in voice mode:
-Sarjy's orb takes turns with you, and its words light up as they are spoken; the ✕ opens the
-full conversation, with what Sarjy remembers, your earlier visits and the latency
-waterfall.
+No login and nothing to install: allow the microphone, hold the microphone button (or Space
+on a laptop) while you speak, and let go to send; the settings switch it to tap to start,
+tap to send. The page opens in voice mode: Sarjy's orb takes turns with you, and its words
+light up as they are spoken; the ✕ opens the full conversation, with what Sarjy remembers,
+your earlier visits and the latency waterfall.
 
 <p align="center">
   <img src="docs/media/phone.jpg" height="320" alt="Voice mode on an iPhone: Sarjy says the helicopter flight from Palm Island is available next Saturday for two adults, its words lighting up as they are spoken">
