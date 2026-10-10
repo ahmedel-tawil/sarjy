@@ -1166,9 +1166,13 @@ Goal: submitted by 11 Oct, 5 PM, with docs a reviewer can follow without me.
 
 ### M5.1 Cost per conversation
 
-- [ ] A small table estimates one conversation's cost from measured numbers: STT seconds,
-      LLM tokens, TTS compute time, hosting.
-- [ ] It shows what self-hosted TTS changes compared with a per-character bill.
+- [x] A small table estimates one conversation's cost from measured numbers: STT seconds,
+      LLM tokens, TTS compute time, hosting. `docs/COST.md`: about $0.027 for the
+      ten-question script, half of it compute, with prompt caching halving the model's
+      share.
+- [x] It shows what self-hosted TTS changes compared with a per-character bill: a third of
+      `tts-1` and a ninth of ElevenLabs Flash per conversation, while a warm TTS instance
+      ($3.63 a day) pays for itself from about 44 conversations a day against ElevenLabs.
 
 ### M5.2 README
 
