@@ -35,11 +35,17 @@ export class Recorder implements AudioRecorder {
     return this.#recorder === null || this.#meter === null ? 0 : this.#meter.current()
   }
 
-  // The first call shows the permission prompt; later turns reuse the stream. The meter
-  // shares the player's audio context, which a user gesture has already started.
+  // The first call shows the permission prompt; later turns reuse the stream while it
+  // still hears. iOS ends or mutes it when the screen locks, and recording it then would
+  // send silence, so it is asked for again (D-85). The meter shares the player's context.
   async prepare(context: AudioContext): Promise<void> {
-    if (this.#stream !== null) {
+    if (this.#stream !== null && hears(this.#stream)) {
       return
+    }
+    if (this.#stream !== null) {
+      for (const track of this.#stream.getTracks()) {
+        track.stop()
+      }
     }
     this.#stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     this.#meter = new LevelMeter(context, this.#stream)
@@ -82,4 +88,8 @@ export class Recorder implements AudioRecorder {
     await stopped
     return recording
   }
+}
+
+function hears(stream: MediaStream): boolean {
+  return stream.getAudioTracks().some((track) => track.readyState === 'live' && !track.muted)
 }

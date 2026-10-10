@@ -1,5 +1,10 @@
 import { levelOf } from './level-meter'
 
+// The gestures a browser accepts for starting audio. On a touchscreen a finger going down
+// is not one, only lifting it, so on an iPhone the orb's press alone cannot start Sarjy's
+// voice (D-85).
+const WAKE_EVENTS = ['keydown', 'pointerup', 'touchend'] as const
+
 export interface AudioPlayer {
   // Plays this clip right after the ones already queued; resolves when it has ended.
   enqueue(audio: ArrayBuffer, onStart: (durationMs: number) => void): Promise<void>
@@ -7,7 +12,7 @@ export interface AudioPlayer {
   finished(): Promise<void>
   // How loud the output is right now, from 0 (silent) to 1.
   level(): number
-  unlock(): Promise<AudioContext>
+  unlock(): AudioContext
 }
 
 interface Output {
@@ -81,13 +86,11 @@ export class Player implements AudioPlayer {
     return levelOf(samples)
   }
 
-  // Must run inside a user gesture: Safari keeps audio silent until then. Returns the
-  // started context, so the recorder's level meter can share it.
-  async unlock(): Promise<AudioContext> {
+  // Called on a press: Safari keeps audio silent until a gesture starts it. Returns the
+  // context, so the recorder's level meter can share it.
+  unlock(): AudioContext {
     const { context } = this.#outputNodes()
-    if (context.state === 'suspended') {
-      await context.resume()
-    }
+    this.#wake()
     return context
   }
 
@@ -97,6 +100,16 @@ export class Player implements AudioPlayer {
       const analyser = context.createAnalyser()
       analyser.connect(context.destination)
       this.#output = { analyser, context, samples: new Float32Array(analyser.fftSize) }
+      // Any later gesture, and coming back to the page, starts the audio again: iOS stops
+      // it for a locked screen, a call or Siri, even halfway through a reply.
+      for (const type of WAKE_EVENTS) {
+        window.addEventListener(type, () => {
+          this.#wake()
+        }, { capture: true })
+      }
+      document.addEventListener('visibilitychange', () => {
+        this.#wake()
+      })
     }
     return this.#output
   }
@@ -122,5 +135,18 @@ export class Player implements AudioPlayer {
       onStart(durationMs)
     }, (startAt - context.currentTime) * 1000)
     return { ended }
+  }
+
+  // Starts the audio if anything stopped it: before the first gesture it is 'suspended',
+  // and iOS uses 'interrupted' after a lock. Not awaited, because iOS can hold the promise
+  // until an interruption ends, and a recording must not wait for that.
+  #wake(): void {
+    const context = this.#output?.context
+    if (context === undefined || context.state === 'running' || context.state === 'closed') {
+      return
+    }
+    context.resume().catch(() => {
+      // Refused without a gesture; the next tap tries again.
+    })
   }
 }

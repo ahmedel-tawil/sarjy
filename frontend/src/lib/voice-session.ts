@@ -363,7 +363,7 @@ export class VoiceSession implements AudioLevels, PushToTalk, Replayer, Visit, V
 
   async #startRecording(): Promise<void> {
     const releasesBefore = this.#releases
-    const context = await this.#player.unlock()
+    const context = this.#player.unlock()
     await this.#recorder.prepare(context)
     // Released while the permission prompt was open: wait for the next press.
     if (this.#releases !== releasesBefore) {
