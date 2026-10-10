@@ -19,7 +19,7 @@ export const PROBLEMS: Record<Problem, ProblemShown> = {
   'llm_failed': { kind: 'turn', text: 'Sarjy couldn’t find an answer this time. Ask again.' },
   'mic_unavailable': {
     kind: 'microphone',
-    text: 'Allow the microphone for this site in your browser’s address bar, then try the orb again.',
+    text: 'Allow the microphone for this site in your browser’s address bar, or on an iPhone reload the page and tap Allow. Then try the orb again.',
   },
   'no_audio': { kind: 'hint', text: 'Sarjy didn’t hear any words. Speak while the orb is listening.' },
   'no_speech': { kind: 'hint', text: 'Sarjy didn’t hear any words. Speak while the orb is listening.' },
