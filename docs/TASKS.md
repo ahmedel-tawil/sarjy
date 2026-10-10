@@ -1215,8 +1215,10 @@ Goal: submitted by 11 Oct, 5 PM, with docs a reviewer can follow without me.
 
 ### M5.3 Finish `LATENCY.md`
 
-- [ ] Where the time goes (final breakdown), each experiment with before/after p50/p95,
-      what worked, what didn't, and what I'd do with another week.
+- [x] Where the time goes (final breakdown), each experiment with before/after p50/p95,
+      what worked, what didn't, and what I'd do with another week: a Summary at the top of
+      `LATENCY.md`, from a final 30-turn run on `sarjy.magicexperience.ae` (TTFA 4.1 s p50,
+      6.4 s p95; 7.9 s and 10.7 s at the baseline).
 
 ### M5.4 Code walkthrough and clean-up
 

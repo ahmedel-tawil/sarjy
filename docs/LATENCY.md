@@ -5,6 +5,96 @@ the experiments that bring it down. Every number here was measured. Each experim
 changes one thing against the current best configuration, runs the same script, and
 records p50 and p95 before and after.
 
+## Summary
+
+Time to first audio (TTFA) runs from letting go of the orb to the first sound of the answer.
+Three runs of the same ten spoken questions on the deployed service, 30 turns each, warm:
+
+| Gap | Baseline, 9 Oct | Sentence streaming, 9 Oct | Final, 10 Oct |
+| --- | --- | --- | --- |
+| `stt` | 731 / 897 ms | 742 / 913 ms | 766 / 978 ms |
+| `llm_first_word` | 2,276 / 3,570 ms | 1,010 / 2,789 ms | 1,039 / 2,545 ms |
+| `first_sentence` | 375 / 534 ms | 224 / 659 ms | 208 / 700 ms |
+| `tts` | 3,478 / 5,879 ms | 810 / 2,662 ms | 1,204 / 2,839 ms |
+| `network_and_browser` | 496 / 970 ms | 230 / 625 ms | 236 / 560 ms |
+| **`ttfa`** | **7,894 / 10,674 ms** | **3,369 / 6,548 ms** | **4,097 / 6,405 ms** |
+
+p50 / p95. The final run (`final.jsonl`) went through `https://sarjy.magicexperience.ae`
+with everything since: the TTS cache, prompt caching, the activity status, live
+availability, and history that keeps tool results.
+
+### Where the time goes now
+
+Shares of the final run's mean TTFA (4.0 s), leaving out one turn whose audio stalled for
+12.8 s on its way to the laptop:
+
+| Gap | Mean | Share |
+| --- | --- | --- |
+| `llm_first_word` | 1.5 s | 37% |
+| `tts` | 1.1 s | 29% |
+| `stt` | 0.8 s | 20% |
+| `first_sentence` | 0.3 s | 7% |
+| `network_and_browser` | 0.3 s | 7% |
+
+- **The model's first word is the biggest share,** and it doubles when a tool round comes
+  before any word: about 1.0 s when Sarjy speaks first (no tool, or a short "let me check"
+  before the tool), 2.1 to 2.5 s when a search or a forecast runs before the first word.
+- **TTS is now the length of the first sentence.** It rose from 0.8 s to 1.2 s at p50
+  between the two streaming runs while nothing changed in TTS: the clips were 28% longer
+  (249 KB against 195 KB at the median, about a second more speech), as the model opened
+  with longer sentences, and synthesis took 15% longer per KB. A turn that opened with a
+  cached sentence spent 0 ms on TTS: the two colour questions, "my name" and "thanks"
+  answered in 2.3 to 3.2 s.
+- **Speech to text and the network are steady,** about 0.8 s and 0.25 s, and the load
+  balancer in front of the domain added nothing measurable.
+
+### The experiments
+
+| # | Change | Result | Kept |
+| --- | --- | --- | --- |
+| 1 | Baseline: the whole reply synthesised, then sent | TTFA 7.9 s p50, 10.7 s p95; TTS half the wait | — |
+| 2 | Speak each sentence as soon as it is written | TTFA 3.4 s p50, 6.5 s p95; TTS 3.5 → 0.8 s | yes |
+| 3 | TTS cache in the gateway | 1 sentence in 10 a hit; a cached first sentence skips about 1.3 s; medians unchanged | yes |
+| 4 | Model choice | Haiku passed 18 of 20 checks, the only one to save facts; Qwen was fast only by skipping tools | Haiku, gpt-oss-120b fallback |
+| 5 | Lean vs raw tool payloads | 0 to 10% more tokens raw; no latency difference | lean |
+| 6 | Warm vs cold | A cold TTS added 6 s to the first turn; waking it as a visit opens hides it | wake-up, warm for review week |
+| 7 | Region | Doha costs 0.3 to 0.45 s a turn in provider hops against US East | Doha |
+| 8 | Kokoro on GPU | not run: no GPUs in `me-central1` | cut |
+| 9 | Prompt caching | no latency change; input bill down two thirds | yes, for cost |
+
+### What worked
+
+- **Sentence streaming** (D-76, D-77): the one change that halved the wait, because TTS
+  stopped waiting for the whole reply.
+- **A bigger, awake TTS** (D-70, D-78): 8 vCPU cut a sentence from 3.7 to 2.1 s, and waking
+  TTS when a visit opens hides a 6 s cold start.
+- **Measuring every turn** (D-74): seven marks on two clocks, stored per turn, the harness
+  and the waterfall in the page, so every claim here has a run file behind it.
+
+### What didn't
+
+- **Prompt caching, the region and the payload size** changed little or no latency, each
+  with the numbers to show it; caching stayed for its cost.
+- **The TTS cache** helps only the turns that open with a sentence it has heard; the
+  medians didn't move.
+- **The fastest model** was fast because it skipped its tools; correctness decided the
+  model, not the first word.
+
+### What I'd do with another week
+
+1. **A short first sentence.** TTS now scales with the first sentence, so ask the model to
+   open with a short clause, or split a long first sentence at its first comma: my
+   estimate is 0.3 to 0.6 s at the median.
+2. **A cached filler while tools run.** A tool round costs about a second before any word;
+   playing a pre-synthesised "Let me check" from the TTS cache the moment a tool is called
+   would make tool turns sound as quick as plain ones.
+3. **Streaming speech to text,** transcribing while the traveller still speaks, to remove
+   most of the 0.8 s wait after they let go.
+4. **A US region with a GPU for TTS** (experiments 7 and 8), measured first from a vantage
+   point in the Gulf.
+5. **Hands-free turns and barge-in** (M4.5, M4.6, cut for the submission), and a deploy
+   that hands visits over instead of dropping them (D-102).
+
 ## Marks
 
 Every turn has a `turn_id` (a UUIDv7 in hex) and seven marks (D-04).
