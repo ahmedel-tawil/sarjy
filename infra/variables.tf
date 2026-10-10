@@ -59,3 +59,9 @@ variable "tts_min_instances" {
     error_message = "tts_min_instances must be 0 or 1."
   }
 }
+
+variable "custom_domain" {
+  type        = string
+  description = "The gateway's own domain (M4.7); its A record in DigitalOcean points at the load balancer."
+  default     = "sarjy.saytech.ae"
+}

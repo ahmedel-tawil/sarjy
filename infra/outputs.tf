@@ -27,3 +27,8 @@ output "database_connection_name" {
   description = "The Cloud SQL instance, as the gateway's socket path and gcloud name it."
   value       = google_sql_database_instance.main.connection_name
 }
+
+output "custom_domain_address" {
+  description = "The IP address the custom domain's A record points to."
+  value       = google_compute_global_address.gateway.address
+}
