@@ -1206,11 +1206,13 @@ Goal: submitted by 11 Oct, 5 PM, with docs a reviewer can follow without me.
 
 ### M5.2 README
 
-- [ ] One-command local run, checked on a fresh clone.
-- [ ] Architecture diagram; decisions and trade-offs (linking `DECISIONS.md`); the API
+- [x] One-command local run, checked on a fresh clone: `docker compose up --build` built
+      Postgres, TTS and the gateway from a new clone in 5.5 minutes and answered a spoken
+      turn; empty names copied from `.env.example` keep their defaults.
+- [x] Architecture diagram; decisions and trade-offs (linking `DECISIONS.md`); the API
       justification in 2–3 sentences, as the brief asks; cost estimate; tested-devices
       table; links to `LATENCY.md`.
-- [ ] Credit to Sarj's public standards, and how AI was used.
+- [x] Credit to Sarj's public standards, and how AI was used.
 - [ ] Every command in it has been run and works.
 
 ### M5.3 Finish `LATENCY.md`
