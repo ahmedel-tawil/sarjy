@@ -921,11 +921,14 @@ the page's queue in M3.6.
 
 ### M3.11 Experiment 7: region
 
-- [ ] The cost of the network hop is measured: from the Gulf to the gateway, and from the
-      gateway's region to each provider.
-- [ ] If a second region is deployed for the test, it is removed afterwards, with your
-      approval.
-- [ ] Results and the final region choice are in `LATENCY.md` and `DECISIONS.md`.
+- [x] The cost of the network hop is measured with `scripts/hops.sh`: from the gateway's
+      region to each provider (Groq 254 ms, Anthropic 192 ms to the first byte, against 84
+      and 48 ms from US East), and from Ahmed's laptop to the gateway. No vantage point in
+      the Gulf itself: `me-central2` refused the job, so that hop is estimated.
+- [x] No second region was deployed: the hops ran as short Cloud Build jobs in each region,
+      so there is nothing to remove.
+- [x] Results and the final region choice are in `LATENCY.md` and `DECISIONS.md`: stay in
+      `me-central1` for the submission, with a US region the option to revisit (D-98).
 
 ### M3.12 Experiment 8 (stretch, cut list #3): Kokoro on GPU
 

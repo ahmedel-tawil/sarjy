@@ -353,6 +353,52 @@ Abu Dhabi, whose warm median is 4.7 s (experiment 2). One pass of the script eac
 The review week runs with one warm instance of each, set back to 0 afterwards; the
 wake-up stays as the safety net when nothing is warm.
 
+## Experiment 7: region
+
+The gateway and TTS run in `me-central1` (Doha), next to the Gulf, while the AI
+providers sit far away. `scripts/hops.sh` times each place a turn reaches over five fresh
+connections, in medians: the TCP connect after DNS, the TLS handshake, and the wait for the
+first byte of a small answer. It ran on 10 Oct from Ahmed's laptop and, through
+`docs/latency/hops/cloudbuild.yaml`, inside Google Cloud in `me-central1` (twice) and
+`us-east1`. Nothing was deployed; each run is a short Cloud Build job that prints the
+table. `me-central2` (Dammam), the nearest stand-in for Gulf visitors, refused the job:
+the region needs special access.
+
+| First byte, ms | From `me-central1` (the gateway) | From `us-east1` | From the laptop |
+| --- | --- | --- | --- |
+| Groq (STT, fallback LLM) | 251–254 | 84 | 263 |
+| Anthropic (Claude) | 191–192 | 48 | 193 |
+| SayTech | 136–139 | 147 | 151 |
+| Open-Meteo | 90–94 | 103 | 117 |
+| Our gateway in `me-central1` | 7–8 | 1,027 | 268 |
+| A Cloud Run service in `us-east1` (gcping) | 959–1,045 | 8 | 205 |
+
+A first byte here is one round trip to the provider's nearest edge plus the edge's trip to
+the provider's servers. Groq and Anthropic connect through nearby edges (11 ms from US
+East, about 80 ms from Doha), but their servers answer from the US. The laptop's second run
+was 1.5 to 2 times slower across the board, so a home connection at night varies more than
+the regions do.
+
+- **Doha pays about 0.3 to 0.45 s of distance a turn.** A turn waits for these answers one
+  after another: speech to text, then Claude, then a tool, then Claude again. A turn with
+  no tool waits about 446 ms on the network from Doha against 132 ms from US East; a turn
+  with a SayTech tool, about 777 ms against 327 ms.
+- **A US gateway would hand some of it back to the visitor.** Each turn crosses between
+  the visitor and the gateway about once on its critical path (the end of the question up,
+  the first audio down). From a Gulf visitor that is a short hop to Doha and roughly
+  0.2 s to the US East coast, an estimate, since no Gulf vantage point could be measured.
+  From the laptop, US East was no slower than Doha (205 against 268 ms).
+- **Google's path between Doha and US East was slow.** About a second each way, in every
+  run, while Doha to Iowa was about 0.2 s. It doesn't touch a turn today, but rules out
+  splitting the gateway and TTS across those two regions.
+- **The deep dive's bigger levers are elsewhere.** Sentence streaming saved 4.5 s at the
+  median and a warm TTS about 6 s on a cold turn; the region is worth a few hundred
+  milliseconds, at the cost of moving the database, registry, secrets and both services.
+
+The services stay in `me-central1` for the submission (D-98). A US region is the option to
+revisit after it: it would cut the provider hops and offers GPUs for TTS (experiment 8),
+measured first from a vantage point in the Gulf.
+
 ## Experiment 9: prompt caching
 
 Every round sends the tools and the system prompt again, about 3,050 tokens that are the
