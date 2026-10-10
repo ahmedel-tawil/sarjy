@@ -1485,9 +1485,10 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   end (the gestures a browser accepts for starting audio), and when the page comes back
   into view. Nothing waits for that resume, so a recording never waits on the audio. The
   recorder reuses the microphone only while its track is live and unmuted; otherwise it
-  stops it, asks again and rebuilds the level meter on the new stream. The microphone
-  card tells iPhone users to reload and tap Allow. Clip scheduling on the audio clock,
-  `finished()` and `level()` are unchanged (D-77). (M4.3, 10 Oct.)
+  stops it, asks again and rebuilds the level meter on the new stream (replaced the same
+  day by D-86: the microphone opens for each question). The microphone card tells iPhone
+  users to reload and tap Allow. Clip scheduling on the audio clock, `finished()` and
+  `level()` are unchanged (D-77). (M4.3, 10 Oct.)
 - **Reason:** on a touchscreen only lifting a finger counts as a gesture that may start
   audio, and the orb presses as the finger goes down, so the press alone may not start
   Sarjy's voice on an iPhone. iOS puts the context in an `interrupted` state for a locked
@@ -1499,6 +1500,28 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   late, and a mouse or keyboard does not need it); playing a silent clip to unlock (not
   needed once `resume()` runs in a gesture; to add only if a real iPhone stays silent);
   releasing the microphone after every question (each press would wait for it again).
+
+### D-86 The microphone is open only while Sarjy listens
+
+- **Decision:** each press opens the microphone and the end of each question closes it,
+  stopping its tracks, so the browser tab, macOS and iOS show it in use only while the
+  orb listens. A turn that fails while listening closes it too, and a press is ignored
+  while the microphone is still opening. A release before it is open (a quick tap, or
+  letting go to answer the permission prompt) closes it again with the "didn't hear any
+  words" hint, as a short tap already had. In Safari, the Audio Session API is set to
+  `auto` while the microphone is open and to `playback` once it closes. Replaces D-85's
+  reuse of the stream. (M4.3, 10 Oct, with Ahmed.)
+- **Reason:** Ahmed saw the microphone shown in use in Chrome, on macOS and on his iPhone
+  for the rest of the visit after the first question, while nobody was speaking: a
+  signal a visitor would rightly distrust. A new stream for each question also covers
+  iOS ending or muting it during a lock, with no check needed. With the microphone
+  closed, Safari plays Web Audio as background sound, which an iPhone's silent switch
+  mutes; `playback` keeps Sarjy's voice audible.
+- **Cost:** each press waits for the microphone to open before the orb listens (not yet
+  measured). Time to first audio is unchanged, since it starts at the release.
+- **Alternatives considered:** keeping the stream with its tracks disabled (the device
+  stays open, so the indicators can stay on); closing it after some idle seconds (quicker
+  follow-ups, but the indicator stays on after every question).
 
 ## Open decisions
 
