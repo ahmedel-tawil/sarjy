@@ -97,6 +97,8 @@ interface TurnInFlight {
 
 export class VoiceSession implements AudioLevels, PushToTalk, Replayer, Visit, VoicePicker {
   readonly #callbacks: VoiceSessionCallbacks
+  // While the microphone opens, a second press would open it twice.
+  #opening = false
   readonly #player = new Player()
   readonly #recorder = new Recorder()
   // Counted rather than flagged, so press() can tell whether a release happened while
@@ -156,7 +158,7 @@ export class VoiceSession implements AudioLevels, PushToTalk, Replayer, Visit, V
 
   press(): void {
     // One turn at a time: each speech_end must pair with the audio of its own reply.
-    if (this.#status !== 'idle') {
+    if (this.#status !== 'idle' || this.#opening) {
       return
     }
     this.#callbacks.onProblem(null)
@@ -346,6 +348,8 @@ export class VoiceSession implements AudioLevels, PushToTalk, Replayer, Visit, V
   }
 
   #report(problem: Problem): void {
+    // A turn that fails while listening must not leave the microphone open.
+    this.#recorder.close()
     // A reply whose voice never came is still worth reading.
     const turn = this.#turn
     if (turn !== null && !turn.started && turn.reply !== null) {
@@ -364,9 +368,16 @@ export class VoiceSession implements AudioLevels, PushToTalk, Replayer, Visit, V
   async #startRecording(): Promise<void> {
     const releasesBefore = this.#releases
     const context = this.#player.unlock()
-    await this.#recorder.prepare(context)
-    // Released while the permission prompt was open: wait for the next press.
+    this.#opening = true
+    try {
+      await this.#recorder.open(context)
+    } finally {
+      this.#opening = false
+    }
+    // Released before the microphone was open, or while its permission prompt was showing:
+    // nothing was recorded, so it closes again and says so, as a tap does.
     if (this.#releases !== releasesBefore) {
+      this.#report('no_speech')
       return
     }
     this.#recorder.start((chunk) => {
