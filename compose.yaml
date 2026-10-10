@@ -1,6 +1,9 @@
-# Local Postgres for development, the same major version as Cloud SQL (M2.2, D-64).
-#     docker compose up db
-# The password only guards this local container, bound to 127.0.0.1; it is no secret.
+# Sarjy on one machine (M5.2): Postgres, the TTS service and the gateway with the built
+# page, from the same Dockerfiles as production. With the keys in .env:
+#     docker compose up --build        # then open http://localhost:8080
+#     docker compose up -d --wait db   # Postgres alone, for development (M2.2, D-64)
+# The database password only guards this local container, bound to 127.0.0.1; it is no
+# secret.
 services:
   db:
     image: postgres:18
@@ -19,6 +22,42 @@ services:
       test: ["CMD", "pg_isready", "-U", "sarjy", "-d", "sarjy"]
       interval: 2s
       retries: 15
+
+  tts:
+    build:
+      context: .
+      dockerfile: tts/Dockerfile
+    environment:
+      PORT: "8080"
+    # The model takes a few seconds to load; the gateway starts once TTS answers.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 2s
+      retries: 30
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    # The provider keys, never committed (.env.example lists the names).
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: "8080"
+      SARJY_TTS_URL: http://tts:8080
+      SARJY_DATABASE_URL: postgresql://sarjy:sarjy@db:5432/sarjy
+      # Claude first, as in production (D-69, D-96), unless .env says otherwise.
+      SARJY_LLM_PRIMARY: ${SARJY_LLM_PRIMARY:-claude}
+      # Plain http on localhost: browsers other than Chrome and Firefox drop a secure cookie.
+      SARJY_COOKIE_SECURE: "false"
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      tts:
+        condition: service_healthy
 
 volumes:
   db-data:
