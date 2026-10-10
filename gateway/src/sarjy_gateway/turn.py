@@ -72,7 +72,8 @@ class TurnError(Exception):
 class Conversation:
     max_turns: int
     voice: str | None = None
-    history: list[ChatMessage] = field(default_factory=list[ChatMessage])
+    # The most recent turns, each its question, the tool calls it made and its reply.
+    recent: list[list[ChatMessage]] = field(default_factory=list[list[ChatMessage]])
     # Set once the visit is stored; None when the database is unavailable, and then turns
     # are spoken but not saved.
     session_id: SessionId | None = None
@@ -87,10 +88,25 @@ class Conversation:
     client_ip: str = "unknown"
     turns_taken: int = 0
 
-    def remember(self, user: str, assistant: str) -> None:
-        self.history += [ChatMessage(role="user", content=user), ChatMessage(role="assistant", content=assistant)]
+    @property
+    def history(self) -> list[ChatMessage]:
+        return [message for turn in self.recent for message in turn]
+
+    # Tool calls and their results stay in the history: without them, a later turn saw
+    # prices it had said with nothing behind them and took them back as made up, even with
+    # the calls kept and a stand-in for each result (D-100).
+    def remember(self, user: str, assistant: str, tool_calls: Sequence[ToolCall], tool_results: Sequence[str]) -> None:
+        turn = [ChatMessage(role="user", content=user)]
+        if tool_calls:
+            turn.append(ChatMessage(role="assistant", content="", tool_calls=list(tool_calls)))
+            turn += [
+                ChatMessage(role="tool", content=result, tool_call_id=call.call_id)
+                for call, result in zip(tool_calls, tool_results, strict=True)
+            ]
+        turn.append(ChatMessage(role="assistant", content=assistant))
         # Only recent turns go to the LLM: older context costs tokens and latency (D-15).
-        self.history = self.history[-2 * self.max_turns :]
+        # Whole turns are dropped, so a tool call never loses its result.
+        self.recent = [*self.recent, turn][-self.max_turns :]
 
 
 @dataclass(frozen=True)
@@ -104,10 +120,11 @@ class CompletedTurn:
     tool_results: list[str]
 
 
-# The model's spoken answer, and what its tools returned on the way.
+# The model's spoken answer, the tools it called on the way and what they returned.
 @dataclass(frozen=True)
 class Answer:
     reply: str
+    tool_calls: list[ToolCall]
     tool_results: list[str]
 
 
@@ -127,6 +144,7 @@ class ModelRound:
 @dataclass(frozen=True)
 class Conversed:
     final: ModelRound
+    tool_calls: list[ToolCall]
     tool_results: list[str]
 
 
@@ -241,7 +259,7 @@ class TurnPipeline:
             wav = await self._speak(answer.reply, conversation.voice, turn_id)
             timeline.mark("tts_first_byte")
             await listener.audio(turn_id, answer.reply, wav)
-        conversation.remember(transcript, answer.reply)
+        conversation.remember(transcript, answer.reply, answer.tool_calls, answer.tool_results)
         turn = CompletedTurn(turn_id, transcript, answer.reply, timeline.marks, answer.tool_results)
         logger.info("turn %(turn_id)s completed", {"turn_id": turn_id, "marks": turn.marks})
         return turn
@@ -269,7 +287,7 @@ class TurnPipeline:
         listener: TurnListener,
     ) -> Answer:
         conversed = await self._converse(system, transcript, conversation, turn_id, listener=listener, speaker=None)
-        return self._spoken(conversed.final, conversed.tool_results, timeline, turn_id)
+        return self._spoken(conversed, timeline, turn_id)
 
     # Experiment 2: every sentence is spoken as soon as it is written, including any the
     # model writes before calling a tool, which plays while the tool runs (D-76). The
@@ -289,7 +307,7 @@ class TurnPipeline:
             raise TurnError(code="llm_failed", turn_id=turn.turn_id)
         reply = " ".join(sentences)
         await listener.reply(turn.turn_id, reply, tour_links(reply, conversed.tool_results))
-        return Answer(reply, conversed.tool_results)
+        return Answer(reply, conversed.tool_calls, conversed.tool_results)
 
     # Asks the model, runs any tools it calls and asks again with their results, until it
     # answers in words. Only this turn's tool messages are sent; history keeps the replies.
@@ -312,6 +330,7 @@ class TurnPipeline:
             ChatMessage(role="user", content=transcript),
         ]
         toolbox = self._toolbox.including(conversation.tools)
+        tool_calls: list[ToolCall] = []
         tool_results: list[str] = []
         for round_number in range(MAX_TOOL_ROUNDS + 1):
             tools = toolbox.specs if round_number < MAX_TOOL_ROUNDS else []
@@ -320,16 +339,17 @@ class TurnPipeline:
             if speaker is not None:
                 speaker.round_ended()
             if not model_round.tool_calls:
-                return Conversed(model_round, tool_results)
+                return Conversed(model_round, tool_calls, tool_results)
             for call in model_round.tool_calls:
                 activity = activity_of(call, system.today, tool_results)
                 if activity is not None:
                     await listener.activity(turn_id, activity)
             results = await toolbox.run_all(model_round.tool_calls, turn_id)
+            tool_calls += model_round.tool_calls
             tool_results += results
             if answered_while_saving(model_round, results):
                 logger.info("turn %(turn_id)s answered while saving facts, so it ends", {"turn_id": turn_id})
-                return Conversed(model_round, tool_results)
+                return Conversed(model_round, tool_calls, tool_results)
             messages.append(ChatMessage(role="assistant", content=model_round.text, tool_calls=model_round.tool_calls))
             for call, result in zip(model_round.tool_calls, results, strict=True):
                 messages.append(ChatMessage(role="tool", content=result, tool_call_id=call.call_id))
@@ -367,13 +387,14 @@ class TurnPipeline:
         return ModelRound("".join(parts), assemble_tool_calls(call_pieces), first_text_at, usage)
 
     @staticmethod
-    def _spoken(model_round: ModelRound, tool_results: list[str], timeline: Timeline, turn_id: str) -> Answer:
+    def _spoken(conversed: Conversed, timeline: Timeline, turn_id: str) -> Answer:
+        model_round = conversed.final
         reply = model_round.text.strip()
         if not reply or model_round.first_text_at is None:
             raise TurnError(code="llm_failed", turn_id=turn_id)
         # The first word of the answer that is spoken, after any tool rounds (D-57).
         timeline.mark("llm_first_token", at=model_round.first_text_at)
-        return Answer(reply, tool_results)
+        return Answer(reply, conversed.tool_calls, conversed.tool_results)
 
     async def _speak(self, reply: str, voice: str | None, turn_id: str) -> bytes:
         try:

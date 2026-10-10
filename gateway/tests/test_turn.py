@@ -15,7 +15,14 @@ from sarjy_gateway.llm import (
 from sarjy_gateway.stt import RateLimitedError, SpeechToTextError
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox, ToolFailure
 from sarjy_gateway.tts import TextToSpeechError
-from sarjy_gateway.turn import MAX_TOOL_ROUNDS, CompletedTurn, Conversation, TurnError, TurnPipeline, already_heard
+from sarjy_gateway.turn import (
+    MAX_TOOL_ROUNDS,
+    CompletedTurn,
+    Conversation,
+    TurnError,
+    TurnPipeline,
+    already_heard,
+)
 
 from gateway.tests.fakes import (
     FIXED_PROMPT,
@@ -163,11 +170,31 @@ def test_the_llm_sees_the_system_prompt_recent_turns_and_the_new_question() -> N
     ]
 
 
+# A later turn sees which tool an earlier answer came from, so it doesn't take the answer
+# back as made up (D-100).
+def test_a_later_turn_sees_the_tools_an_earlier_one_called() -> None:
+    llm = FakeChatModel(rounds=[[DUBAI_CALL], [TextDelta("It will be sunny.")], [TextDelta("You're welcome.")]])
+    pipeline = pipeline_with(llm, FakeWeatherTool())
+    conversation = Conversation(max_turns=6)
+
+    asyncio.run(pipeline.run(b"first", conversation, RecordingListener()))
+    asyncio.run(pipeline.run(b"second", conversation, RecordingListener()))
+
+    weather = ToolCall(call_id="call-1", name="get_weather", arguments='{"city": "Dubai", "date": "2026-10-09"}')
+    assert llm.requests[2][2:] == [
+        ChatMessage(role="user", content="What can we do in Abu Dhabi?"),
+        ChatMessage(role="assistant", content="", tool_calls=[weather]),
+        ChatMessage(role="tool", content='{"temperature_c": 31}', tool_call_id="call-1"),
+        ChatMessage(role="assistant", content="It will be sunny."),
+        ChatMessage(role="user", content="What can we do in Abu Dhabi?"),
+    ]
+
+
 def test_only_the_most_recent_turns_are_kept() -> None:
     conversation = Conversation(max_turns=2)
 
     for number in range(5):
-        conversation.remember(f"question {number}", f"answer {number}")
+        conversation.remember(f"question {number}", f"answer {number}", [], [])
 
     assert [message.content for message in conversation.history] == [
         "question 3",
