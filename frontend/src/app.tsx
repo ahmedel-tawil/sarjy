@@ -1,4 +1,4 @@
-import { WifiDisconnected01Icon } from '@hugeicons/core-free-icons'
+import { AiVoiceIcon, WifiDisconnected01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
@@ -20,6 +20,7 @@ import { TalkOrb } from '@/components/talk-orb'
 import { Button } from '@/components/ui/button'
 import { useTalkControls } from '@/components/use-talk-controls'
 import { useVoices } from '@/components/use-voices'
+import { VoiceMode } from '@/components/voice-mode'
 import type { EarlierVisit, RememberedFact } from '@/lib/protocol'
 import {
   type AudioLevels,
@@ -64,6 +65,10 @@ const RESTING: Readonly<Record<TalkMode, string>> = HAS_KEYBOARD
 
 const REHEARSE_AS = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('rehearse') : null
 
+// In development, ?concept=voice opens concept two, a full-screen voice mode for phones; it
+// works with ?rehearse too. Production builds never show it.
+const VOICE_CONCEPT = import.meta.env.DEV && new URLSearchParams(window.location.search).get('concept') === 'voice'
+
 function App() {
   const [status, setStatus] = useState<Status>('idle')
   const [problem, setProblem] = useState<null | Problem>(null)
@@ -89,6 +94,7 @@ function App() {
   // Dubai" (D-94). Cleared when it starts speaking again and when the turn ends.
   const [activity, setActivity] = useState<null | string>(null)
   const [talkMode, setTalkMode] = useState<TalkMode>(initialTalkMode)
+  const [voiceMode, setVoiceMode] = useState(VOICE_CONCEPT)
   const orbRef = useRef<HTMLButtonElement>(null)
 
   const [{ catalogue, session, startReplay }] = useState<{
@@ -154,11 +160,11 @@ function App() {
         setActivity(null)
         const replayed = replayingId
         if (replayed !== null) {
-          setReplay((current) => (current?.turnId === replayed ? { ...current, clips: [...current.clips, { durationMs, text }] } : current))
+          setReplay((current) => (current?.turnId === replayed ? { ...current, clips: [...current.clips, { durationMs, startedAt: performance.now(), text }] } : current))
           return
         }
         answering = null
-        updateLast((turn) => ({ clips: [...turn.clips, { durationMs, text }] }))
+        updateLast((turn) => ({ clips: [...turn.clips, { durationMs, startedAt: performance.now(), text }] }))
       },
       onStatus: (next) => {
         if (next === 'thinking') {
@@ -232,6 +238,60 @@ function App() {
     setTalkMode(mode)
     saveTalkMode(mode)
   }
+  const talkDisabled = visitOver || reconnecting || status === 'thinking' || status === 'speaking'
+  const orb = (
+    <TalkOrb
+      animateIn={welcomed}
+      describedBy={STATUS_LINE_ID}
+      disabled={talkDisabled}
+      label={orbLabel(talkMode, status)}
+      levels={session}
+      onPress={talk.onPress}
+      onRelease={talk.onRelease}
+      orbRef={orbRef}
+      palette={palette}
+      phase={PHASE_FOR[status]}
+      revealed={orbRevealed}
+    />
+  )
+  const cards = <ProblemCards microphone={problem === 'mic_unavailable'} visitOver={visitOver} />
+
+  if (voiceMode) {
+    return (
+      <div className="bg-background text-foreground">
+        <div className="contents" inert={welcoming}>
+          <VoiceMode
+            cards={cards}
+            disabled={talkDisabled}
+            levels={session}
+            line={{ id: STATUS_LINE_ID, ...line }}
+            onClose={() => {
+              setVoiceMode(false)
+            }}
+            onPress={talk.onPress}
+            onRelease={talk.onRelease}
+            orb={orb}
+            settings={
+              <SettingsMenu
+                busy={status !== 'idle'}
+                colours={{ onChange: setPalette, palette }}
+                large
+                onTalkMode={chooseTalkMode}
+                onVoice={chooseVoice}
+                talkMode={talkMode}
+                voice={voice}
+                voices={voices?.voices ?? null}
+              />
+            }
+            status={status}
+            talkMode={talkMode}
+            turn={turns.at(-1)}
+          />
+        </div>
+        {welcoming ? <FirstLoad onDocked={revealOrb} onDone={endWelcome} orbRef={orbRef} /> : null}
+      </div>
+    )
+  }
 
   return (
     <div className="flex h-svh flex-col bg-background text-foreground">
@@ -247,6 +307,19 @@ function App() {
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex items-center gap-1">
+            {VOICE_CONCEPT ? (
+              <Button
+                aria-label="Voice mode"
+                onClick={() => {
+                  setVoiceMode(true)
+                }}
+                size="icon-sm"
+                title="Voice mode"
+                variant="ghost"
+              >
+                <HugeiconsIcon icon={AiVoiceIcon} />
+              </Button>
+            ) : null}
             <PaletteSwitcher onChange={setPalette} palette={palette} />
             <SettingsMenu
               busy={status !== 'idle'}
@@ -298,20 +371,8 @@ function App() {
             </div>
           </div>
           <div className="pb-safe flex flex-col items-center gap-1 pt-2">
-            <ProblemCards microphone={problem === 'mic_unavailable'} visitOver={visitOver} />
-            <TalkOrb
-              animateIn={welcomed}
-              describedBy={STATUS_LINE_ID}
-              disabled={visitOver || reconnecting || status === 'thinking' || status === 'speaking'}
-              label={orbLabel(talkMode, status)}
-              levels={session}
-              onPress={talk.onPress}
-              onRelease={talk.onRelease}
-              orbRef={orbRef}
-              palette={palette}
-              phase={PHASE_FOR[status]}
-              revealed={orbRevealed}
-            />
+            {cards}
+            {orb}
             <p aria-live="polite" className={line.trouble ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'} id={STATUS_LINE_ID}>
               <span className="label-in inline-block" key={line.text}>
                 {line.text}

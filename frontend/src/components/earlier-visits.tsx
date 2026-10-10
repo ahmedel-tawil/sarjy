@@ -73,7 +73,7 @@ export function EarlierVisits({ busy, onReplay, replay, visits }: EarlierVisitsP
                         </Button>
                       </div>
                       {replaying !== null && replaying.clips.length > 0 ? (
-                        <SpokenWords clips={replaying.clips} earlier />
+                        <SpokenWords clips={replaying.clips} size="earlier" />
                       ) : (
                         <p className="text-pretty">{turn.reply}</p>
                       )}

@@ -4,9 +4,17 @@ import { Fragment } from 'react'
 const HIGHLIGHT_STRETCH = 1.5
 const SHORTEST_HIGHLIGHT_MS = 240
 
+const SIZES = {
+  caption: 'text-2xl/snug font-medium text-balance',
+  earlier: 'text-pretty',
+  reply: 'text-lg/relaxed text-pretty md:text-xl/relaxed',
+} as const
+
 // One clip of Sarjy's voice and the words it speaks: a sentence when streaming (D-77).
 export interface SpokenClip {
   durationMs: number
+  // performance.now() as the clip started playing.
+  startedAt: number
   text: string
 }
 
@@ -19,10 +27,11 @@ interface TimedWord {
 // Sarjy's reply, word by word as it is spoken. Each clip's words arrive as its audio starts
 // and are spread across the clip's length, longer words taking longer; a CSS delay reveals
 // each one at its moment, in the accent colour, before it settles into ink.
-// An earlier visit's answer is set smaller than the current visit's (D-84).
-export function SpokenWords({ clips, earlier = false }: { clips: SpokenClip[]; earlier?: boolean }) {
+// An earlier visit's answer is set smaller than the current visit's (D-84), and voice mode's
+// caption larger.
+export function SpokenWords({ clips, size = 'reply' }: { clips: SpokenClip[]; size?: keyof typeof SIZES }) {
   return (
-    <p className={earlier ? 'text-pretty' : 'text-lg/relaxed text-pretty md:text-xl/relaxed'}>
+    <p className={SIZES[size]}>
       {clips.map((clip, clipIndex) =>
         timeWords(clip).map((word, index) => (
           // Clips and their words only append, so their positions are stable keys.
@@ -30,8 +39,12 @@ export function SpokenWords({ clips, earlier = false }: { clips: SpokenClip[]; e
             <span
               className="spoken-word"
               ref={(span) => {
-                span?.style.setProperty('--word-at', `${String(Math.round(word.atMs))}ms`)
-                span?.style.setProperty('--word-ms', `${String(Math.round(word.lengthMs))}ms`)
+                // Timed once, from when the clip started: words drawn after it began, as when
+                // the page switches layout, reveal on time, and ones already said simply show.
+                if (span !== null && span.style.getPropertyValue('--word-at') === '') {
+                  span.style.setProperty('--word-at', `${String(Math.round(word.atMs - (performance.now() - clip.startedAt)))}ms`)
+                  span.style.setProperty('--word-ms', `${String(Math.round(word.lengthMs))}ms`)
+                }
               }}
             >
               {word.text}
