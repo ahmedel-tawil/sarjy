@@ -262,14 +262,12 @@ function App() {
         <div className="contents" inert={welcoming}>
           <VoiceMode
             cards={cards}
-            disabled={talkDisabled}
             levels={session}
             line={{ id: STATUS_LINE_ID, ...line }}
+            memory={{ busy: status !== 'idle', facts: shownFacts, onForgetMe: forgetMe }}
             onClose={() => {
               setVoiceMode(false)
             }}
-            onPress={talk.onPress}
-            onRelease={talk.onRelease}
             orb={orb}
             settings={
               <SettingsMenu
@@ -283,8 +281,8 @@ function App() {
                 voices={voices?.voices ?? null}
               />
             }
-            status={status}
-            talkMode={talkMode}
+            talk={{ disabled: talkDisabled, onPress: talk.onPress, onRelease: talk.onRelease, status, talkMode }}
+            timed={timed}
             turn={turns.at(-1)}
           />
         </div>

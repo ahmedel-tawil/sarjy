@@ -28,37 +28,43 @@ interface LatencyPanelProps {
   turns: TimedTurn[]
 }
 
-// The live waterfall (M3.2): the last turn's time to first audio as the headline, then
-// the last few turns as bars split into their stages, all on one scale for comparison.
+// The live waterfall (M3.2) in the full page's side column.
 export function LatencyPanel({ turns }: LatencyPanelProps) {
-  const recent = turns.slice(-RECENT_TURNS)
-  const last = recent.at(-1)
   return (
     <Card size="sm">
       <CardHeader>
         <CardTitle>How fast Sarjy answered</CardTitle>
       </CardHeader>
       <CardContent>
-        {last === undefined ? (
-          <p className="text-muted-foreground">Ask something to see the time from when you let go to Sarjy’s first sound.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <p className="font-heading text-3xl font-medium tabular-nums">
-              {seconds(last.ttfaMs)} s <span className="text-sm font-normal text-muted-foreground">to first audio</span>
-            </p>
-            <ol aria-label="Recent turns" className="flex flex-col gap-1.5">
-              {recent.map((turn) => (
-                <li className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums" key={turn.id}>
-                  <TurnBar turn={turn} />
-                  {seconds(turn.ttfaMs)} s
-                </li>
-              ))}
-            </ol>
-            {last.stages === null ? null : <StageLegend stages={last.stages} />}
-          </div>
-        )}
+        <LatencyWaterfall turns={turns} />
       </CardContent>
     </Card>
+  )
+}
+
+// The last turn's time to first audio as the headline, then the last few turns as bars
+// split into their stages, all on one scale for comparison. Voice mode shows it on its own.
+export function LatencyWaterfall({ turns }: LatencyPanelProps) {
+  const recent = turns.slice(-RECENT_TURNS)
+  const last = recent.at(-1)
+  if (last === undefined) {
+    return <p className="text-muted-foreground">Ask something to see the time from when you let go to Sarjy’s first sound.</p>
+  }
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="font-heading text-3xl font-medium tabular-nums">
+        {seconds(last.ttfaMs)} s <span className="text-sm font-normal text-muted-foreground">to first audio</span>
+      </p>
+      <ol aria-label="Recent turns" className="flex flex-col gap-1.5">
+        {recent.map((turn) => (
+          <li className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums" key={turn.id}>
+            <TurnBar turn={turn} />
+            {seconds(turn.ttfaMs)} s
+          </li>
+        ))}
+      </ol>
+      {last.stages === null ? null : <StageLegend stages={last.stages} />}
+    </div>
   )
 }
 
