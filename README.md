@@ -1,10 +1,20 @@
 # Sarjy
 
+[![Live](https://img.shields.io/badge/live-sarjy.magicexperience.ae-00696e)](https://sarjy.magicexperience.ae)
+[![Tests](https://github.com/ahmedel-tawil/sarjy/actions/workflows/tests.yml/badge.svg)](https://github.com/ahmedel-tawil/sarjy/actions/workflows/tests.yml)
+[![Standards](https://github.com/ahmedel-tawil/sarjy/actions/workflows/standards.yml/badge.svg)](https://github.com/ahmedel-tawil/sarjy/actions/workflows/standards.yml)
+[![Deploy](https://github.com/ahmedel-tawil/sarjy/actions/workflows/deploy.yml/badge.svg)](https://github.com/ahmedel-tawil/sarjy/actions/workflows/deploy.yml)
+![Python 3.14](https://img.shields.io/badge/python-3.14-15202d)
+
 Sarjy is a voice concierge for Magic Experience, a tour operator in Dubai. A traveller holds
 the orb and talks; Sarjy finds real UAE activities with their real prices and live
 availability, checks the weather, remembers what the traveller tells it across visits, and
 answers out loud. The deep dive is **latency**: time to first audio is measured on every
 turn, shown live in the page, and brought down through nine documented experiments.
+
+https://github.com/user-attachments/assets/17d66582-cc63-4d73-a3ed-cc4f994d5378
+
+_The 60-second teaser: real recordings of the live app, narrated by Sarjy's own voice._
 
 **Try it:** <https://sarjy.magicexperience.ae>, in Chrome or Safari, on a laptop or a phone.
 No login and nothing to install: allow the microphone, tap the microphone and speak, then
@@ -13,10 +23,17 @@ Sarjy's orb takes turns with you, and its words light up as they are spoken; the
 full conversation, with what Sarjy remembers, your earlier visits and the latency
 waterfall.
 
+<p align="center">
+  <img src="docs/media/phone.jpg" height="320" alt="Voice mode on an iPhone: Sarjy says the helicopter flight from Palm Island is available next Saturday for two adults, its words lighting up as they are spoken">
+  &nbsp;
+  <img src="docs/media/desktop.jpg" height="320" alt="The full view on a laptop: the desert safari question, Sarjy's answer with tomorrow's real forecast, links to the two safaris, and how fast Sarjy answered, split by stage">
+</p>
+
 | | |
 | --- | --- |
 | Loom walkthrough | _added at submission_ |
-| Short PDF | _added at submission_ |
+| Short PDF | [`docs/Sarjy.pdf`](docs/Sarjy.pdf) |
+| The code, chapter by chapter | [`docs/code/`](docs/code/README.md) |
 | Latency deep dive | [`docs/LATENCY.md`](docs/LATENCY.md) |
 | Cost per conversation | [`docs/COST.md`](docs/COST.md) |
 | Every decision, with its reason | [`docs/DECISIONS.md`](docs/DECISIONS.md) |
@@ -66,7 +83,45 @@ flowchart LR
   gateway -- "facts, turns, timings" --> db[("Cloud SQL<br/>Postgres")]
 ```
 
-One turn, from the moment the traveller lets go of the orb:
+One turn, from the moment the traveller lets go of the orb. The first sentence is spoken
+while the model is still writing the rest:
+
+```mermaid
+sequenceDiagram
+  participant P as Page
+  participant G as Gateway
+  participant W as Groq Whisper
+  participant C as Claude Haiku 5.5
+  participant A as SayTech, Open-Meteo
+  participant K as Kokoro TTS
+  P->>G: the question's audio, streamed while it is spoken
+  P->>G: turn_end, when the traveller lets go
+  par speech to text
+    G->>W: the audio
+    W-->>G: text
+  and at the same time
+    G->>G: builds the prompt
+  end
+  G-->>P: transcript
+  G->>C: prompt, history, tools
+  C-->>G: a tool call, for example search tours
+  G-->>P: activity, “Looking for tours in Abu Dhabi”
+  G->>A: search
+  A-->>G: tours and prices
+  G->>C: the tool's result
+  C-->>G: the answer, streamed
+  G->>K: the first complete sentence
+  K-->>G: WAV
+  G-->>P: its words, then its WAV
+  Note over P: the first sound
+  G->>K: the next sentence, while the first one plays
+  K-->>G: WAV
+  G-->>P: its words, then its WAV, queued on the audio clock
+  G-->>P: the whole reply with tour links, then the turn's timings
+```
+
+<details>
+<summary>The same turn, step by step</summary>
 
 1. The page has been streaming the question's audio while it was spoken; letting go sends
    `turn_end`.
@@ -81,6 +136,8 @@ One turn, from the moment the traveller lets go of the orb:
    sentence's words as they are spoken.
 5. The gateway stores the turn and its timing marks; the page adds its own and shows where
    the time went.
+
+</details>
 
 ## Latency
 
@@ -102,6 +159,26 @@ choice favoured the one that calls its tools correctly over the one that answers
 without them, and prompt caching, the region and the tool payload size changed little or
 nothing, each with the numbers to show it. `docs/LATENCY.md` has every experiment, where
 the time goes now, what worked, what didn't, and what I'd do with another week.
+
+<details>
+<summary>Where the time goes now, stage by stage</summary>
+
+The final run on `sarjy.magicexperience.ae`, 10 Oct. The share is of the mean time to first
+audio (4.0 s), leaving out one turn whose audio stalled on its way to the laptop.
+
+| Stage (its gap in `docs/LATENCY.md`) | p50 | p95 | Share |
+| --- | --- | --- | --- |
+| Speech to text (`stt`) | 0.77 s | 0.98 s | 20% |
+| The model's first word (`llm_first_word`) | 1.04 s | 2.55 s | 37% |
+| The first sentence complete (`first_sentence`) | 0.21 s | 0.70 s | 7% |
+| TTS for that sentence (`tts`) | 1.20 s | 2.84 s | 29% |
+| Network and browser (`network_and_browser`) | 0.24 s | 0.56 s | 7% |
+| **Time to first audio (`ttfa`)** | **4.10 s** | **6.41 s** | |
+
+The model's first word doubles when a search or a forecast runs before any word: about
+1.0 s when Sarjy speaks first, 2.1 to 2.5 s when a tool runs first.
+
+</details>
 
 ## Cost
 
@@ -175,7 +252,7 @@ tts/         the Kokoro TTS service and its text front end (sarjy_tts)
 frontend/    the React page, built into the gateway's image
 infra/       Terraform for Cloud Run, Cloud SQL, Artifact Registry, Secret Manager, CI access
 scripts/     deploy.sh (CI) and hops.sh (experiment 7)
-docs/        PRD, tasks, decisions, latency, cost, and the measured runs
+docs/        PRD, tasks, decisions, latency, cost, the measured runs, the code book, the PDF
 ```
 
 ## Standards and how it was built
