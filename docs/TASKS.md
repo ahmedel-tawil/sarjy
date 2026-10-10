@@ -1071,9 +1071,11 @@ Do this on 9 Oct (PRD: "Test Safari on day 2, not day 4").
 
 ### M4.7 Custom domain `sarjy.saytech.ae` (cut list #2)
 
-- [ ] The domain serves the app over HTTPS. Cloud Run domain mapping is not available in
+- [x] The domain serves the app over HTTPS. Cloud Run domain mapping is not available in
       `me-central1` (D-44), so this needs a global external load balancer: decide whether
-      it is worth the cost before starting.
+      it is worth the cost before starting. Decided on 10 Oct, for about $18 a month
+      (D-101): applied in `infra/domain.tf`, address `8.233.3.163`, with a Google-managed
+      certificate and http redirected to https; the run.app URL keeps working.
 - [ ] You add the DNS record in DigitalOcean.
 - [ ] The mic and the WebSocket work on the custom domain.
 

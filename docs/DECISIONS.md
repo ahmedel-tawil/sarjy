@@ -1548,6 +1548,25 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
 - **Alternatives considered:** a prompt rule alone; the calls with a stand-in result (both
   tried, both still retracted); summarising the results (another model call per turn).
 
+### D-101 `sarjy.saytech.ae` through a global load balancer
+
+- **Decision:** a global external Application Load Balancer fronts the gateway's Cloud Run
+  service through a serverless network endpoint group, with a static address, a
+  Google-managed certificate for `sarjy.saytech.ae` and a redirect from http to https.
+  Ahmed points the domain's A record in DigitalOcean at the address. The `run.app` URL
+  keeps working, and the services, region and deploys don't change.
+- **Reason:** a domain of our own reads better in the submission than a generated Cloud Run
+  URL, and the microphone needs HTTPS. Cloud Run's domain mapping isn't offered in
+  `me-central1` (D-44), so a load balancer is the supported way. It costs about $0.025 an
+  hour, roughly $18 a month or $4 for the review week, plus about a cent per GB.
+  WebSockets pass through it, and a visit's socket keeps Cloud Run's own 3600-second
+  request timeout, since a serverless backend takes no timeout of its own.
+- **Alternatives considered:** Firebase Hosting in front of Cloud Run (free certificates, but
+  it doesn't carry WebSockets); a reverse proxy on a DigitalOcean server (another machine to
+  run and another hop); moving the gateway to a region with domain mapping (D-98 keeps it in
+  Doha); Certificate Manager with DNS authorisation (the certificate could be issued before
+  the A record changes, at the cost of more resources and another DNS record).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
