@@ -1043,11 +1043,18 @@ connection and its recovery, rate limit, full visit).
 
 Do this on 9 Oct (PRD: "Test Safari on day 2, not day 4").
 
-- [ ] The recording format is chosen by what the browser supports (webm in Chrome, mp4 in
+- [x] The recording format is chosen by what the browser supports (webm in Chrome, mp4 in
       Safari), and STT accepts both.
-- [ ] Playback starts reliably on iOS after the first tap, including after the screen
-      locks and unlocks.
-- [ ] The full loop works in Safari on macOS and on iOS.
+- [x] Playback starts reliably on iOS after the first tap, including after the screen
+      locks and unlocks: audio wakes on every tap and on coming back to the page (D-85).
+- [x] The full loop works in Safari on macOS and on iOS.
+
+Checked on 10 Oct by Ahmed on the deployed URL, on his iPhone in Safari and in Safari on
+his Mac: questions transcribed and answered in both talk modes, a reply cut off by the
+lock screen finishing after unlock, a question heard after 30 s locked, and Sarjy
+audible with silent mode on. The microphone is now open only while Sarjy listens, so
+Chrome, macOS and iOS show it in use only then (D-86), and the Space hints show only
+where there is a keyboard.
 
 ### M4.4 Device test matrix
 
