@@ -13,11 +13,11 @@ import time
 from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
+from sarjy_gateway.app import tour_tools
 from sarjy_gateway.prompts import SystemPrompt
 from sarjy_gateway.services import build_services
 from sarjy_gateway.settings import Settings
 from sarjy_gateway.tools import TOOL_TIMEOUT_SECONDS, Toolbox, ToolError
-from sarjy_gateway.tour_tools import GetTourTool, SearchToursTool
 from sarjy_gateway.tts import Voices
 from sarjy_gateway.turn import Conversation, TurnPipeline
 from sarjy_gateway.weather import UAE_TIME
@@ -89,16 +89,22 @@ async def ask(questions: list[str]) -> None:
         message = "set SARJY_LLM_API_KEY or SARJY_ANTHROPIC_API_KEY in .env or the environment"
         raise SystemExit(message)
     services = build_services(settings)
+    # The app's own tour tools, so the script asks what Sarjy would.
     tools: list[Tool] = [
-        ShownTool(SearchToursTool(services.catalogue)),
-        ShownTool(GetTourTool(services.catalogue)),
+        *(ShownTool(tool) for tool in tour_tools(settings, services)),
         ShownTool(GetWeatherTool(services.weather, time.time)),
     ]
     stt = TypedQuestion()
     toolbox = Toolbox(tools, time.monotonic, TOOL_TIMEOUT_SECONDS)
     prompt = SystemPrompt(services.catalogue, lambda: datetime.now(UAE_TIME))
     pipeline = TurnPipeline(
-        stt, services.llm, NoSpeech(), toolbox, system_prompt=prompt.build, clock=time.monotonic, sentence_streaming=False
+        stt,
+        services.llm,
+        NoSpeech(),
+        toolbox,
+        system_prompt=prompt.build,
+        clock=time.monotonic,
+        sentence_streaming=False,
     )
     conversation = Conversation(max_turns=settings.max_history_turns)
     try:

@@ -1,8 +1,15 @@
+import datetime
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 
-from sarjy_gateway.catalogue import CatalogueQueryError, CatalogueUnavailableError, ProductType, TourQuery
+from sarjy_gateway.catalogue import (
+    AvailabilityQuery,
+    CatalogueQueryError,
+    CatalogueUnavailableError,
+    ProductType,
+    TourQuery,
+)
 from sarjy_gateway.llm import ToolSpec
 from sarjy_gateway.tools import ToolError
 
@@ -10,7 +17,7 @@ from sarjy_gateway.tools import ToolError
 if TYPE_CHECKING:
     from collections.abc import Awaitable
 
-    from sarjy_gateway.catalogue import Catalogue, RawCatalogue
+    from sarjy_gateway.catalogue import AvailabilityCatalogue, Catalogue, RawCatalogue
 
 
 # A spoken answer names two or three tours; five leaves the model room to choose.
@@ -49,6 +56,24 @@ class GetTourArguments(BaseModel):
     )
 
 
+# SayTech's limits: a range of at most a week, and parties of 0 to 50 of each kind.
+class CheckAvailabilityArguments(BaseModel):
+    slug: str = Field(min_length=1, max_length=200, description="The slug from a search result, exactly as given.")
+    product_type: ProductType = Field(
+        default="tour", description="'transfer' when the search result's type is transfer; otherwise leave it out."
+    )
+    date: datetime.date = Field(description="The day to check in UAE time, as YYYY-MM-DD; the first day of a range.")
+    days: int = Field(
+        default=1,
+        ge=1,
+        le=7,
+        description="How many days from `date` to check, up to 7. Leave it out for one day, which also gives prices.",
+    )
+    adults: int | None = Field(default=None, ge=0, le=50, description="Adults in the party, when the traveller said.")
+    children: int | None = Field(default=None, ge=0, le=50, description="Children in the party.")
+    infants: int | None = Field(default=None, ge=0, le=50, description="Infants in the party; they take a place.")
+
+
 class SearchToursTool:
     spec = ToolSpec(
         "search_tours",
@@ -80,6 +105,34 @@ class GetTourTool:
     async def run(self, arguments: str) -> str:
         tour = GetTourArguments.model_validate_json(arguments)
         return await answer_from(self._catalogue.tour(tour.product_type, tour.slug))
+
+
+# Live availability straight from SayTech, never from the catalogue's cache: it changes as
+# people book (D-99).
+class CheckAvailabilityTool:
+    spec = ToolSpec(
+        "check_availability",
+        "Check whether a tour from a search result can be booked on a date, or each day of up "
+        "to a week, for the traveller's party: each ticket's status, departure times and places "
+        "left, and for a single day the price, with the party's total when SayTech has one.",
+        CheckAvailabilityArguments.model_json_schema(),
+    )
+
+    def __init__(self, catalogue: AvailabilityCatalogue) -> None:
+        self._catalogue = catalogue
+
+    async def run(self, arguments: str) -> str:
+        check = CheckAvailabilityArguments.model_validate_json(arguments)
+        query = AvailabilityQuery(
+            product_type=check.product_type,
+            slug=check.slug,
+            first_day=check.date,
+            days=check.days,
+            adults=check.adults,
+            children=check.children,
+            infants=check.infants,
+        )
+        return await answer_from(self._catalogue.availability(query))
 
 
 # Experiment 5 (M3.9): the same two tools, answering with SayTech's response exactly as

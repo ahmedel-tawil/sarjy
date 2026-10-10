@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import datetime
 from typing import Literal, Protocol
 from urllib.parse import quote
 
@@ -100,6 +101,47 @@ class ApiContext(BaseModel):
     faqs: list[Faq]
 
 
+# A product's bookability per day, ticket and departure (D-99). Statuses stay text: the
+# model reads them, and the prompt says what each means.
+class ApiAvailabilityPrice(ApiPrice):
+    party_total: float | None
+
+
+class ApiDeparture(BaseModel):
+    time: str
+    status: str
+    left: int | None
+
+
+class ApiAvailabilityTicket(BaseModel):
+    name: str
+    status: str
+    times: list[ApiDeparture]
+    left: int | None
+    left_unit: str
+    price: ApiAvailabilityPrice | None
+
+
+class ApiAvailabilityDay(BaseModel):
+    date: datetime.date
+    weekday: str
+    status: str
+    tickets: list[ApiAvailabilityTicket]
+
+
+class ApiAvailabilityProduct(BaseModel):
+    type: ProductType
+    slug: str
+    name: str
+    url: str | None
+
+
+class ApiAvailability(BaseModel):
+    product: ApiAvailabilityProduct
+    tracked: bool
+    days: list[ApiAvailabilityDay]
+
+
 class ApiErrorDetails(BaseModel):
     known_cities: list[str] = []
     known_categories: list[str] = []
@@ -179,6 +221,42 @@ class CatalogueContext(BaseModel):
     faqs: list[Faq]
 
 
+class Departure(BaseModel):
+    time: str
+    status: str
+    left: int | None
+
+
+class TicketAvailability(BaseModel):
+    name: str
+    status: str
+    # Places left on an all-day ticket; a timed ticket counts per departure. None is not
+    # counted, never zero.
+    left: int | None
+    left_unit: str
+    # Only for a single day: a range of days gives each day's status, which is shorter.
+    times: list[Departure] | None
+    price: str | None
+    party_total: str | None
+
+
+class DayAvailability(BaseModel):
+    date: datetime.date
+    weekday: str
+    status: str
+    tickets: list[TicketAvailability]
+
+
+# Name and link at the top level, like get_tour's answer, so the tour's page goes beside
+# the reply (D-90) and the activity line can name it (D-94).
+class TourAvailability(BaseModel):
+    name: str
+    slug: str
+    link: str | None
+    tracked: bool
+    days: list[DayAvailability]
+
+
 # A search; None leaves that filter out.
 @dataclass(frozen=True)
 class TourQuery:
@@ -188,6 +266,19 @@ class TourQuery:
     max_price_aed: float | None
     accessible: bool | None
     limit: int
+
+
+# One product's availability: one day, or `days` days from `first_day` (at most 7). With no
+# party, SayTech checks for one person.
+@dataclass(frozen=True)
+class AvailabilityQuery:
+    product_type: ProductType
+    slug: str
+    first_day: datetime.date
+    days: int
+    adults: int | None
+    children: int | None
+    infants: int | None
 
 
 # SayTech understood the question and turned it down, for example an unknown city. The
@@ -208,6 +299,11 @@ class Catalogue(Protocol):
     async def search(self, query: TourQuery) -> TourSearch: ...
 
     async def tour(self, product_type: ProductType, slug: str) -> TourDetails: ...
+
+
+# Live availability, never cached: it changes as people book (D-99).
+class AvailabilityCatalogue(Protocol):
+    async def availability(self, query: AvailabilityQuery) -> TourAvailability: ...
 
 
 # SayTech's answers as they came, unmapped: experiment 5's raw tool payload (M3.9).
@@ -255,6 +351,18 @@ class SayTechCatalogue:
             notes=detail.notes,
             requirements=detail.requirements,
             languages=detail.languages,
+        )
+
+    async def availability(self, query: AvailabilityQuery) -> TourAvailability:
+        path = f"{tour_path(query.product_type, query.slug)}availability/"
+        found = parse(ApiAvailability, await self._get(path, availability_params(query)))
+        single_day = query.days == 1
+        return TourAvailability(
+            name=found.product.name,
+            slug=found.product.slug,
+            link=found.product.url,
+            tracked=found.tracked,
+            days=[lean_day(day, single_day=single_day) for day in found.days],
         )
 
     async def raw_search(self, query: TourQuery) -> str:
@@ -310,6 +418,18 @@ def search_params(query: TourQuery) -> tuple[tuple[str, str], ...]:
     return tuple(params)
 
 
+def availability_params(query: AvailabilityQuery) -> tuple[tuple[str, str], ...]:
+    if query.days == 1:
+        params = [("date", query.first_day.isoformat())]
+    else:
+        last_day = query.first_day + datetime.timedelta(days=query.days - 1)
+        params = [("from", query.first_day.isoformat()), ("to", last_day.isoformat())]
+    for name, count in (("adults", query.adults), ("children", query.children), ("infants", query.infants)):
+        if count is not None:
+            params.append((name, str(count)))
+    return tuple(params)
+
+
 # A 400 or 404 from the assistant module explains itself; a 400 in the shared
 # middleware's shape (no organisation) is a setup problem, not the model's question.
 def refusal(response: httpx2.Response) -> str:
@@ -359,6 +479,33 @@ def lean_tickets(tickets: list[ApiTicket]) -> list[TicketDetails]:
         )
         for ticket in tickets
     ]
+
+
+def lean_day(day: ApiAvailabilityDay, *, single_day: bool) -> DayAvailability:
+    return DayAvailability(
+        date=day.date,
+        weekday=day.weekday,
+        status=day.status,
+        tickets=[lean_ticket_availability(ticket, single_day=single_day) for ticket in day.tickets],
+    )
+
+
+def lean_ticket_availability(ticket: ApiAvailabilityTicket, *, single_day: bool) -> TicketAvailability:
+    price = ticket.price
+    return TicketAvailability(
+        name=ticket.name,
+        status=ticket.status,
+        left=ticket.left,
+        left_unit=ticket.left_unit,
+        times=[Departure(time=time.time, status=time.status, left=time.left) for time in ticket.times]
+        if single_day
+        else None,
+        price=None if price is None else price_text(price),
+        # SayTech's own checkout total for the party, never worked out here.
+        party_total=None
+        if price is None or price.party_total is None
+        else f"{price.currency} {amount_text(price.party_total)} for the party",
+    )
 
 
 def price_text(price: ApiPrice) -> str:

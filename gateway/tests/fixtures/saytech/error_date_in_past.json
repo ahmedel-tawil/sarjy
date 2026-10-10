@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "date_in_past",
+    "message": "2026-10-09 is in the past.",
+    "details": {
+      "today": "2026-10-10"
+    }
+  }
+}

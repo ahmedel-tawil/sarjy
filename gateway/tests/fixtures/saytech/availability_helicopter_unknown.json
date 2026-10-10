@@ -1,0 +1,79 @@
+{
+  "product": {
+    "id": "6985c1d14241ffc373f35d12",
+    "type": "tour",
+    "slug": "Helicopter - Flight",
+    "name": "Helicopter Flight from the Palm Island",
+    "url": "https://magicexperience.ae/tours/Helicopter%20-%20Flight"
+  },
+  "party": {
+    "adults": 2,
+    "children": 0,
+    "infants": 0
+  },
+  "tracked": true,
+  "days": [
+    {
+      "date": "2026-10-17",
+      "weekday": "Saturday",
+      "status": "unknown",
+      "tickets": [
+        {
+          "name": "12Mins Sharing",
+          "status": "unknown",
+          "times": [
+            {
+              "time": "09:25",
+              "status": "unknown",
+              "left": null
+            },
+            {
+              "time": "09:40",
+              "status": "unknown",
+              "left": null
+            },
+            {
+              "time": "09:50",
+              "status": "unknown",
+              "left": null
+            }
+          ],
+          "left": null,
+          "left_unit": "seats",
+          "price": {
+            "currency": "AED",
+            "from_amount": 715.0,
+            "on_request": false,
+            "lines": [
+              {
+                "pax_type": "adult",
+                "label": "Adult",
+                "amount": 715.0
+              },
+              {
+                "pax_type": "child",
+                "label": "Child",
+                "amount": 715.0
+              }
+            ],
+            "party_total": 1430.0
+          }
+        },
+        {
+          "name": "17Mins Sharing",
+          "status": "unknown",
+          "times": [],
+          "left": null,
+          "left_unit": "seats",
+          "price": {
+            "currency": "AED",
+            "from_amount": null,
+            "on_request": true,
+            "lines": [],
+            "party_total": null
+          }
+        }
+      ]
+    }
+  ]
+}

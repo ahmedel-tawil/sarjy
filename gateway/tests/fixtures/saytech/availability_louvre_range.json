@@ -1,0 +1,77 @@
+{
+  "product": {
+    "id": "695bfadeb0f964ca7fa53d77",
+    "type": "tour",
+    "slug": "louvre-abu-dhabi-18-years-and-above",
+    "name": "Louvre Abu Dhabi Ticket",
+    "url": "https://magicexperience.ae/tours/louvre-abu-dhabi-18-years-and-above"
+  },
+  "party": {
+    "adults": 2,
+    "children": 0,
+    "infants": 0
+  },
+  "tracked": true,
+  "days": [
+    {
+      "date": "2026-10-17",
+      "weekday": "Saturday",
+      "status": "available",
+      "tickets": [
+        {
+          "name": "General Admission",
+          "status": "available",
+          "times": [],
+          "left": null,
+          "left_unit": "seats",
+          "price": null
+        }
+      ]
+    },
+    {
+      "date": "2026-10-18",
+      "weekday": "Sunday",
+      "status": "available",
+      "tickets": [
+        {
+          "name": "General Admission",
+          "status": "available",
+          "times": [],
+          "left": null,
+          "left_unit": "seats",
+          "price": null
+        }
+      ]
+    },
+    {
+      "date": "2026-10-19",
+      "weekday": "Monday",
+      "status": "closed",
+      "tickets": [
+        {
+          "name": "General Admission",
+          "status": "closed",
+          "times": [],
+          "left": null,
+          "left_unit": "seats",
+          "price": null
+        }
+      ]
+    },
+    {
+      "date": "2026-10-20",
+      "weekday": "Tuesday",
+      "status": "available",
+      "tickets": [
+        {
+          "name": "General Admission",
+          "status": "available",
+          "times": [],
+          "left": null,
+          "left_unit": "seats",
+          "price": null
+        }
+      ]
+    }
+  ]
+}

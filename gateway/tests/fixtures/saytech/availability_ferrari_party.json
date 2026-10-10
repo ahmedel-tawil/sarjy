@@ -1,0 +1,74 @@
+{
+  "product": {
+    "id": "695bfadeb0f964ca7fa53d78",
+    "type": "tour",
+    "slug": "ferrari-world-abu-dhbai",
+    "name": "Ferrari World Abu Dhabi Tickets",
+    "url": "https://magicexperience.ae/tours/ferrari-world-abu-dhbai"
+  },
+  "party": {
+    "adults": 2,
+    "children": 2,
+    "infants": 0
+  },
+  "tracked": true,
+  "days": [
+    {
+      "date": "2026-10-17",
+      "weekday": "Saturday",
+      "status": "available",
+      "tickets": [
+        {
+          "name": "Ferrari World Fast Track Ticket",
+          "status": "available",
+          "times": [],
+          "left": null,
+          "left_unit": "seats",
+          "price": {
+            "currency": "AED",
+            "from_amount": 595.0,
+            "on_request": false,
+            "lines": [
+              {
+                "pax_type": "adult",
+                "label": "Adult",
+                "amount": 595.0
+              },
+              {
+                "pax_type": "child",
+                "label": "Child",
+                "amount": 595.0
+              }
+            ],
+            "party_total": 2380.0
+          }
+        },
+        {
+          "name": "Ferrari World General Admission",
+          "status": "available",
+          "times": [],
+          "left": null,
+          "left_unit": "seats",
+          "price": {
+            "currency": "AED",
+            "from_amount": 345.0,
+            "on_request": false,
+            "lines": [
+              {
+                "pax_type": "adult",
+                "label": "Adult",
+                "amount": 345.0
+              },
+              {
+                "pax_type": "child",
+                "label": "Child",
+                "amount": 345.0
+              }
+            ],
+            "party_total": 1380.0
+          }
+        }
+      ]
+    }
+  ]
+}
