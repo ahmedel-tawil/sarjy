@@ -1225,8 +1225,8 @@ Goal: submitted by 11 Oct, 5 PM, with docs a reviewer can follow without me.
 ### M5.4 Code walkthrough and clean-up
 
 - [ ] You have read every file and can explain each line.
-- [ ] No dead code, unexplained TODOs or leftover debug output.
-- [ ] `code-standards check`, type checks and tests are green.
+- [x] No dead code, unexplained TODOs or leftover debug output.
+- [x] `code-standards check`, type checks and tests are green.
 
 ### M5.5 Final acceptance run
 
@@ -1241,14 +1241,14 @@ Goal: submitted by 11 Oct, 5 PM, with docs a reviewer can follow without me.
 
 ### M5.6 Loom walkthrough
 
-- [ ] A short script: the four scenarios with the latency waterfall, the architecture, the
-      latency story, one code tour.
+- [x] A short script: the four scenarios with the latency waterfall, the architecture, the
+      latency story, one code tour (the code book, `docs/code/`).
 - [ ] Recorded, and the link works when logged out.
 
 ### M5.7 Short PDF
 
-- [ ] Two to four pages: what Sarjy is, how to try it, architecture, latency results,
-      decisions and next steps.
+- [x] Two to four pages: what Sarjy is, how to try it, architecture, latency results,
+      decisions and next steps (`docs/Sarjy.pdf`).
 
 ### M5.8 Submit (by 11 Oct, 5 PM)
 
@@ -1268,6 +1268,7 @@ in `docs/LATENCY.md` ("What I'd do with another week").
 - **A short first sentence** and **a cached filler while tools run** (latency summary).
 - **Streaming speech to text.**
 - **Deploys that hand visits over instead of dropping them** (D-102).
+- **The unspoken rest of a reply in writing when its voice fails** (D-81).
 
 ---
 
