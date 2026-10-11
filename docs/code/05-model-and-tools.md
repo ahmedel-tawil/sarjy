@@ -84,17 +84,17 @@ thousand tokens per visit, after the cache point.
 
 ## The prompt
 
-[`prompts.py`](../../gateway/src/sarjy_gateway/prompts.py) holds the rules, version 1.3.
+[`prompts.py`](../../gateway/src/sarjy_gateway/prompts.py) holds the rules, version 1.4.
 After a short paragraph on who Sarjy is, and that travellers mean Dubai unless they name
 another city, comes the most important rule: you know no tours and no prices of your own,
 so call `search_tours` before naming any ([D-62](../DECISIONS.md#d-62-prompt-v1-the-no-guessing-rule-first-defaults-in-code-context-during-stt)). Then how to speak (under fifty words, no lists or
-web addresses, [D-71](../DECISIONS.md#d-71-prompt-v11-names-weather-only-from-the-tool-under-fifty-words)), what Sarjy covers, how to use each tool (call it before writing
-anything, `get_tour` only for details, "price on request" said as such, a cooler time
+web addresses, [D-71](../DECISIONS.md#d-71-prompt-v11-names-weather-only-from-the-tool-under-fifty-words)), what Sarjy covers, how to use each tool (before a tool, nothing or one short
+sentence to the traveller, never the plan, [D-105](../DECISIONS.md#d-105-before-a-tool-one-short-sentence-to-the-traveller-never-the-plan); `get_tour` only for details, "price on request" said as such, a cooler time
 when it is 35 degrees or hotter, weather only from `get_weather`, availability checked
 whenever a date comes up, [D-99](../DECISIONS.md#d-99-live-availability-from-saytech-never-cached-unknown-said-honestly)), and how to use memory.
 
-[`system_prompt`](../../gateway/src/sarjy_gateway/prompts.py#L95) returns a
-[`Prompt`](../../gateway/src/sarjy_gateway/prompts.py#L86) in two parts ([D-93](../DECISIONS.md#d-93-claude-caches-the-shared-part-of-the-prompt)):
+[`system_prompt`](../../gateway/src/sarjy_gateway/prompts.py#L98) returns a
+[`Prompt`](../../gateway/src/sarjy_gateway/prompts.py#L89) in two parts ([D-93](../DECISIONS.md#d-93-claude-caches-the-shared-part-of-the-prompt)):
 
 | Part | Contents | Changes |
 | --- | --- | --- |
