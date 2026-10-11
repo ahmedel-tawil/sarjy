@@ -14,7 +14,9 @@ turn, shown live in the page, and brought down through nine documented experimen
 
 https://github.com/user-attachments/assets/17d66582-cc63-4d73-a3ed-cc4f994d5378
 
-_The 60-second teaser: real recordings of the live app, narrated by Sarjy's own voice._
+_The 60-second teaser: real recordings of the live app, narrated by Sarjy's own voice. The
+3½-minute [walkthrough](https://www.loom.com/share/e5f6bb2a2b874a6dabcec517bce36990) is made the
+same way and covers the whole demo, the architecture and the latency story._
 
 **Try it:** <https://sarjy.magicexperience.ae>, in Chrome or Safari, on a laptop or a phone.
 No login and nothing to install: allow the microphone, hold the microphone button (or Space
@@ -31,7 +33,7 @@ your earlier visits and the latency waterfall.
 
 | | |
 | --- | --- |
-| Loom walkthrough | _added at submission_ |
+| Walkthrough video, narrated by Sarjy (3½ min) | [Loom](https://www.loom.com/share/e5f6bb2a2b874a6dabcec517bce36990) |
 | Short PDF | [`docs/Sarjy.pdf`](docs/Sarjy.pdf) |
 | The code, chapter by chapter | [`docs/code/`](docs/code/README.md) |
 | Latency deep dive | [`docs/LATENCY.md`](docs/LATENCY.md) |
