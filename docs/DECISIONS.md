@@ -1667,6 +1667,35 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   allocated for the gateway only (it would speed up only the cache warm-up, for about $2 a
   day).
 
+### D-105 Before a tool, one short sentence to the traveller, never the plan
+
+- **Decision:** prompt v1.4 stops forbidding words before a tool call and says what they
+  may be: nothing, or one short sentence to the traveller about what Sarjy is checking
+  ("Let me check the weather in Abu Dhabi."), never the traveller in the third person and
+  never what it plans to do or save. When saving facts is all a turn needs, Sarjy calls
+  `remember_fact` and says one short sentence to the traveller with it ("Noted, you love
+  water activities."), since that sentence is the whole reply (D-95).
+- **Reason:** on 11 Oct, in Ahmed's walkthrough recordings, Sarjy spoke Claude's planning
+  aloud before its tools: "The user is in Abu Dhabi, travelling with kids next week,
+  budget under 400 dirhams. I'll search." and "The traveller shared lasting preferences,
+  so I should save them." v1.3 said to write nothing before a tool; the model often wrote
+  something anyway, and sentence streaming speaks it (D-76). In a local check of ten runs
+  per question, "My favorite color is green and I do like water activities" brought
+  planning or talk of saving in 4 of 10 runs under v1.3 and 1 of 10 under v1.4, and the
+  Abu Dhabi question now opens with "Let me check Abu Dhabi tours under 400 dirhams for
+  you." Experiment 4's script passed 27 of 30 checks under v1.4 against 18 of 20 under
+  v1.3 the same day, both failing only "What can I do in Dubai?", which each answered
+  from the earlier search as D-100 intends (`docs/latency/models/claude-haiku-prompt-v1-3.jsonl`
+  and `-v1-4.jsonl`); its first word came sooner, 0.76 s at p50 against 1.33 s, because a
+  tool turn now usually opens with a short sentence. A first draft that said only "what
+  you write is your whole reply" once answered "Noted" without saving, so the sentence now
+  names the tool.
+- **Alternatives considered:** never speaking text written before a tool (a round's text
+  can't be known to come before a tool until the round ends, so every answer would wait
+  for its whole round); dropping sentences that look like planning (brittle, and the same
+  slip comes in other words); turning thinking on so the planning goes there (it delays
+  the first spoken word).
+
 ## Open decisions
 
 Settled rows move up as D entries and their IDs are not reused, so gaps are expected.
