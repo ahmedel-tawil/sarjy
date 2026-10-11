@@ -43,7 +43,7 @@ One short message a day, even on a quiet day (PRD).
 - [ ] 8 Oct: voice loop status, deployed URL, first TTFA numbers
 - [ ] 9 Oct: memory and tools status, baseline numbers
 - [ ] 10 Oct: experiments so far
-- [ ] 11 Oct: final update with demo URL, repo, Loom and PDF (part of M5.8)
+- [ ] 11 Oct: final update with demo URL, repo, walkthrough, teaser and PDF (part of M5.8)
 
 ---
 
@@ -1190,7 +1190,7 @@ Goal: submitted by 11 Oct, 5 PM, with docs a reviewer can follow without me.
 | M5.3 | Finish `LATENCY.md` | 2 h | the M3 experiments that ran | no |
 | M5.4 | Code walkthrough and clean-up | 2 h | M2–M4 done | no |
 | M5.5 | Final acceptance run | 1 h | M5.4 | no |
-| M5.6 | Loom walkthrough | 1.5 h | M5.5 | no |
+| M5.6 | Walkthrough video, narrated by Sarjy (D-104) | 1.5 h | M5.5 | no |
 | M5.7 | Short PDF | 1.5 h | M5.3 | no |
 | M5.8 | Submit | 0.5 h | M5.6, M5.7 | no |
 
@@ -1239,11 +1239,14 @@ Goal: submitted by 11 Oct, 5 PM, with docs a reviewer can follow without me.
       goes through (M1.14); one first-time user understands what to do (M4.2); nothing
       moves with macOS Reduce motion on (M4.8).
 
-### M5.6 Loom walkthrough
+### M5.6 Walkthrough video
+
+Narrated by Sarjy over silent recordings of the live app, like the teaser, instead of a
+Loom narrated by Ahmed (D-104).
 
 - [x] A short script: the four scenarios with the latency waterfall, the architecture, the
       latency story, one code tour (the code book, `docs/code/`).
-- [ ] Recorded, and the link works when logged out.
+- [x] Recorded, and the link works when logged out.
 
 ### M5.7 Short PDF
 
@@ -1254,7 +1257,7 @@ Goal: submitted by 11 Oct, 5 PM, with docs a reviewer can follow without me.
 
 - [ ] If the repo is private, the reviewer's GitHub account has access.
 - [ ] The repository URL is submitted through Ashby.
-- [ ] Final update to Sarj with the demo URL, repo, Loom and PDF.
+- [ ] Final update to Sarj with the demo URL, repo, walkthrough, teaser and PDF.
 
 ---
 

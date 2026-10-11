@@ -276,6 +276,7 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   short update every day. AI is used openly, with `AGENTS.md` documenting the conventions.
 - **Reason:** The brief recommends the Loom or PDF, and the rubric scores communication.
   The rule I hold myself to: nothing is merged that I can't explain line by line.
+  **Changed 11 Oct:** the walkthrough is narrated by Sarjy instead of Ahmed (D-104).
 - **Alternatives considered:** none recorded.
 
 ### D-30 Python 3.14 for both services
@@ -1666,6 +1667,22 @@ candidates. Keep, edit or delete them, since reviewers may ask about them.
   fewer TTS vCPUs (a 60-word reply took 6.3 s on 8 and 9.0 s on 4, D-70); CPU always
   allocated for the gateway only (it would speed up only the cache warm-up, for about $2 a
   day).
+
+### D-104 A walkthrough narrated by Sarjy instead of a Loom narrated by Ahmed
+
+- **Decision:** the walkthrough sent before the meeting is cut from short, silent screen
+  recordings of the live app and the repository, narrated by Sarjy's own voice (Kokoro,
+  `af_heart`) the way the teaser is: three and a half minutes, on Loom. With the PDF, the
+  60-second teaser at the top of the README and the code book, it is what Sarj sees before
+  the meeting, and Ahmed walks through the code live in the meeting.
+- **Reason:** the brief recommends "a short loom / easily accessible PDF" so the meeting
+  can go straight to questions. A narrated six-minute Loom needed rehearsal time the
+  deadline day didn't have. Eight silent clips took about 25 minutes to record, each could
+  be redone, and every word on screen is still the real app's. Recording them also caught
+  a live bug: Sarjy speaking its planning aloud (D-105).
+- **Alternatives considered:** a Loom narrated by Ahmed from the shooting script (the
+  rehearsal time); only the PDF and the teaser (enough for the brief, but the walkthrough
+  shows the whole demo and the repository); a short camera-only hello (adds little).
 
 ### D-105 Before a tool, one short sentence to the traveller, never the plan
 
