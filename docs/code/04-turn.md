@@ -56,7 +56,7 @@ page cancels presses that are too short or too quiet before they are sent ([D-55
 
 ## The prompt, built while STT runs
 
-[`SystemPrompt.build`](../../gateway/src/sarjy_gateway/prompts.py#L139) needs SayTech's
+[`SystemPrompt.build`](../../gateway/src/sarjy_gateway/prompts.py#L142) needs SayTech's
 catalogue context, which comes through a 5-minute cache. On a cache miss that is a call to
 SayTech. Starting the build before transcription means that call overlaps STT instead of
 following it, so a miss adds nothing to the wait ([D-62](../DECISIONS.md#d-62-prompt-v1-the-no-guessing-rule-first-defaults-in-code-context-during-stt)). If SayTech can't be reached at
@@ -110,9 +110,10 @@ one ends ([D-76](../DECISIONS.md#d-76-sentence-streaming-every-written-sentence-
 surfaces when `finish()` waits for it.
 
 Text the model writes before calling a tool is spoken too, while the tool runs. The
-prompt asks the model to call tools first and write nothing before them; when it writes a
-short filler anyway, such as "I'll check tomorrow's weather", the traveller hears it at
-once. That filler then counts as the first audio, which is what the traveller hears, so
+prompt allows nothing, or one short sentence to the traveller about what Sarjy is
+checking, such as "Let me check the weather in Abu Dhabi", and never the model's own
+planning ([D-105](../DECISIONS.md#d-105-before-a-tool-one-short-sentence-to-the-traveller-never-the-plan)).
+That sentence then counts as the first audio, which is what the traveller hears, so
 time to first audio improves more than the answer itself does ([D-76](../DECISIONS.md#d-76-sentence-streaming-every-written-sentence-spoken-in-order-tools-first)).
 
 ### `SentenceChunker`
